@@ -34,7 +34,10 @@ class PlayEventTrackerTest {
         tracker.onPlayingChanged(true)
         time += 5_000
 
-        assertEquals(event(7, 15_000, 200_000, EndedBy.SKIPPED, StartedBy.PICKED, false), tracker.onStarted(entry(8), 200_000, StartedBy.NAV, false))
+        assertEquals(
+            event(7, 15_000, 200_000, EndedBy.SKIPPED, StartedBy.PICKED, false),
+            tracker.onStarted(entry(8), 200_000, StartedBy.NAV, false),
+        )
     }
 
     @Test
@@ -43,7 +46,10 @@ class PlayEventTrackerTest {
         tracker.onPlayingChanged(true)
         time += 100
 
-        assertEquals(event(7, 100, 100, EndedBy.COMPLETED, StartedBy.AUTO, false, PlaySource.QUEUE), tracker.onEndedNaturally())
+        assertEquals(
+            event(7, 100, 100, EndedBy.COMPLETED, StartedBy.AUTO, false, PlaySource.QUEUE),
+            tracker.onEndedNaturally(),
+        )
     }
 
     private fun entry(
