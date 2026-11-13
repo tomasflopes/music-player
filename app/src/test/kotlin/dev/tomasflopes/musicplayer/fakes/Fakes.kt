@@ -1,24 +1,36 @@
 package dev.tomasflopes.musicplayer.fakes
 
+import androidx.compose.runtime.Composable
+import dev.tomasflopes.musicplayer.core.model.Album
 import dev.tomasflopes.musicplayer.core.model.AlbumId
+import dev.tomasflopes.musicplayer.core.model.Artist
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
+import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
+import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.LibraryScanController
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.ScanPhase
 import dev.tomasflopes.musicplayer.core.model.ports.ScanProgress
+import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
+import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.PlaybackState
+import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 /** Records what screens ask the player to do; it never plays anything. */
 class FakePlaybackController : PlaybackController {
@@ -48,18 +60,30 @@ class FakePlaybackController : PlaybackController {
     override fun cycleRepeatMode() = Unit
 }
 
-/** A library that is just [songs] (and their [refs]); the queries a screen under test does not use are empty. */
+/**
+ * A library that is just [songs] (and their [refs]). [library] can be re-emitted to model a library change.
+ * [artistSongs] and [albumSongs] answer the per-artist and per-album queries; the others are empty.
+ */
 class FakeSongReader(
     private val refs: List<SongRef> = emptyList(),
-    private val songs: List<Song> = emptyList(),
+    songs: List<Song> = emptyList(),
+    private val artistSongs: Map<ArtistId, List<Song>> = emptyMap(),
+    private val albumSongs: Map<AlbumId, List<Song>> = emptyMap(),
 ) : SongReader {
-    override fun observeSongs(): Flow<List<Song>> = flowOf(songs)
+    val library = MutableStateFlow(songs)
 
-    override fun observeAddedSince(epochSec: Long): Flow<List<Song>> = emptyFlow()
+    override fun observeSongs(): Flow<List<Song>> = library
 
-    override fun observeAlbumSongs(id: AlbumId): Flow<List<Song>> = emptyFlow()
+    override fun observeAddedSince(epochSec: Long): Flow<List<Song>> =
+        library.map { list ->
+            list
+                .filter { it.dateAddedEpochSec >= epochSec }
+                .sortedByDescending { it.dateAddedEpochSec }
+        }
 
-    override fun observeArtistSongs(id: ArtistId): Flow<List<Song>> = emptyFlow()
+    override fun observeAlbumSongs(id: AlbumId): Flow<List<Song>> = flowOf(albumSongs[id].orEmpty())
+
+    override fun observeArtistSongs(id: ArtistId): Flow<List<Song>> = flowOf(artistSongs[id].orEmpty())
 
     override fun observeFeaturedOn(id: ArtistId): Flow<List<Song>> = emptyFlow()
 
@@ -70,16 +94,89 @@ class FakeSongReader(
     override suspend fun allSongRefs(): List<SongRef> = refs
 }
 
+/** [library] can be re-emitted to model a library change. */
+class FakeArtistReader(
+    artists: List<Artist> = emptyList(),
+) : ArtistReader {
+    val library = MutableStateFlow(artists)
+
+    override fun observeArtists(): Flow<List<Artist>> = library
+
+    override fun observeArtist(id: ArtistId): Flow<Artist?> = library.map { list -> list.firstOrNull { it.id == id } }
+}
+
+/** [library] can be re-emitted to model a library change. */
+class FakeAlbumReader(
+    albums: List<Album> = emptyList(),
+) : AlbumReader {
+    val library = MutableStateFlow(albums)
+
+    override fun observeAlbums(): Flow<List<Album>> = library
+
+    override fun observeAlbum(id: AlbumId): Flow<Album?> = library.map { list -> list.firstOrNull { it.id == id } }
+
+    override fun observeArtistAlbums(id: ArtistId): Flow<List<Album>> = emptyFlow()
+}
+
+/** Featured artists by song, as the scanner would have written them. */
+class FakeSongFeatureReader(
+    var features: Map<SongId, List<String>> = emptyMap(),
+) : SongFeatureReader {
+    override suspend fun namesFor(songId: SongId): List<String> = features[songId].orEmpty()
+
+    override suspend fun all(): Map<SongId, List<String>> = features
+}
+
+/** Keeps every appended search event, in order. */
+class FakeSearchHistoryWriter : SearchHistoryWriter {
+    val events = mutableListOf<SearchEvent>()
+
+    override suspend fun append(event: SearchEvent) {
+        events += event
+    }
+}
+
 class FakeSettingsRepository : SettingsRepository {
     val root = MutableStateFlow<MusicRoot?>(null)
     override val musicRoot: Flow<MusicRoot?> = root
-    override val recentlyAddedDays: Flow<Int> = MutableStateFlow(20)
+
+    /** The saved window; [setRecentlyAddedDays] changes it, as the real store does. */
+    val days = MutableStateFlow(20)
+    override val recentlyAddedDays: Flow<Int> = days
+
+    /** Every value a screen asked to save, in order. */
+    val savedDays = mutableListOf<Int>()
 
     override suspend fun setMusicRoot(root: MusicRoot) {
         this.root.value = root
     }
 
-    override suspend fun setRecentlyAddedDays(days: Int) = Unit
+    override suspend fun setRecentlyAddedDays(days: Int) {
+        savedDays += days
+        this.days.value = days
+    }
+}
+
+/** A dynamic list whose songs a test can change through [list]. */
+class FakeDynamicListProvider(
+    override val id: String,
+    override val order: Int = 0,
+    override val title: String = id,
+    override val playSource: PlaySource = PlaySource.MIX,
+    songs: List<Song> = emptyList(),
+) : DynamicListProvider {
+    val list = MutableStateFlow(songs)
+
+    override fun songs(): Flow<List<Song>> = list
+}
+
+/** A Home section that draws nothing; tests look at which sections Home would show and in what order. */
+class FakeHomeSection(
+    override val id: String,
+    override val order: Int = 0,
+) : HomeSection {
+    @Composable
+    override fun Content(onNavigate: (String) -> Unit) = Unit
 }
 
 class FakeScanController : LibraryScanController {

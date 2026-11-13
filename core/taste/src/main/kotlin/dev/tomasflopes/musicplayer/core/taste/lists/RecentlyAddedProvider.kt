@@ -17,7 +17,7 @@ class RecentlyAddedProvider(
     private val settings: SettingsRepository,
     private val clock: Clock,
 ) : DynamicListProvider {
-    override val id = "recently_added"
+    override val id = ID
     override val title = "Recently added"
     override val order = 0
     override val playSource = PlaySource.RECENTLY_ADDED
@@ -28,7 +28,9 @@ class RecentlyAddedProvider(
             .distinctUntilChanged()
             .flatMapLatest { days -> songs.observeAddedSince(clock.instant().epochSecond - days * SECONDS_PER_DAY) }
 
-    private companion object {
-        const val SECONDS_PER_DAY = 86_400L
+    companion object {
+        /** Also the route argument of its screen, which shows the days window only for this list. */
+        const val ID = "recently_added"
+        private const val SECONDS_PER_DAY = 86_400L
     }
 }

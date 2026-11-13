@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * The Home tab: which sections it shows and in what order, the library's scan state, and Shuffle all
+ * (which the Shuffle all section draws and calls through this ViewModel).
+ */
 @HiltViewModel
 class HomeViewModel
     @Inject
@@ -20,7 +24,15 @@ class HomeViewModel
         private val playback: PlaybackController,
         private val songs: SongReader,
         private val scanner: LibraryScanController,
+        homeSections: Set<@JvmSuppressWildcards HomeSection>,
     ) : ViewModel() {
+        init {
+            val ids = homeSections.map { it.id }
+            require(ids.size == ids.toSet().size) { "Home section ids must be unique, got $ids" }
+        }
+
+        val sections: List<HomeSection> = homeSections.sortedWith(compareBy({ it.order }, { it.id }))
+
         val scan: StateFlow<ScanProgress> = scanner.progress
 
         fun rescan() = scanner.requestScan()

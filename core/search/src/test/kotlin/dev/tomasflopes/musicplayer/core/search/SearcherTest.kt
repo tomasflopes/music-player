@@ -171,6 +171,14 @@ class SearcherTest {
     }
 
     @Test
+    fun `See all is offered when only mid-word matches are hidden`() {
+        val result = searcher().search("ed")
+
+        assertTrue(result.moreSongs, "Faded and Ended are only under See all")
+        assertTrue(!result.moreAlbums)
+    }
+
+    @Test
     fun `blank query is empty`() {
         val result = searcher().search("   ")
         assertNull(result.top)

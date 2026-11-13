@@ -9,6 +9,8 @@ import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.ui.art.CoverArtLoader
 import dev.tomasflopes.musicplayer.ui.art.MediaStoreCoverArtLoader
+import dev.tomasflopes.musicplayer.ui.search.CoreSearchEngineFactory
+import dev.tomasflopes.musicplayer.ui.search.SearchEngineFactory
 import java.time.Clock
 import javax.inject.Singleton
 
@@ -29,4 +31,8 @@ object AppModule {
     fun coverArtLoader(
         @ApplicationContext context: Context,
     ): CoverArtLoader = MediaStoreCoverArtLoader(context.contentResolver)
+
+    @Provides
+    @Singleton
+    fun searchEngineFactory(): SearchEngineFactory = CoreSearchEngineFactory()
 }

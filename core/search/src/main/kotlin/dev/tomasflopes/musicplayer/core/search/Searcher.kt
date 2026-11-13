@@ -20,6 +20,7 @@ class Searcher(
         val artistMatches = main.filter { it.doc.type == SearchItemType.ARTIST }
         val albumMatches = main.filter { it.doc.type == SearchItemType.ALBUM }
         val songMatches = main.filter { it.doc.type == SearchItemType.SONG }
+        val totalByType = matches.groupingBy { it.doc.type }.eachCount()
 
         return SearchResults(
             query = query,
@@ -27,9 +28,9 @@ class Searcher(
             artists = artistMatches.take(config.sectionSize).mapNotNull { it.toHit() as? ArtistHit },
             albums = albumMatches.take(config.sectionSize).mapNotNull { it.toHit() as? AlbumHit },
             songs = songMatches.take(config.sectionSize).mapNotNull { it.toHit() as? SongHit },
-            moreArtists = artistMatches.size > config.sectionSize,
-            moreAlbums = albumMatches.size > config.sectionSize,
-            moreSongs = songMatches.size > config.sectionSize,
+            moreArtists = totalByType.hasMoreThan(SearchItemType.ARTIST, artistMatches.size, config.sectionSize),
+            moreAlbums = totalByType.hasMoreThan(SearchItemType.ALBUM, albumMatches.size, config.sectionSize),
+            moreSongs = totalByType.hasMoreThan(SearchItemType.SONG, songMatches.size, config.sectionSize),
         )
     }
 
@@ -43,6 +44,14 @@ class Searcher(
             .filter { it.doc.type == type }
             .sortedWith(hitOrder)
             .mapNotNull { it.toHit() }
+
+    // "See all" must be offered whenever it would show something the section does not, and that includes the
+    // mid-word matches the section never lists, even when the section itself is not full.
+    private fun Map<SearchItemType, Int>.hasMoreThan(
+        type: SearchItemType,
+        mainCount: Int,
+        sectionSize: Int,
+    ): Boolean = (this[type] ?: 0) > minOf(mainCount, sectionSize)
 
     private fun DocMatch.toHit(): SearchHit? =
         when (doc.type) {

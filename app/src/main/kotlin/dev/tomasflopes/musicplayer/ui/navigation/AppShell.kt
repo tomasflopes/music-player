@@ -18,14 +18,19 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import dev.tomasflopes.musicplayer.ui.home.HomeScreen
+import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListRoute
+import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListScreen
 import dev.tomasflopes.musicplayer.ui.library.LibraryScreen
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
+import dev.tomasflopes.musicplayer.ui.search.SearchScreen
 import dev.tomasflopes.musicplayer.ui.shell.ShellState
 import dev.tomasflopes.musicplayer.ui.shell.ShellViewModel
 
@@ -59,8 +64,20 @@ private fun Tabs() {
             startDestination = TopLevelDestination.HOME.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(TopLevelDestination.HOME.route) { HomeScreen() }
+            composable(TopLevelDestination.HOME.route) {
+                HomeScreen(onNavigate = { route -> navController.navigate(route) })
+            }
+            composable(
+                route = DynamicListRoute.PATTERN,
+                arguments = listOf(navArgument(DynamicListRoute.ARG_ID) { type = NavType.StringType }),
+            ) { entry ->
+                DynamicListScreen(
+                    listId = entry.arguments?.getString(DynamicListRoute.ARG_ID).orEmpty(),
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(TopLevelDestination.LIBRARY.route) { LibraryScreen() }
+            composable(TopLevelDestination.SEARCH.route) { SearchScreen() }
         }
     }
 }

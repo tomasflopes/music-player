@@ -18,4 +18,5 @@ object Spacing {
 object ArtSize {
     val mini = 44.dp
     val row = 52.dp
+    val card = 96.dp
 }
