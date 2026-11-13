@@ -15,12 +15,16 @@ import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
-/** One song in any list: cover, title as tagged, "artist · album". Stateless: the caller decides what a tap does. */
+/**
+ * One song in any list: cover, title as tagged, "artist · album". Stateless: the caller decides what a tap does and
+ * what, if anything, goes at the end of the row ([trailing], e.g. a [SongMenuButton]).
+ */
 @Composable
 fun SongRow(
     song: Song,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier =
@@ -46,6 +50,7 @@ fun SongRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        trailing?.invoke()
     }
 }
 

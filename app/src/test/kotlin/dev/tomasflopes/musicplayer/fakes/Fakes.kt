@@ -37,13 +37,21 @@ class FakePlaybackController : PlaybackController {
     override val state: StateFlow<PlaybackState> = MutableStateFlow(PlaybackState())
     val requests = mutableListOf<PlayRequest>()
 
+    /** Every "Play next" and "Add to queue" call, in order, with the songs it carried. */
+    val playNextCalls = mutableListOf<List<SongRef>>()
+    val addToQueueCalls = mutableListOf<List<SongRef>>()
+
     override fun play(request: PlayRequest) {
         requests += request
     }
 
-    override fun playNext(songs: List<SongRef>) = Unit
+    override fun playNext(songs: List<SongRef>) {
+        playNextCalls += songs
+    }
 
-    override fun addToQueue(songs: List<SongRef>) = Unit
+    override fun addToQueue(songs: List<SongRef>) {
+        addToQueueCalls += songs
+    }
 
     override fun togglePlayPause() = Unit
 
@@ -62,7 +70,8 @@ class FakePlaybackController : PlaybackController {
 
 /**
  * A library that is just [songs] (and their [refs]). [library] can be re-emitted to model a library change.
- * [artistSongs] and [albumSongs] answer the per-artist and per-album queries; the others are empty.
+ * [artistSongs] and [albumSongs] answer the per-artist and per-album queries, [songsByIds] looks in [library];
+ * the others are empty.
  */
 class FakeSongReader(
     private val refs: List<SongRef> = emptyList(),
@@ -89,7 +98,10 @@ class FakeSongReader(
 
     override fun observeFolderSongs(folderPath: String): Flow<List<Song>> = emptyFlow()
 
-    override suspend fun songsByIds(ids: List<SongId>): List<Song> = emptyList()
+    override suspend fun songsByIds(ids: List<SongId>): List<Song> {
+        val byId = library.value.associateBy { it.id }
+        return ids.mapNotNull { byId[it] }
+    }
 
     override suspend fun allSongRefs(): List<SongRef> = refs
 }
