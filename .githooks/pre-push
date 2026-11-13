@@ -1,0 +1,5 @@
+#!/bin/sh
+# No cloud CI (docs/adr/0001): the full check runs here, locally, before every push.
+# Skip once with: git push --no-verify
+echo "pre-push: ./gradlew check"
+exec ./gradlew check --console=plain

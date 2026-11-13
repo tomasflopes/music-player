@@ -1,0 +1,12 @@
+# Builds on detekt's defaults (see QualityConventions.kt). Only deviations live here.
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+style:
+  MagicNumber:
+    ignoreAnnotated: ['Composable']
+    ignorePropertyDeclaration: true
+    ignoreExtensionFunctions: true
+complexity:
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
