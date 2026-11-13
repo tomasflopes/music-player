@@ -15,6 +15,7 @@ ksp {
 }
 
 dependencies {
+    testImplementation(testFixtures(projects.core.model))
     implementation(projects.core.model)
     implementation(projects.core.tags)
     implementation(projects.core.search)

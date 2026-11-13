@@ -4,6 +4,7 @@ plugins {
 }
 
 dependencies {
+    testImplementation(testFixtures(projects.core.model))
     // The library audit groups and orders albums with the app's own rules (plan Task 6).
     testImplementation(projects.core.model)
 }

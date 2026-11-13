@@ -3,5 +3,6 @@ plugins {
 }
 
 dependencies {
+    testImplementation(testFixtures(projects.core.model))
     implementation(projects.core.model)
 }
