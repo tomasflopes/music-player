@@ -12,4 +12,6 @@ data class PlaybackConfig(
     val restartThresholdMs: Long = 3_000,
     /** How often the position shown on screen refreshes while playing. */
     val positionTickMs: Long = 500,
+    /** The side of the cover the media session asks for: big enough for the lock screen and a car's display. */
+    val notificationCoverPx: Int = 512,
 )

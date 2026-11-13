@@ -29,7 +29,7 @@ class MediaItemMapper {
         title = song.title,
         artist = song.artistName,
         albumTitle = song.albumTitle,
-        artworkUri = if (song.hasCover) "$COVER_SCHEME://cover/${song.id.value}" else null,
+        artworkUri = if (song.hasCover) CoverUri.of(song.id) else null,
     )
 
     fun toMediaItem(
@@ -54,8 +54,4 @@ class MediaItemMapper {
     }
 
     fun songIdOf(mediaId: String): SongId? = mediaId.toLongOrNull()?.let(::SongId)
-
-    private companion object {
-        const val COVER_SCHEME = "musicplayer"
-    }
 }

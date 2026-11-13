@@ -21,3 +21,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0015](0015-playback-service-exported-and-no-cold-start-resumption.md) | Playback service stays exported (lint suppressed); no cold-start resumption until the queue is persisted | accepted |
 | [0016](0016-app-shell-with-tabs-theme-and-song-rows.md) | App shell: bottom tabs, one dark and orange theme, shared song row, covers without Coil; supersedes 0011 | accepted |
 | [0017](0017-search-tab-engine-per-snapshot-and-what-a-result-plays.md) | Search tab: one immutable engine per library snapshot behind an `:app` seam; what each result plays | accepted |
+| [0018](0018-notification-cover-through-a-session-bitmap-loader.md) | Notification, lock screen and car covers come from a session `BitmapLoader` over a `CoverBitmapSource` seam bound by `:app` | accepted |

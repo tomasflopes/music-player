@@ -1,0 +1,9 @@
+# 0018: The notification, lock screen and car get covers through a session bitmap loader
+
+Date: 2026-11-13 · Status: accepted
+
+**Context.** `MediaItemMapper` gives an item with a cover the artwork URI `musicplayer://cover/{songId}`, a name for "the cover embedded in this file". The session was built without a bitmap loader, so Media3 1.11.1 used its default, a `CacheBitmapLoader` over `DataSourceBitmapLoader`, whose `DefaultDataSource` opens file, content, asset and a few other schemes and gives any other scheme to an HTTP data source. The URI failed ("Failed to load bitmap") and the notification, lock screen and car showed no cover.
+
+**Decision.** `PlaybackService` sets a `CoverBitmapLoader` on the `MediaSession`. It answers `musicplayer://cover/{songId}` (`CoverUri`, pure) by reading the song and asking a `CoverBitmapSource`, and hands every other request to Media3's own loader. The source is a small interface in `:playback`; `:app` binds `CoverArtBitmapSource`, which reuses the screens' `CoverArtLoader` (`loadThumbnail`, 16 MB in-memory cache), so one read and one cache serve both and `:playback` never depends on `:app`. The read runs on an IO scope owned by the service, at `PlaybackConfig.notificationCoverPx` (512). Songs without a cover carry no artwork URI, so they keep none. Rejected: artwork bytes in `MediaMetadata` (every queued item would read and carry a cover, and cross the session IPC) and a real content URI (none is known to serve the embedded cover as an image).
+
+**Consequences.** Covers are cached per album and size, so skipping within an album does not decode again. No new dependency is declared; `DataSourceBitmapLoader` (`media3-datasource`) is expected to come through `media3-exoplayer`, which the build has to confirm. Not verified here: Gradle and everything on a device (notification, lock screen, car).
