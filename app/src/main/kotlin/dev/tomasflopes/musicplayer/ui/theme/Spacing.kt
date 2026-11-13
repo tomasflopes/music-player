@@ -1,0 +1,21 @@
+package dev.tomasflopes.musicplayer.ui.theme
+
+import androidx.compose.ui.unit.dp
+
+/** Spacing used across the app, so every screen feels consistent. */
+object Spacing {
+    val xxxs = 4.dp
+    val xxs = 8.dp
+    val xs = 12.dp
+    val s = 16.dp
+    val m = 20.dp
+    val l = 24.dp
+    val xl = 32.dp
+    val xxl = 48.dp
+}
+
+/** Artwork sizes. Bigger ones (Now Playing, album header) arrive with their screens. */
+object ArtSize {
+    val mini = 44.dp
+    val row = 52.dp
+}
