@@ -10,3 +10,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0004](0004-read-id3-tags-from-files.md) | Read ID3 tags from each file, not from MediaStore | accepted |
 | 0005 | Folder picker to MediaStore: reserved for the result of the phase 1 spike (plan Task 2) | pending |
 | [0006](0006-hand-written-id3-reader.md) | Hand-written ID3 reader in `:core:tags`, no tag library | accepted |
+| [0007](0007-file-name-fallback-for-untagged-files.md) | Untagged files take title and artist from an "Artist - Title" file name; tags always win | accepted |

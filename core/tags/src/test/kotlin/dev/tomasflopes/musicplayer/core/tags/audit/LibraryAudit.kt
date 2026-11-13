@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.core.tags.audit
 
+import dev.tomasflopes.musicplayer.core.model.DisplayFallbacks
 import dev.tomasflopes.musicplayer.core.tags.Id3TagReader
 import dev.tomasflopes.musicplayer.core.tags.TagReadResult
 import dev.tomasflopes.musicplayer.core.tags.TagReader
@@ -42,6 +43,8 @@ internal class AuditReport(
     private val seconds: Double,
 ) {
     private val read = entries.mapNotNull { it.result as? TagReadResult.Success }
+    private val fileNames =
+        entries.filter { it.result is TagReadResult.Success }.map { it.path.substringAfterLast('/') }
 
     val failures: List<AuditEntry> = entries.filter { it.result is TagReadResult.Failure }
     val versionCounts: Map<TagVersion, Int> = read.groupingBy { it.tags.version }.eachCount()
@@ -53,7 +56,19 @@ internal class AuditReport(
     /** Decision C8: the first value is used; this count tells the owner whether that is good enough. */
     val multiValueArtist = read.count { success -> success.warnings.any { it in MULTI_VALUE_ARTIST } }
 
-    fun summary(): String =
+    /** ADR 0007: how often the file name stands in for a missing tag. */
+    val titlesFromFileName = read.count { it.tags.title == null }
+    val artistsFromFileName =
+        read.zip(fileNames).count { (success, fileName) ->
+            success.tags.artist == null && DisplayFallbacks.artist(null, fileName) != DisplayFallbacks.UNKNOWN_ARTIST
+        }
+
+    val albums: List<AuditAlbum> =
+        AuditAlbums.group(
+            entries.mapNotNull { entry -> (entry.result as? TagReadResult.Success)?.let { entry.path to it.tags } },
+        )
+
+    fun summary(albumNames: List<String> = emptyList()): String =
         buildString {
             appendLine("Files read: ${entries.size}")
             appendLine("Seconds: ${"%.1f".format(seconds)}")
@@ -64,17 +79,44 @@ internal class AuditReport(
             appendLine("Missing artist: $missingArtist")
             appendLine("Missing album: $missingAlbum")
             appendLine("Multi-value artist (C8): $multiValueArtist")
+            appendLine("Title from file name (ADR 0007): $titlesFromFileName")
+            appendLine("Artist from file name (ADR 0007): $artistsFromFileName")
             appendLine("Warnings by kind: ${warningCounts.size}")
             warningCounts.entries.sortedByDescending { it.value }.forEach { appendLine("  ${it.key}: ${it.value}") }
             appendLine("Failures: ${failures.size}")
             failures.forEach { appendLine("  ${it.path}: ${(it.result as TagReadResult.Failure).reason}") }
-            appendLine("Album checks (numbering, duplicates, order for -Palbums): added with plan Task 7.")
+            appendAlbums(albumNames)
+        }
+
+    private fun StringBuilder.appendAlbums(albumNames: List<String>) {
+        val numbering = albums.groupingBy { it.numbering }.eachCount()
+        val withDuplicates = albums.filter { it.duplicates.isNotEmpty() }
+        appendLine("Albums: ${albums.size}")
+        Numbering.entries.forEach { appendLine("  ${it.name.lowercase()} numbered: ${numbering[it] ?: 0}") }
+        appendLine("Albums with duplicate (disc, track): ${withDuplicates.size}")
+        withDuplicates.forEach { album ->
+            appendLine("  ${album.key.title} / ${album.key.albumArtist}: ${album.duplicates.joinToString()}")
+        }
+        albums.filter { it.key.title in albumNames }.forEach { album ->
+            appendLine("Order of ${album.key.title} / ${album.key.albumArtist}:")
+            album.orderLines().forEach { appendLine("  $it") }
+        }
+    }
+
+    fun albumsCsv(): String =
+        buildString {
+            appendLine(csvLine(listOf("album", "album_artist", "songs", "numbering", "duplicates")))
+            albums.forEach { album ->
+                val (title, albumArtist) = album.key
+                val duplicates = album.duplicates.joinToString(" ")
+                appendLine(csvLine(listOf(title, albumArtist, album.songs.size, album.numbering, duplicates)))
+            }
         }
 
     fun filesCsv(): String =
         buildString {
             appendLine(CSV_HEADER)
-            entries.forEach { appendLine(csvRow(it).joinToString(",", transform = ::csvField)) }
+            entries.forEach { appendLine(csvLine(csvRow(it))) }
         }
 
     private fun csvRow(entry: AuditEntry): List<Any?> =
@@ -88,16 +130,10 @@ internal class AuditReport(
                 }
         }
 
-    private fun csvField(value: Any?): String {
-        val text = value?.toString().orEmpty()
-        return if (text.any { it in CSV_SPECIAL }) "\"${text.replace("\"", "\"\"")}\"" else text
-    }
-
     private companion object {
         const val CSV_HEADER =
             "path,version,title,artist,album_artist,album,track,track_total,disc,disc_total,cover,problems"
         const val TAG_COLUMNS = 9
-        const val CSV_SPECIAL = ",\"\r\n"
         val MULTI_VALUE_ARTIST = setOf("multi-value TPE1", "multi-value TP1")
     }
 }
@@ -124,16 +160,27 @@ internal object LibraryAudit {
         return AuditReport(entries, (System.nanoTime() - start) / NANOS_PER_SECOND)
     }
 
-    /** Arguments: the music folder, then the output folder. Entry point of the `auditLibrary` Gradle task. */
+    /**
+     * Arguments: the music folder, the output folder, and optionally a comma-separated list of album titles
+     * whose computed order goes into the summary. Entry point of the `auditLibrary` Gradle task.
+     */
     @JvmStatic
     fun main(args: Array<String>) {
         val (root, out) = args.take(2).map(::File)
+        val albumNames =
+            args
+                .getOrNull(2)
+                .orEmpty()
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
         require(root.isDirectory) { "Not a folder: $root" }
         val report = audit(root)
         out.mkdirs()
-        File(out, "summary.txt").writeText(report.summary())
+        File(out, "summary.txt").writeText(report.summary(albumNames))
         File(out, "files.csv").writeText(report.filesCsv())
-        println(report.summary())
+        File(out, "albums.csv").writeText(report.albumsCsv())
+        println(report.summary(albumNames))
         println("Written to $out")
     }
 }
