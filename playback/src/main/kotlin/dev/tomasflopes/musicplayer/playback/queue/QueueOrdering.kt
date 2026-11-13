@@ -15,17 +15,22 @@ internal class QueueOrdering(
         return strategy.order(automatic.map { it.ref }, random).mapNotNull { byRef[it] }
     }
 
-    /** [songs] with [startIndex] first and the rest shuffled; list order when [shuffled] is off. */
+    /**
+     * [songs] with [startIndex] first and the rest shuffled; list order when [shuffled] is off. With [randomStart]
+     * nothing is first by choice (Shuffle all, a shuffled artist), so the strategy orders the whole list.
+     */
     fun initial(
         songs: List<SongRef>,
         startIndex: Int,
         shuffled: Boolean,
+        randomStart: Boolean,
     ): List<SongRef> =
-        if (shuffled) {
-            listOfNotNull(songs.getOrNull(startIndex)) +
-                strategy.order(songs.filterIndexed { i, _ -> i != startIndex }, random)
-        } else {
-            songs
+        when {
+            !shuffled -> songs
+            randomStart -> strategy.order(songs, random)
+            else ->
+                listOfNotNull(songs.getOrNull(startIndex)) +
+                    strategy.order(songs.filterIndexed { i, _ -> i != startIndex }, random)
         }
 
     /** The non-manual entries of [all] back in [originalOrder]. */
