@@ -15,3 +15,16 @@ val generateSamples by tasks.registering(JavaExec::class) {
     outputs.dir(samplesDir)
     doFirst { delete(samplesDir) }
 }
+
+// ADR 0006, validation layer 3: run the reader over the owner's real library on the Mac. Read-only.
+// Usage: ./gradlew :core:tags:auditLibrary -Proot="/path/to/music"
+val auditLibrary by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Reads the tags of every MP3 under -Proot=<music folder> and writes build/tag-audit."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "dev.tomasflopes.musicplayer.core.tags.audit.LibraryAudit"
+    val root = providers.gradleProperty("root")
+    val auditDir = layout.buildDirectory.dir("tag-audit")
+    argumentProviders.add(CommandLineArgumentProvider { listOf(root.get(), auditDir.get().asFile.absolutePath) })
+    outputs.upToDateWhen { false }
+}
