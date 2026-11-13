@@ -7,6 +7,7 @@ import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
 import dev.tomasflopes.musicplayer.core.model.ref
+import dev.tomasflopes.musicplayer.core.search.SearchResults
 import dev.tomasflopes.musicplayer.fakes.FakeAlbumReader
 import dev.tomasflopes.musicplayer.fakes.FakeArtistReader
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
@@ -17,6 +18,7 @@ import dev.tomasflopes.musicplayer.fakes.testAlbum
 import dev.tomasflopes.musicplayer.fakes.testArtist
 import dev.tomasflopes.musicplayer.fakes.testSong
 import dev.tomasflopes.musicplayer.playback.PlayRequest
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,6 +31,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -88,7 +91,9 @@ class SearchViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     /** A ViewModel whose state is being collected, as it is while the Search tab is on screen. */
-    private fun TestScope.viewModel(): SearchViewModel {
+    private fun TestScope.viewModel(
+        factory: SearchEngineFactory = CoreSearchEngineFactory(dispatcher = dispatcher),
+    ): SearchViewModel {
         val viewModel =
             SearchViewModel(
                 playback,
@@ -98,7 +103,7 @@ class SearchViewModelTest {
                 featureReader,
                 history,
                 clock,
-                CoreSearchEngineFactory(dispatcher = dispatcher),
+                factory,
             )
         backgroundScope.launch(dispatcher) { viewModel.state.collect {} }
         return viewModel
@@ -323,6 +328,39 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun `searching is on while a query is answered and off once the results are in`() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+            val viewModel = viewModel(GatedEngineFactory(CoreSearchEngineFactory(dispatcher = dispatcher), gate))
+            assertFalse(viewModel.searching.value)
+
+            viewModel.onQueryChange("ed")
+            advanceUntilIdle()
+            assertTrue(viewModel.searching.value)
+
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertFalse(viewModel.searching.value)
+            viewModel.state.value.results()
+        }
+
+    @Test
+    fun `clearing the query while a search is pending turns searching off`() =
+        runTest {
+            val never = CompletableDeferred<Unit>()
+            val viewModel = viewModel(GatedEngineFactory(CoreSearchEngineFactory(dispatcher = dispatcher), never))
+            viewModel.onQueryChange("ed")
+            advanceUntilIdle()
+            assertTrue(viewModel.searching.value)
+
+            viewModel.onQueryChange("")
+            advanceUntilIdle()
+
+            assertFalse(viewModel.searching.value)
+            assertEquals(SearchUiState.Idle, viewModel.state.value)
+        }
+
+    @Test
     fun `a library change rebuilds the index`() =
         runTest {
             val viewModel = viewModel()
@@ -340,5 +378,21 @@ class SearchViewModelTest {
 
     private companion object {
         const val NOW = 1_700_000_000_000L
+    }
+}
+
+/** An engine whose searches wait for [gate], so a test can look at the state while a search is pending. */
+private class GatedEngineFactory(
+    private val inner: SearchEngineFactory,
+    private val gate: CompletableDeferred<Unit>,
+) : SearchEngineFactory {
+    override suspend fun build(snapshot: LibrarySnapshot): SearchEngine {
+        val engine = inner.build(snapshot)
+        return object : SearchEngine by engine {
+            override suspend fun search(query: String): SearchResults {
+                gate.await()
+                return engine.search(query)
+            }
+        }
     }
 }

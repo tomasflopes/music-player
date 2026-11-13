@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import java.time.Clock
 import javax.inject.Inject
@@ -61,9 +62,13 @@ class SearchViewModel
     ) : ViewModel() {
         private val queryText = MutableStateFlow("")
         private val seeAllType = MutableStateFlow<SearchItemType?>(null)
+        private val busy = MutableStateFlow(false)
 
         /** The text field's content, kept apart from [state] so typing never waits for a search. */
         val query: StateFlow<String> = queryText.asStateFlow()
+
+        /** `true` while a query is being answered; the screen keeps the last results up and shows progress. */
+        val searching: StateFlow<Boolean> = busy.asStateFlow()
 
         // Featured artists have no change signal of their own and are rewritten at the end of a scan, so a short
         // debounce lets that write land before the index reads it. Lazily: the index is kept while the tab's
@@ -77,8 +82,15 @@ class SearchViewModel
 
         val state: StateFlow<SearchUiState> =
             combine(queryText, seeAllType, engines, ::Triple)
-                .mapLatest { (text, allType, engine) -> render(text, allType, engine) }
-                .stateIn(viewModelScope, WhileSubscribed, SearchUiState.Idle)
+                .transformLatest { (text, allType, engine) ->
+                    busy.value = text.isNotBlank() && engine != null
+                    try {
+                        emit(render(text, allType, engine))
+                    } finally {
+                        // A newer query cancels this one and only then starts, so its `true` is never overwritten.
+                        busy.value = false
+                    }
+                }.stateIn(viewModelScope, WhileSubscribed, SearchUiState.Idle)
 
         fun onQueryChange(text: String) {
             queryText.value = text

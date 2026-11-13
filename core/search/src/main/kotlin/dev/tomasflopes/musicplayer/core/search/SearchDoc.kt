@@ -8,4 +8,7 @@ data class SearchDoc(
     val id: Long,
     val display: String,
     val fields: Map<SearchField, List<String>>,
-)
+) {
+    /** [display] folded for ordering ties, once per document instead of once per comparison. */
+    val sortKey: String by lazy(LazyThreadSafetyMode.PUBLICATION) { TextNormalizer.spaced(display) }
+}

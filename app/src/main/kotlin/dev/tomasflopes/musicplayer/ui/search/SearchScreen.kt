@@ -1,9 +1,12 @@
 package dev.tomasflopes.musicplayer.ui.search
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -13,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
@@ -51,6 +56,7 @@ private class SearchActions(
 fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val searching by viewModel.searching.collectAsStateWithLifecycle()
     val actions =
         remember(viewModel) {
             SearchActions(
@@ -64,18 +70,20 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
             )
         }
     BackHandler(enabled = state is SearchUiState.SeeAll, onBack = actions.onCloseSeeAll)
-    SearchContent(query, state, actions)
+    SearchContent(query, state, searching, actions)
 }
 
 @Composable
 private fun SearchContent(
     query: String,
     state: SearchUiState,
+    searching: Boolean,
     actions: SearchActions,
 ) {
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Search")
         SearchField(query, actions.onQueryChange)
+        SearchProgress(visible = searching || state == SearchUiState.Indexing)
         when (state) {
             SearchUiState.Idle -> EmptyState("Search your songs, artists and albums.")
             SearchUiState.Indexing -> EmptyState("Getting your library ready...")
@@ -83,6 +91,14 @@ private fun SearchContent(
             is SearchUiState.Results -> ResultsList(state.sections, actions)
             is SearchUiState.SeeAll -> SeeAllList(state, actions)
         }
+    }
+}
+
+/** A thin bar under the field while results are on their way; its height is always reserved so nothing jumps. */
+@Composable
+private fun SearchProgress(visible: Boolean) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.xxxs).height(4.dp)) {
+        if (visible) LinearProgressIndicator(Modifier.fillMaxWidth())
     }
 }
 

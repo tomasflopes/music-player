@@ -69,7 +69,7 @@ class Searcher(
             compareBy<DocMatch>(
                 { -it.tier.rank },
                 { it.field.ordinal },
-                { TextNormalizer.spaced(it.doc.display) },
+                { it.doc.sortKey },
             )
 
         val topOrder =
@@ -77,7 +77,7 @@ class Searcher(
                 { -it.tier.rank },
                 { -typeRank(it.doc.type) },
                 { it.field.ordinal },
-                { TextNormalizer.spaced(it.doc.display) },
+                { it.doc.sortKey },
             )
 
         fun typeRank(type: SearchItemType): Int =
