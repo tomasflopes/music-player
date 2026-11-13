@@ -75,7 +75,9 @@ private val TEXT_FRAMES =
         "TPOS" to TextField.DISC,
         "TPA" to TextField.DISC,
     )
-private val PICTURE_FRAMES = setOf("APIC", "PIC")
+
+/** `APIC` in v2.3/v2.4, `PIC` in v2.2. */
+internal val PICTURE_FRAME_IDS = setOf("APIC", "PIC")
 
 /** No text the app shows comes close; anything larger is damage, and is skipped instead of allocated. */
 private const val MAX_TEXT_FRAME_BYTES = 16 * 1024
@@ -92,7 +94,7 @@ private class Id3v2Fields(
     fun take(frame: Id3v2Frame) {
         val field = TEXT_FRAMES[frame.id]
         when {
-            field == null && frame.id !in PICTURE_FRAMES -> Unit
+            field == null && frame.id !in PICTURE_FRAME_IDS -> Unit
             frame.unreadableBecause != null -> warnings += "skipped ${frame.unreadableBecause} ${frame.id}"
             field == null -> hasCover = true
             frame.maxSize > MAX_TEXT_FRAME_BYTES -> warnings += "skipped oversized ${frame.id}"
