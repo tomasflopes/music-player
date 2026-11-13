@@ -14,8 +14,9 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0008](0008-listening-log-fields-beyond-the-design.md) | Listening log adds `songs` / `artist` sources, `started_by` and `shuffle` | accepted |
 | [0009](0009-room-tests-on-the-emulator.md) | Room, DAO and migration tests run on the emulator via `deviceCheck`, outside `check` | accepted |
 | [0010](0010-queue-modes-shuffle-toggle-and-repeat.md) | Queue modes: shuffle toggle, repeat off/all/one, manual entries survive a new play | accepted |
-| [0011](0011-basic-library-ui-shell.md) | Basic UI shell: one Library screen, one ViewModel, mini-player; replaced by real navigation later | accepted |
+| [0011](0011-basic-library-ui-shell.md) | Basic UI shell: one Library screen, one ViewModel, mini-player; replaced by real navigation later | superseded by [0016](0016-app-shell-with-tabs-theme-and-song-rows.md) |
 | [0012](0012-search-normalisation-and-tiers.md) | Search folds case, accents and symbols for matching only; exact → whole-word → substring, with mid-word under "See all" | accepted |
 | [0013](0013-onion-rules-shared-and-run-per-module.md) | Onion ArchUnit rules written once in `:core:model` fixtures and run by every module | accepted |
 | [0014](0014-start-media-store-observer-from-the-application.md) | `MediaStoreObserver.start()` runs from `MusicPlayerApp.onCreate` | accepted |
 | [0015](0015-playback-service-exported-and-no-cold-start-resumption.md) | Playback service stays exported (lint suppressed); no cold-start resumption until the queue is persisted | accepted |
+| [0016](0016-app-shell-with-tabs-theme-and-song-rows.md) | App shell: bottom tabs, one dark and orange theme, shared song row, covers without Coil; supersedes 0011 | accepted |

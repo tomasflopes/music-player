@@ -14,6 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.ports.LibraryScanController
+import dev.tomasflopes.musicplayer.core.model.ports.MusicRootResolver
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.tags.Id3TagReader
 import dev.tomasflopes.musicplayer.data.db.Migrations
@@ -23,6 +24,7 @@ import dev.tomasflopes.musicplayer.data.scan.LibraryScanner
 import dev.tomasflopes.musicplayer.data.scan.MediaStoreObserver
 import dev.tomasflopes.musicplayer.data.scan.MediaStoreSongLister
 import dev.tomasflopes.musicplayer.data.scan.ScanProgressBus
+import dev.tomasflopes.musicplayer.data.scan.TreeUriMusicRootResolver
 import dev.tomasflopes.musicplayer.data.scan.WorkManagerScanController
 import dev.tomasflopes.musicplayer.data.settings.DataStoreSettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +73,9 @@ object DataModule {
         @ApplicationContext context: Context,
         bus: ScanProgressBus,
     ): LibraryScanController = WorkManagerScanController(WorkManager.getInstance(context), bus)
+
+    @Provides
+    fun musicRootResolver(): MusicRootResolver = TreeUriMusicRootResolver()
 
     @Provides
     @Singleton

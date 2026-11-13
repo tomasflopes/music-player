@@ -1,23 +1,32 @@
 package dev.tomasflopes.musicplayer.ui.player
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
+import dev.tomasflopes.musicplayer.ui.components.AlbumArt
+import dev.tomasflopes.musicplayer.ui.theme.ArtSize
+import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
+/** The bar above the tabs; draws nothing while no song is loaded. */
 @Composable
 fun MiniPlayer(
     state: PlaybackState,
@@ -27,7 +36,7 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
 ) {
     val song = state.current ?: return
-    Surface(modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
+    Surface(modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column {
             LinearProgressIndicator(
                 progress = {
@@ -36,29 +45,57 @@ fun MiniPlayer(
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        song.title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        song.artistName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    )
-                }
-                TextButton(onPrevious, enabled = state.hasPrevious) { Text("Prev") }
-                TextButton(onPlayPause) { Text(if (state.isPlaying) "Pause" else "Play") }
-                TextButton(onNext, enabled = state.hasNext || state.repeatMode != RepeatMode.OFF) { Text("Next") }
+                AlbumArt(song, ArtSize.mini)
+                TrackText(song, Modifier.weight(1f).padding(horizontal = Spacing.xs))
+                Controls(state, onPrevious, onPlayPause, onNext)
             }
         }
+    }
+}
+
+@Composable
+private fun TrackText(
+    song: Song,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier) {
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = song.artistName,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun Controls(
+    state: PlaybackState,
+    onPrevious: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+) {
+    IconButton(onPrevious, enabled = state.hasPrevious) {
+        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+    }
+    IconButton(onPlayPause) {
+        if (state.isPlaying) {
+            Icon(Icons.Default.Pause, contentDescription = "Pause")
+        } else {
+            Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+        }
+    }
+    IconButton(onNext, enabled = state.hasNext || state.repeatMode != RepeatMode.OFF) {
+        Icon(Icons.Default.SkipNext, contentDescription = "Next")
     }
 }
