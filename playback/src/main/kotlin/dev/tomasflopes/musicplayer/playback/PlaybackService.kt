@@ -7,6 +7,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -41,7 +42,12 @@ class PlaybackService : MediaSessionService() {
 
     @Inject lateinit var history: PlayHistoryWriter
 
+    @Inject lateinit var covers: CoverBitmapSource
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // Cover reads never touch the main thread: the session's bitmap loader launches them here.
+    private val coverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var engine: PlaybackEngine? = null
     private var session: MediaSession? = null
 
@@ -67,6 +73,7 @@ class PlaybackService : MediaSessionService() {
             MediaSession
                 .Builder(this, engine.exposed)
                 .setSessionActivity(openAppIntent())
+                .setBitmapLoader(coverLoader())
                 .setCallback(CommandCallback(engine))
                 .build()
     }
@@ -84,8 +91,18 @@ class PlaybackService : MediaSessionService() {
         }
         engine?.release()
         scope.cancel()
+        coverScope.cancel()
         super.onDestroy()
     }
+
+    private fun coverLoader() =
+        CoverBitmapLoader(
+            delegate = DataSourceBitmapLoader.Builder(this).build(),
+            songs = songs,
+            covers = covers,
+            sizePx = config.notificationCoverPx,
+            scope = coverScope,
+        )
 
     private fun openAppIntent(): PendingIntent =
         PendingIntent.getActivity(

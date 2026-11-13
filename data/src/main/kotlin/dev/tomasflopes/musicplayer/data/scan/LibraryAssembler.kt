@@ -3,11 +3,10 @@ package dev.tomasflopes.musicplayer.data.scan
 import dev.tomasflopes.musicplayer.core.model.AlbumKey
 import dev.tomasflopes.musicplayer.core.model.DisplayFallbacks
 import dev.tomasflopes.musicplayer.core.model.Folder
+import dev.tomasflopes.musicplayer.core.model.SortKey
 import dev.tomasflopes.musicplayer.core.tags.RawTags
 import dev.tomasflopes.musicplayer.core.tags.TagReadResult
 import dev.tomasflopes.musicplayer.core.tags.TagVersion
-import java.text.Normalizer
-import java.util.Locale
 
 /** A file plus what the library will store for it: tags as read, with the display fallbacks already applied. */
 data class AssembledSong(
@@ -25,8 +24,6 @@ data class AssembledSong(
 
 /** Turns a file and its tag read into what the database stores. Pure Kotlin. */
 object LibraryAssembler {
-    private val ACCENTS = Regex("\\p{Mn}+")
-    private val LEADING_ARTICLE = Regex("^(the|a|an) ", RegexOption.IGNORE_CASE)
     private val NO_TAGS = RawTags(null, null, null, null, null, null, null, null, false, TagVersion.NONE)
 
     fun assemble(
@@ -51,16 +48,8 @@ object LibraryAssembler {
         )
     }
 
-    /** Lower case, accents removed, a leading article dropped (unless that is the whole title). */
-    fun sortKey(text: String): String {
-        val plain =
-            Normalizer
-                .normalize(text, Normalizer.Form.NFD)
-                .replace(ACCENTS, "")
-                .lowercase(Locale.ROOT)
-                .trim()
-        return plain.replace(LEADING_ARTICLE, "").ifEmpty { plain }
-    }
+    /** The sort text stored beside a title or name; the rule is [SortKey] so the UI derives the same one. */
+    fun sortKey(text: String): String = SortKey.of(text)
 
     /** The part of [folderPath] below [root]; `null` when it is the root itself or lies outside it. */
     private fun relativeToRoot(

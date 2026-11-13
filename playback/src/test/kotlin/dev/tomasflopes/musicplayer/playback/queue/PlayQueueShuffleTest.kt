@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.random.Random
 
 class PlayQueueShuffleTest {
     @Test
@@ -16,6 +17,27 @@ class PlayQueueShuffleTest {
         assertEquals("ABEDC", queue.names())
         assertEquals('B', queue.current?.name)
         assertEquals(1, queue.index)
+    }
+
+    @Test
+    fun `a shuffled play with no picked song starts on the shuffle's first song, not the list's`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+
+        queue.replace(refs("ABCDE"), 0, PlaySource.SHUFFLE_ALL, shuffled = true, randomStart = true)
+
+        assertEquals("EDCBA", queue.names())
+        assertEquals('E', queue.current?.name)
+        assertEquals(0, queue.index)
+    }
+
+    @Test
+    fun `a shuffled play from a picked song starts on it`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+
+        queue.replace(refs("ABCDE"), 2, PlaySource.ARTIST_SHUFFLE, shuffled = true)
+
+        assertEquals("CEDBA", queue.names())
+        assertEquals('C', queue.current?.name)
     }
 
     @Test

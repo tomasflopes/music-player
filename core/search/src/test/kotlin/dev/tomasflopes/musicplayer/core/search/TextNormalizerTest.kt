@@ -36,6 +36,17 @@ class TextNormalizerTest {
     ) = assertEquals(expected, TextNormalizer.compact(text))
 
     @Test
+    fun `folding the same text twice gives the same variants`() {
+        val first = TextNormalizer.variants("A\$AP  Rocky")
+
+        assertEquals(setOf("a ap rocky", "aap rocky", "asap rocky"), first)
+        assertEquals(first, TextNormalizer.variants("A\$AP  Rocky"))
+    }
+
+    @Test
+    fun `runs of spaces fold to one`() = assertEquals("a b", TextNormalizer.spaced("a    b"))
+
+    @Test
     fun `variants of a plain name is one string`() = assertEquals(setOf("ed"), TextNormalizer.variants("Ed"))
 
     @Test

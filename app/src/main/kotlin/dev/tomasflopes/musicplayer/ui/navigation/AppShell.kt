@@ -18,14 +18,25 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import dev.tomasflopes.musicplayer.core.model.AlbumId
+import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.ui.home.HomeScreen
+import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListRoute
+import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListScreen
 import dev.tomasflopes.musicplayer.ui.library.LibraryScreen
+import dev.tomasflopes.musicplayer.ui.library.album.AlbumRoute
+import dev.tomasflopes.musicplayer.ui.library.album.AlbumScreen
+import dev.tomasflopes.musicplayer.ui.library.artist.ArtistRoute
+import dev.tomasflopes.musicplayer.ui.library.artist.ArtistScreen
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
+import dev.tomasflopes.musicplayer.ui.search.SearchScreen
 import dev.tomasflopes.musicplayer.ui.shell.ShellState
 import dev.tomasflopes.musicplayer.ui.shell.ShellViewModel
 
@@ -59,8 +70,49 @@ private fun Tabs() {
             startDestination = TopLevelDestination.HOME.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(TopLevelDestination.HOME.route) { HomeScreen() }
-            composable(TopLevelDestination.LIBRARY.route) { LibraryScreen() }
+            composable(TopLevelDestination.HOME.route) {
+                HomeScreen(onNavigate = { route -> navController.navigate(route) })
+            }
+            composable(
+                route = DynamicListRoute.PATTERN,
+                arguments = listOf(navArgument(DynamicListRoute.ARG_ID) { type = NavType.StringType }),
+            ) { entry ->
+                DynamicListScreen(
+                    listId = entry.arguments?.getString(DynamicListRoute.ARG_ID).orEmpty(),
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(TopLevelDestination.LIBRARY.route) {
+                LibraryScreen(
+                    onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
+                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                )
+            }
+            composable(TopLevelDestination.SEARCH.route) {
+                SearchScreen(
+                    onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
+                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                )
+            }
+            composable(
+                route = AlbumRoute.PATTERN,
+                arguments = listOf(navArgument(AlbumRoute.ARG_ID) { type = NavType.LongType }),
+            ) { entry ->
+                AlbumScreen(
+                    albumId = AlbumId(entry.arguments?.getLong(AlbumRoute.ARG_ID) ?: 0L),
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = ArtistRoute.PATTERN,
+                arguments = listOf(navArgument(ArtistRoute.ARG_ID) { type = NavType.LongType }),
+            ) { entry ->
+                ArtistScreen(
+                    artistId = ArtistId(entry.arguments?.getLong(ArtistRoute.ARG_ID) ?: 0L),
+                    onBack = { navController.popBackStack() },
+                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                )
+            }
         }
     }
 }

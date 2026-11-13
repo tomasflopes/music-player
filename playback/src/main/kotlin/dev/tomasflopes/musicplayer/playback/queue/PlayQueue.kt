@@ -30,19 +30,24 @@ class PlayQueue(
 
     var repeatMode: RepeatMode = RepeatMode.OFF
 
-    /** Plays [songs] now, starting at [startIndex]; manual entries not yet played stay right after it (plan C7). */
+    /**
+     * Plays [songs] now, starting at [startIndex]; manual entries not yet played stay right after it (plan C7).
+     * With [shuffled] and [randomStart] the first song is the shuffle's too, not [startIndex]'s.
+     */
     fun replace(
         songs: List<SongRef>,
         startIndex: Int,
         source: PlaySource,
         shuffled: Boolean,
+        randomStart: Boolean = false,
     ) {
         val pendingManual = upcomingManual()
         this.shuffled = shuffled
         originalOrder = songs
         val label = source.withShuffle(shuffled)
         entries.clear()
-        entries += ordering.initial(songs, startIndex, shuffled).map { QueueEntry(it, label, manual = false) }
+        val order = ordering.initial(songs, startIndex, shuffled, randomStart)
+        entries += order.map { QueueEntry(it, label, manual = false) }
         currentIndex =
             when {
                 entries.isEmpty() -> -1
