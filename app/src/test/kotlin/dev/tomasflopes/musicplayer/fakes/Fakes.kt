@@ -70,14 +70,15 @@ class FakePlaybackController : PlaybackController {
 
 /**
  * A library that is just [songs] (and their [refs]). [library] can be re-emitted to model a library change.
- * [artistSongs] and [albumSongs] answer the per-artist and per-album queries, [songsByIds] looks in [library];
- * the others are empty.
+ * [artistSongs], [albumSongs] and [featuredOn] answer the per-artist, per-album and featured-on queries (a test gives
+ * them in the order the real reader would), [songsByIds] looks in [library]; the others are empty.
  */
 class FakeSongReader(
     private val refs: List<SongRef> = emptyList(),
     songs: List<Song> = emptyList(),
     private val artistSongs: Map<ArtistId, List<Song>> = emptyMap(),
     private val albumSongs: Map<AlbumId, List<Song>> = emptyMap(),
+    private val featuredOn: Map<ArtistId, List<Song>> = emptyMap(),
 ) : SongReader {
     val library = MutableStateFlow(songs)
 
@@ -94,7 +95,7 @@ class FakeSongReader(
 
     override fun observeArtistSongs(id: ArtistId): Flow<List<Song>> = flowOf(artistSongs[id].orEmpty())
 
-    override fun observeFeaturedOn(id: ArtistId): Flow<List<Song>> = emptyFlow()
+    override fun observeFeaturedOn(id: ArtistId): Flow<List<Song>> = flowOf(featuredOn[id].orEmpty())
 
     override fun observeFolderSongs(folderPath: String): Flow<List<Song>> = emptyFlow()
 
@@ -117,9 +118,10 @@ class FakeArtistReader(
     override fun observeArtist(id: ArtistId): Flow<Artist?> = library.map { list -> list.firstOrNull { it.id == id } }
 }
 
-/** [library] can be re-emitted to model a library change. */
+/** [library] can be re-emitted to model a library change; [artistAlbums] answers the per-artist query. */
 class FakeAlbumReader(
     albums: List<Album> = emptyList(),
+    private val artistAlbums: Map<ArtistId, List<Album>> = emptyMap(),
 ) : AlbumReader {
     val library = MutableStateFlow(albums)
 
@@ -127,7 +129,7 @@ class FakeAlbumReader(
 
     override fun observeAlbum(id: AlbumId): Flow<Album?> = library.map { list -> list.firstOrNull { it.id == id } }
 
-    override fun observeArtistAlbums(id: ArtistId): Flow<List<Album>> = emptyFlow()
+    override fun observeArtistAlbums(id: ArtistId): Flow<List<Album>> = flowOf(artistAlbums[id].orEmpty())
 }
 
 /** Featured artists by song, as the scanner would have written them. */

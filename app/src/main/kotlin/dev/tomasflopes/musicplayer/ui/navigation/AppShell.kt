@@ -24,10 +24,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dev.tomasflopes.musicplayer.core.model.AlbumId
+import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.ui.home.HomeScreen
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListRoute
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListScreen
 import dev.tomasflopes.musicplayer.ui.library.LibraryScreen
+import dev.tomasflopes.musicplayer.ui.library.album.AlbumRoute
+import dev.tomasflopes.musicplayer.ui.library.album.AlbumScreen
+import dev.tomasflopes.musicplayer.ui.library.artist.ArtistRoute
+import dev.tomasflopes.musicplayer.ui.library.artist.ArtistScreen
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
 import dev.tomasflopes.musicplayer.ui.search.SearchScreen
@@ -76,8 +82,37 @@ private fun Tabs() {
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(TopLevelDestination.LIBRARY.route) { LibraryScreen() }
-            composable(TopLevelDestination.SEARCH.route) { SearchScreen() }
+            composable(TopLevelDestination.LIBRARY.route) {
+                LibraryScreen(
+                    onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
+                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                )
+            }
+            composable(TopLevelDestination.SEARCH.route) {
+                SearchScreen(
+                    onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
+                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                )
+            }
+            composable(
+                route = AlbumRoute.PATTERN,
+                arguments = listOf(navArgument(AlbumRoute.ARG_ID) { type = NavType.LongType }),
+            ) { entry ->
+                AlbumScreen(
+                    albumId = AlbumId(entry.arguments?.getLong(AlbumRoute.ARG_ID) ?: 0L),
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = ArtistRoute.PATTERN,
+                arguments = listOf(navArgument(ArtistRoute.ARG_ID) { type = NavType.LongType }),
+            ) { entry ->
+                ArtistScreen(
+                    artistId = ArtistId(entry.arguments?.getLong(ArtistRoute.ARG_ID) ?: 0L),
+                    onBack = { navController.popBackStack() },
+                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                )
+            }
         }
     }
 }

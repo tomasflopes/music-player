@@ -41,7 +41,8 @@ import javax.inject.Inject
  * The Search tab (design 7.9, ADR 0012, ADR 0017).
  *
  * The index is rebuilt off the main thread whenever artists, albums or songs change, and every keystroke
- * searches the latest build. Choosing any result appends a [SearchEvent] and starts playback.
+ * searches the latest build. Choosing a result appends a [SearchEvent]; a song or the top card then plays, while an
+ * artist or album row only opens its page.
  *
  * The constructor is a Hilt dependency list (the ports, the clock and the engine seam), hence the suppression.
  */
@@ -110,8 +111,13 @@ class SearchViewModel
 
         fun onShuffleTop(item: SearchItem) = choose(item, shuffle = true)
 
-        /** An artist row shuffles that artist (how the owner plays an artist); an album plays in order. */
-        fun onResultClick(item: SearchItem) = choose(item, shuffle = item is ArtistItem)
+        /**
+         * An artist or album row opens its page (plan Task 26): the choice is logged here and the screen navigates,
+         * so nothing plays until the owner presses something on the page.
+         */
+        fun onOpenResult(item: SearchItem) {
+            viewModelScope.launch { log(item) }
+        }
 
         /** Plays the songs shown now (section or "See all"), starting at [index]. */
         fun onSongClick(index: Int) {

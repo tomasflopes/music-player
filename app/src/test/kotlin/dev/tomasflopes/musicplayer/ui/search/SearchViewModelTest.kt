@@ -222,19 +222,29 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `choosing an artist logs the search and shuffles that artist`() =
+    fun `opening an artist result logs the search and plays nothing`() =
         runTest {
             val viewModel = viewModel()
             val top = typed(viewModel, "ed").results().top
 
-            viewModel.onResultClick(top)
+            viewModel.onOpenResult(top)
             advanceUntilIdle()
 
             assertEquals(listOf(SearchEvent("ed", SearchItemType.ARTIST, 1, NOW)), history.events)
-            assertEquals(
-                listOf(PlayRequest(listOf(morning.ref), 0, shuffle = true, PlaySource.ARTIST_SHUFFLE, picked = false)),
-                playback.requests,
-            )
+            assertTrue(playback.requests.isEmpty())
+        }
+
+    @Test
+    fun `opening an album result logs the search and plays nothing`() =
+        runTest {
+            val viewModel = viewModel()
+            val album = typed(viewModel, "education").results().top
+
+            viewModel.onOpenResult(album)
+            advanceUntilIdle()
+
+            assertEquals(listOf(SearchEvent("education", SearchItemType.ALBUM, 10, NOW)), history.events)
+            assertTrue(playback.requests.isEmpty())
         }
 
     @Test

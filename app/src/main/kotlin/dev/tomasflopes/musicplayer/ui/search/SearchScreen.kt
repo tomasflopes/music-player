@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.tomasflopes.musicplayer.core.model.AlbumId
+import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
 import dev.tomasflopes.musicplayer.ui.components.AlbumArt
 import dev.tomasflopes.musicplayer.ui.components.AlbumRow
@@ -41,31 +43,43 @@ import dev.tomasflopes.musicplayer.ui.components.TopResultCard
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
-/** What the screen can ask for, so the composables below take one parameter instead of seven callbacks. */
+/** What the screen can ask for, so the composables below take one parameter instead of a callback per button. */
 private class SearchActions(
     val onQueryChange: (String) -> Unit,
     val onSeeAll: (SearchItemType) -> Unit,
     val onCloseSeeAll: () -> Unit,
     val onPlayTop: (SearchItem) -> Unit,
     val onShuffleTop: (SearchItem) -> Unit,
-    val onResult: (SearchItem) -> Unit,
+    val onOpen: (SearchItem) -> Unit,
     val onSong: (Int) -> Unit,
 )
 
+/** [onOpenArtist] and [onOpenAlbum] navigate to the page of the chosen result; the choice is logged here first. */
 @Composable
-fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
+fun SearchScreen(
+    onOpenArtist: (ArtistId) -> Unit,
+    onOpenAlbum: (AlbumId) -> Unit,
+    viewModel: SearchViewModel = hiltViewModel(),
+) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searching by viewModel.searching.collectAsStateWithLifecycle()
     val actions =
-        remember(viewModel) {
+        remember(viewModel, onOpenArtist, onOpenAlbum) {
             SearchActions(
                 onQueryChange = viewModel::onQueryChange,
                 onSeeAll = viewModel::onSeeAll,
                 onCloseSeeAll = viewModel::onCloseSeeAll,
                 onPlayTop = viewModel::onPlayTop,
                 onShuffleTop = viewModel::onShuffleTop,
-                onResult = viewModel::onResultClick,
+                onOpen = { item ->
+                    viewModel.onOpenResult(item)
+                    when (item) {
+                        is ArtistItem -> onOpenArtist(item.artist.id)
+                        is AlbumItem -> onOpenAlbum(item.album.id)
+                        is SongItem -> Unit
+                    }
+                },
                 onSong = viewModel::onSongClick,
             )
         }
@@ -110,10 +124,10 @@ private fun ResultsList(
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "top") { TopResult(sections.top, actions) }
         section("Artists", sections.artists, sections.moreArtists, SearchItemType.ARTIST, actions) { item ->
-            ArtistRow(item.artist, onClick = { actions.onResult(item) })
+            ArtistRow(item.artist, onClick = { actions.onOpen(item) })
         }
         section("Albums", sections.albums, sections.moreAlbums, SearchItemType.ALBUM, actions) { item ->
-            AlbumRow(item.album, item.cover, onClick = { actions.onResult(item) })
+            AlbumRow(item.album, item.cover, onClick = { actions.onOpen(item) })
         }
         if (sections.songs.isNotEmpty()) {
             item(key = "songs-header") {
@@ -192,8 +206,8 @@ private fun SeeAllList(
         LazyColumn(Modifier.fillMaxSize()) {
             itemsIndexed(state.items, key = { _, item -> item.key }) { index, item ->
                 when (item) {
-                    is ArtistItem -> ArtistRow(item.artist, onClick = { actions.onResult(item) })
-                    is AlbumItem -> AlbumRow(item.album, item.cover, onClick = { actions.onResult(item) })
+                    is ArtistItem -> ArtistRow(item.artist, onClick = { actions.onOpen(item) })
+                    is AlbumItem -> AlbumRow(item.album, item.cover, onClick = { actions.onOpen(item) })
                     is SongItem -> SongRow(item.song, onClick = { actions.onSong(index) })
                 }
             }

@@ -17,7 +17,8 @@ import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /**
  * One song in any list: cover, title as tagged, "artist · album". Stateless: the caller decides what a tap does and
- * what, if anything, goes at the end of the row ([trailing], e.g. a [SongMenuButton]).
+ * what, if anything, goes at the end of the row ([trailing], e.g. a [SongMenuButton]). An album page swaps the cover
+ * for the track number ([leading]) and drops the album from the [subtitle].
  */
 @Composable
 fun SongRow(
@@ -25,6 +26,8 @@ fun SongRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
+    leading: @Composable () -> Unit = { AlbumArt(song, ArtSize.row) },
+    subtitle: String = song.subtitle(),
 ) {
     Row(
         modifier =
@@ -34,7 +37,7 @@ fun SongRow(
                 .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AlbumArt(song, ArtSize.row)
+        leading()
         Column(Modifier.weight(1f).padding(start = Spacing.s)) {
             Text(
                 text = song.title,
@@ -43,7 +46,7 @@ fun SongRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = song.subtitle(),
+                text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

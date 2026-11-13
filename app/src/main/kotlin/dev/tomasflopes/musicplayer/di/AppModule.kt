@@ -7,6 +7,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
+import dev.tomasflopes.musicplayer.playback.CoverBitmapSource
+import dev.tomasflopes.musicplayer.ui.art.CoverArtBitmapSource
 import dev.tomasflopes.musicplayer.ui.art.CoverArtLoader
 import dev.tomasflopes.musicplayer.ui.art.MediaStoreCoverArtLoader
 import dev.tomasflopes.musicplayer.ui.search.CoreSearchEngineFactory
@@ -31,6 +33,11 @@ object AppModule {
     fun coverArtLoader(
         @ApplicationContext context: Context,
     ): CoverArtLoader = MediaStoreCoverArtLoader(context.contentResolver)
+
+    /** What the playback service reads covers through (notification, lock screen, car); shares the screens' cache. */
+    @Provides
+    @Singleton
+    fun coverBitmapSource(loader: CoverArtLoader): CoverBitmapSource = CoverArtBitmapSource(loader)
 
     @Provides
     @Singleton
