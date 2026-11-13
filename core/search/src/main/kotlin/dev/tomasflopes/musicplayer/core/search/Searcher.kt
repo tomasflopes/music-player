@@ -1,110 +1,81 @@
 package dev.tomasflopes.musicplayer.core.search
 
-import dev.tomasflopes.musicplayer.core.model.Album
-import dev.tomasflopes.musicplayer.core.model.Artist
-import dev.tomasflopes.musicplayer.core.model.Song
-
-const val MAX_SECTION = 5
+import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
 
 /**
- * Turns a query into grouped results over a [SearchIndex].
+ * Groups the index's matches into the screen's shape: one top result, then Artists / Albums / Songs.
  *
- * Every query term must match the song somewhere (AND across terms); a song's tier is its best single
- * (term, field) match. Phase 1 breaks ties alphabetically; phase 2 adds the recent global score.
- * Matching is over the normalized title, artist, album, album artist, folder name and featured artists.
+ * Main results only contain exact and whole-word / starts-with matches. Mid-word matches are deliberately
+ * kept for "See all", so searching `ed` does not bury the artist Ed under every song containing "ed".
  */
 class Searcher(
     private val index: SearchIndex,
-    private val knownAlbums: List<Album>,
-    private val knownArtistsDomain: List<Artist>,
+    private val config: SearchConfig = SearchConfig(),
 ) {
-    /** Grouped results for [query]; songs come from [songsById] (the live domain models). */
-    fun search(
+    fun search(query: String): SearchResults {
+        val matches = index.search(query)
+        if (matches.isEmpty()) return SearchResults.empty(query)
+
+        val main = matches.filter { it.tier != MatchTier.CONTAINS }.sortedWith(hitOrder)
+        val artistMatches = main.filter { it.doc.type == SearchItemType.ARTIST }
+        val albumMatches = main.filter { it.doc.type == SearchItemType.ALBUM }
+        val songMatches = main.filter { it.doc.type == SearchItemType.SONG }
+
+        return SearchResults(
+            query = query,
+            top = main.sortedWith(topOrder).firstOrNull()?.toHit(),
+            artists = artistMatches.take(config.sectionSize).mapNotNull { it.toHit() as? ArtistHit },
+            albums = albumMatches.take(config.sectionSize).mapNotNull { it.toHit() as? AlbumHit },
+            songs = songMatches.take(config.sectionSize).mapNotNull { it.toHit() as? SongHit },
+            moreArtists = artistMatches.size > config.sectionSize,
+            moreAlbums = albumMatches.size > config.sectionSize,
+            moreSongs = songMatches.size > config.sectionSize,
+        )
+    }
+
+    /** "See all": every match of [type], mid-word substring matches last. */
+    fun searchAll(
         query: String,
-        songsById: Map<Long, Song>,
-    ): SearchResult {
-        val terms = Normalizer.words(query)
-        if (terms.isEmpty()) return empty()
+        type: SearchItemType,
+    ): List<SearchHit> =
+        index
+            .search(query)
+            .filter { it.doc.type == type }
+            .sortedWith(hitOrder)
+            .mapNotNull { it.toHit() }
 
-        // Candidates: songs matching every term somewhere.
-        var candidates = index.songsMatching(terms[0]).toMutableSet()
-        for (term in terms.drop(1)) candidates.retainAll(index.songsMatching(term))
-
-        val scored =
-            candidates.mapNotNull { id ->
-                val indexSong = index.song(id) ?: return@mapNotNull null
-                val domain = songsById[id] ?: return@mapNotNull null
-                var best = MatchTier.CONTAINS
-                var bestField = "title"
-                for (term in terms) {
-                    val tier = tierFor(term, indexSong)
-                    if (tier.rank > best.rank) {
-                        best = tier
-                        bestField = fieldFor(term, indexSong)
-                    }
-                }
-                Scored(id, domain, best, bestField)
-            }
-
-        val ordered = scored.sortedWith(compareByDescending<Scored> { it.tier.rank }.thenBy { it.title })
-        val songHits = ordered.map { s -> HitSong(s.song, s.tier, s.field) }
-
-        val top = songHits.firstOrNull()
-        val songs = songHits.drop(1).take(MAX_SECTION)
-        val hasMore = songHits.size > 1 + MAX_SECTION
-
-        val artistIds = songHits.mapNotNull { it.song.artistId.value }.toSet()
-        val artists = knownArtistsDomain.filter { it.id.value in artistIds }.take(MAX_SECTION)
-        val albumIds = songHits.mapNotNull { it.song.albumId?.value }.toSet()
-        val albums = knownAlbums.filter { it.id.value in albumIds }.take(MAX_SECTION)
-
-        return SearchResult(query, top, artists, albums, songs, hasMore)
-    }
-
-    private fun empty() = SearchResult("", null, emptyList(), emptyList(), emptyList(), false)
-
-    private fun tierFor(
-        term: String,
-        song: IndexableSong,
-    ): MatchTier {
-        val n = Normalizer.normalize(term)
-        val fields = listOf(song.title, song.artist, song.album, song.albumArtist, song.folderName)
-        return when {
-            fields.any { it?.let { Normalizer.normalize(it) == n } == true } -> MatchTier.EXACT
-            fields.any { it?.let { Normalizer.normalize(it).startsWith(n) } == true } ||
-                song.featured.any { Normalizer.normalize(it).startsWith(n) } -> MatchTier.STARTS_WITH
-            else -> MatchTier.CONTAINS
+    private fun DocMatch.toHit(): SearchHit? =
+        when (doc.type) {
+            SearchItemType.ARTIST -> index.artist(doc.id)?.let { ArtistHit(it, tier, field) }
+            SearchItemType.ALBUM -> index.album(doc.id)?.let { AlbumHit(it, tier, field) }
+            SearchItemType.SONG -> index.song(doc.id)?.let { SongHit(it, tier, field) }
         }
-    }
 
-    private fun fieldFor(
-        term: String,
-        song: IndexableSong,
-    ): String {
-        val n = Normalizer.normalize(term)
-        val fields: List<Pair<String, String?>> =
-            listOf(
-                "title" to song.title,
-                "artist" to song.artist,
-                "album" to song.album,
-                "albumArtist" to song.albumArtist,
-                "folder" to song.folderName,
+    private companion object {
+        const val ARTIST_RANK = 3
+        const val ALBUM_RANK = 2
+        const val SONG_RANK = 1
+
+        val hitOrder =
+            compareBy<DocMatch>(
+                { -it.tier.rank },
+                { it.field.ordinal },
+                { TextNormalizer.spaced(it.doc.display) },
             )
-        return fields
-            .firstOrNull { (_, v) ->
-                v?.let { Normalizer.normalize(it).startsWith(n) } == true ||
-                    v?.let { Normalizer.normalize(it).contains(n) } == true
-            }?.first
-            ?: song.featured.firstOrNull { Normalizer.normalize(it).contains(n) }?.let { "featured" }
-            ?: "title"
-    }
 
-    private data class Scored(
-        val id: Long,
-        val song: Song,
-        val tier: MatchTier,
-        val field: String,
-    ) {
-        val title: String get() = song.title
+        val topOrder =
+            compareBy<DocMatch>(
+                { -it.tier.rank },
+                { -typeRank(it.doc.type) },
+                { it.field.ordinal },
+                { TextNormalizer.spaced(it.doc.display) },
+            )
+
+        fun typeRank(type: SearchItemType): Int =
+            when (type) {
+                SearchItemType.ARTIST -> ARTIST_RANK
+                SearchItemType.ALBUM -> ALBUM_RANK
+                SearchItemType.SONG -> SONG_RANK
+            }
     }
 }
