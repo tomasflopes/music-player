@@ -5,6 +5,7 @@ import dev.tomasflopes.musicplayer.core.model.Album
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.Artist
 import dev.tomasflopes.musicplayer.core.model.ArtistId
+import dev.tomasflopes.musicplayer.core.model.Folder
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
@@ -13,6 +14,7 @@ import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
+import dev.tomasflopes.musicplayer.core.model.ports.FolderReader
 import dev.tomasflopes.musicplayer.core.model.ports.LibraryScanController
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.ScanPhase
@@ -28,7 +30,6 @@ import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
@@ -70,8 +71,9 @@ class FakePlaybackController : PlaybackController {
 
 /**
  * A library that is just [songs] (and their [refs]). [library] can be re-emitted to model a library change.
- * [artistSongs], [albumSongs] and [featuredOn] answer the per-artist, per-album and featured-on queries (a test gives
- * them in the order the real reader would), [songsByIds] looks in [library]; the others are empty.
+ * [artistSongs], [albumSongs], [featuredOn] and [folderSongs] (by folder path) answer the per-artist, per-album,
+ * featured-on and per-folder queries (a test gives them in the order the real reader would), [songsByIds] looks in
+ * [library]; the others are empty.
  */
 class FakeSongReader(
     private val refs: List<SongRef> = emptyList(),
@@ -79,6 +81,7 @@ class FakeSongReader(
     private val artistSongs: Map<ArtistId, List<Song>> = emptyMap(),
     private val albumSongs: Map<AlbumId, List<Song>> = emptyMap(),
     private val featuredOn: Map<ArtistId, List<Song>> = emptyMap(),
+    private val folderSongs: Map<String, List<Song>> = emptyMap(),
 ) : SongReader {
     val library = MutableStateFlow(songs)
 
@@ -97,7 +100,7 @@ class FakeSongReader(
 
     override fun observeFeaturedOn(id: ArtistId): Flow<List<Song>> = flowOf(featuredOn[id].orEmpty())
 
-    override fun observeFolderSongs(folderPath: String): Flow<List<Song>> = emptyFlow()
+    override fun observeFolderSongs(folderPath: String): Flow<List<Song>> = flowOf(folderSongs[folderPath].orEmpty())
 
     override suspend fun songsByIds(ids: List<SongId>): List<Song> {
         val byId = library.value.associateBy { it.id }
@@ -130,6 +133,13 @@ class FakeAlbumReader(
     override fun observeAlbum(id: AlbumId): Flow<Album?> = library.map { list -> list.firstOrNull { it.id == id } }
 
     override fun observeArtistAlbums(id: ArtistId): Flow<List<Album>> = flowOf(artistAlbums[id].orEmpty())
+}
+
+/** The folder tree as the scanner wrote it: [children] by parent path, `null` being the music folder itself. */
+class FakeFolderReader(
+    private val children: Map<String?, List<Folder>> = emptyMap(),
+) : FolderReader {
+    override fun observeChildren(parentPath: String?): Flow<List<Folder>> = flowOf(children[parentPath].orEmpty())
 }
 
 /** Featured artists by song, as the scanner would have written them. */
