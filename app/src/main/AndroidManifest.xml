@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- The only permission: read the MP3s in the folder the owner picks. Never INTERNET (NoInternetPermissionTest). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
     <application
         android:name=".MusicPlayerApp"
         android:allowBackup="false"
