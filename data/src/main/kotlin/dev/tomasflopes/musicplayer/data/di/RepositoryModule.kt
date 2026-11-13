@@ -10,14 +10,19 @@ import dev.tomasflopes.musicplayer.core.model.ports.FolderReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
+import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.taste.lists.RecentlyAddedProvider
 import dev.tomasflopes.musicplayer.data.db.MusicDatabase
 import dev.tomasflopes.musicplayer.data.repo.RoomAlbumReader
 import dev.tomasflopes.musicplayer.data.repo.RoomArtistReader
+import dev.tomasflopes.musicplayer.data.repo.RoomFeatureReader
 import dev.tomasflopes.musicplayer.data.repo.RoomFolderReader
 import dev.tomasflopes.musicplayer.data.repo.RoomPlayHistory
 import dev.tomasflopes.musicplayer.data.repo.RoomSearchHistory
 import dev.tomasflopes.musicplayer.data.repo.RoomSongReader
+import java.time.Clock
 import javax.inject.Singleton
 
 /** The `:core:model` ports, implemented over Room. */
@@ -25,6 +30,14 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
     @Provides fun songReader(db: MusicDatabase): SongReader = RoomSongReader(db)
+
+    @Provides fun songFeatureReader(db: MusicDatabase): SongFeatureReader = RoomFeatureReader(db)
+
+    @Provides fun recentlyAddedProvider(
+        songReader: SongReader,
+        settings: SettingsRepository,
+        clock: Clock,
+    ): RecentlyAddedProvider = RecentlyAddedProvider(songReader, settings, clock)
 
     @Provides fun artistReader(db: MusicDatabase): ArtistReader = RoomArtistReader(db)
 

@@ -18,6 +18,10 @@ interface ArtistDao {
     @Query("SELECT * FROM artist WHERE name = :name")
     suspend fun byName(name: String): ArtistEntity?
 
+    /** Every known main artist, as name/id rows, for resolving featured-artist matches. */
+    @Query("SELECT name, id FROM artist")
+    suspend fun allArtistNameId(): List<ArtistNameIdRow>
+
     @Query(
         "SELECT artist.id, artist.name, artist.sort_name, COUNT(song.id) AS song_count, " +
             "COUNT(DISTINCT song.album_id) AS album_count FROM artist " +
@@ -48,6 +52,11 @@ data class AlbumRow(
     @ColumnInfo(name = "album_artist") val albumArtist: String,
     @ColumnInfo(name = "song_count") val songCount: Int,
     @ColumnInfo(name = "cover_song_id") val coverSongId: Long?,
+)
+
+data class ArtistNameIdRow(
+    val name: String,
+    val id: Long,
 )
 
 private const val ALBUM_ROWS =
@@ -109,4 +118,14 @@ data class FolderRow(
 interface SongFeatureDao {
     @Insert
     suspend fun insert(feature: SongFeatureEntity): Long
+
+    @Query("DELETE FROM song_feature")
+    suspend fun deleteAll()
+
+    /** The display name of every featured artist on a song: the main artist when matched, else the raw text. */
+    @Query(
+        "SELECT COALESCE(artist.name, song_feature.raw_name) AS name FROM song_feature " +
+            "LEFT JOIN artist ON artist.id = song_feature.artist_id WHERE song_feature.song_id = :songId",
+    )
+    suspend fun namesFor(songId: Long): List<String>
 }

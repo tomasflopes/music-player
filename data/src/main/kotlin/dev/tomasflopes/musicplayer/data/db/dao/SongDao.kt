@@ -59,4 +59,13 @@ interface SongDao {
 
     @Query("SELECT id, artist_id FROM song WHERE in_library = 1")
     suspend fun allSongRefs(): List<SongRefRow>
+
+    /** Every in-library song's id and title, used to recompute featured artists. */
+    @Query("SELECT id, title FROM song WHERE in_library = 1")
+    suspend fun allSongTitles(): List<SongTitleRow>
 }
+
+data class SongTitleRow(
+    val id: Long,
+    val title: String,
+)

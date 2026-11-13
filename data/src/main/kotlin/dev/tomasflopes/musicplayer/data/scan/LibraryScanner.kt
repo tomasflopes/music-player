@@ -6,6 +6,7 @@ import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.ScanPhase
 import dev.tomasflopes.musicplayer.core.model.ports.ScanProgress
+import dev.tomasflopes.musicplayer.core.search.FeaturedArtistParser
 import dev.tomasflopes.musicplayer.core.tags.TagReader
 import dev.tomasflopes.musicplayer.core.tags.TagSource
 import dev.tomasflopes.musicplayer.data.db.MusicDatabase
@@ -13,6 +14,7 @@ import dev.tomasflopes.musicplayer.data.db.entity.AlbumEntity
 import dev.tomasflopes.musicplayer.data.db.entity.ArtistEntity
 import dev.tomasflopes.musicplayer.data.db.entity.FolderEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SongEntity
+import dev.tomasflopes.musicplayer.data.db.entity.SongFeatureEntity
 import dev.tomasflopes.musicplayer.data.scan.LibraryAssembler.sortKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -75,8 +77,30 @@ class LibraryScanner(
             plan.revive.forEach { (id, _) -> db.songScanDao().setInLibrary(id.value, true) }
             plan.retire.forEach { db.songScanDao().setInLibrary(it.value, false) }
             writes.foldersFor(plan.move.map { it.second } + plan.revive.map { it.second })
+            writeFeaturedArtists()
         }
         onProgress(ScanProgress(ScanPhase.DONE, found.size, found.size))
+    }
+
+    /** Recomputes song_feature from the current titles and known main artists (ADR 0007, §7.11). */
+    private suspend fun writeFeaturedArtists() {
+        val artists = db.artistDao().allArtistNameId().associate { it.name to it.id }
+        val songs = db.songDao().allSongTitles()
+        db.withTransaction {
+            db.songFeatureDao().deleteAll()
+            for ((id, title) in songs) {
+                for (name in FeaturedArtistParser.parse(title, artists.keys.sortedByDescending { it.length })) {
+                    val artistId = artists[name]
+                    db.songFeatureDao().insert(
+                        SongFeatureEntity(
+                            songId = id,
+                            artistId = artistId,
+                            rawName = if (artistId == null) name else null,
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     /** Resolves artists, albums and folders once per scan and writes songs. Runs inside transactions. */
