@@ -8,4 +8,10 @@ class RoomFeatureReader(
     private val db: MusicDatabase,
 ) : SongFeatureReader {
     override suspend fun namesFor(songId: SongId): List<String> = db.songFeatureDao().namesFor(songId.value)
+
+    override suspend fun all(): Map<SongId, List<String>> =
+        db
+            .songFeatureDao()
+            .allNames()
+            .groupBy({ SongId(it.songId) }, { it.name })
 }

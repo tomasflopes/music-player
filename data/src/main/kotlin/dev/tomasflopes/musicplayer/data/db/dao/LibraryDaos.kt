@@ -128,4 +128,16 @@ interface SongFeatureDao {
             "LEFT JOIN artist ON artist.id = song_feature.artist_id WHERE song_feature.song_id = :songId",
     )
     suspend fun namesFor(songId: Long): List<String>
+
+    /** The same names for every song, in title order, so an index rebuild reads the table once. */
+    @Query(
+        "SELECT song_feature.song_id, COALESCE(artist.name, song_feature.raw_name) AS name FROM song_feature " +
+            "LEFT JOIN artist ON artist.id = song_feature.artist_id ORDER BY song_feature.song_id, song_feature.id",
+    )
+    suspend fun allNames(): List<SongFeatureNameRow>
 }
+
+data class SongFeatureNameRow(
+    @ColumnInfo(name = "song_id") val songId: Long,
+    val name: String,
+)
