@@ -112,13 +112,15 @@ internal class MediaControllerPlaybackController(
         val player = controller
         val window = queue.window(behind = 0, ahead = config.windowAhead)
         val loaded = songs.songsByIds(window.map { it.ref.songId }.distinct()).associateBy { it.id }
+        val upcoming = upcomingOf(window.drop(1), loaded)
         _state.value =
             PlaybackState(
                 current = window.firstOrNull()?.let { loaded[it.ref.songId] },
                 isPlaying = player?.isPlaying == true,
                 positionMs = player?.currentPosition ?: 0,
                 durationMs = (player?.duration ?: 0).coerceAtLeast(0),
-                upcoming = window.drop(1).mapNotNull { loaded[it.ref.songId] },
+                upcoming = upcoming.songs,
+                manualUpcoming = upcoming.manualCount,
                 hasPrevious = queue.index > 0 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0),
                 hasNext = queue.index < queue.size - 1 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0),
                 shuffle = queue.shuffled,

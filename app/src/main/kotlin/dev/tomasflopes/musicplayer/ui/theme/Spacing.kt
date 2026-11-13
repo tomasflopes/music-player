@@ -14,10 +14,11 @@ object Spacing {
     val xxl = 48.dp
 }
 
-/** Artwork sizes. Bigger ones (Now Playing) arrive with their screen. */
+/** Artwork sizes. */
 object ArtSize {
     val mini = 44.dp
     val row = 52.dp
     val card = 96.dp
     val header = 200.dp
+    val hero = 300.dp
 }

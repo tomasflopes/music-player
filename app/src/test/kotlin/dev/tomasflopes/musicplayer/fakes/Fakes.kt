@@ -32,14 +32,27 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
-/** Records what screens ask the player to do; it never plays anything. */
+/**
+ * Records what screens ask the player to do; it never plays anything. A test models the player changing by setting
+ * [playbackState], which [state] follows.
+ */
 class FakePlaybackController : PlaybackController {
-    override val state: StateFlow<PlaybackState> = MutableStateFlow(PlaybackState())
+    val playbackState = MutableStateFlow(PlaybackState())
+    override val state: StateFlow<PlaybackState> = playbackState
     val requests = mutableListOf<PlayRequest>()
 
     /** Every "Play next" and "Add to queue" call, in order, with the songs it carried. */
     val playNextCalls = mutableListOf<List<SongRef>>()
     val addToQueueCalls = mutableListOf<List<SongRef>>()
+
+    /** Transport calls: how often each button was pressed, and the arguments of the ones that take one. */
+    var togglePlayPauseCalls = 0
+    var nextCalls = 0
+    var previousCalls = 0
+    var repeatCycles = 0
+    val seeks = mutableListOf<Long>()
+    val jumps = mutableListOf<Int>()
+    val shuffleCalls = mutableListOf<Boolean>()
 
     override fun play(request: PlayRequest) {
         requests += request
@@ -53,19 +66,33 @@ class FakePlaybackController : PlaybackController {
         addToQueueCalls += songs
     }
 
-    override fun togglePlayPause() = Unit
+    override fun togglePlayPause() {
+        togglePlayPauseCalls++
+    }
 
-    override fun next() = Unit
+    override fun next() {
+        nextCalls++
+    }
 
-    override fun previous() = Unit
+    override fun previous() {
+        previousCalls++
+    }
 
-    override fun seekTo(positionMs: Long) = Unit
+    override fun seekTo(positionMs: Long) {
+        seeks += positionMs
+    }
 
-    override fun jumpToUpcoming(index: Int) = Unit
+    override fun jumpToUpcoming(index: Int) {
+        jumps += index
+    }
 
-    override fun setShuffle(on: Boolean) = Unit
+    override fun setShuffle(on: Boolean) {
+        shuffleCalls += on
+    }
 
-    override fun cycleRepeatMode() = Unit
+    override fun cycleRepeatMode() {
+        repeatCycles++
+    }
 }
 
 /**

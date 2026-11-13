@@ -12,6 +12,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
@@ -34,6 +37,7 @@ import dev.tomasflopes.musicplayer.ui.library.album.AlbumRoute
 import dev.tomasflopes.musicplayer.ui.library.album.AlbumScreen
 import dev.tomasflopes.musicplayer.ui.library.artist.ArtistRoute
 import dev.tomasflopes.musicplayer.ui.library.artist.ArtistScreen
+import dev.tomasflopes.musicplayer.ui.nowplaying.NowPlayingSheet
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
 import dev.tomasflopes.musicplayer.ui.search.SearchScreen
@@ -117,14 +121,18 @@ private fun Tabs() {
     }
 }
 
-/** The mini-player sits directly above the tab bar, on every tab. */
+/** The mini-player sits directly above the tab bar, on every tab; tapping it opens the Now Playing sheet. */
 @Composable
 private fun BottomChrome(
     navController: NavHostController,
     current: NavDestination?,
 ) {
+    var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+    if (nowPlayingOpen) {
+        NowPlayingSheet(onDismiss = { nowPlayingOpen = false })
+    }
     Column {
-        MiniPlayerHost()
+        MiniPlayerHost(onOpen = { nowPlayingOpen = true })
         NavigationBar {
             TopLevelDestination.entries.forEach { destination ->
                 NavigationBarItem(
