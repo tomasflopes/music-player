@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.ui.player
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,17 +27,21 @@ import dev.tomasflopes.musicplayer.ui.components.AlbumArt
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
-/** The bar above the tabs; draws nothing while no song is loaded. */
+/** The bar above the tabs; draws nothing while no song is loaded. Tapping it, outside the buttons, calls [onOpen]. */
 @Composable
 fun MiniPlayer(
     state: PlaybackState,
+    onOpen: () -> Unit,
     onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val song = state.current ?: return
-    Surface(modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    Surface(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onOpen),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
         Column {
             LinearProgressIndicator(
                 progress = {

@@ -1,0 +1,9 @@
+# 0020: The player holds a window of the queue, kept in line by `QueueWindowSync`
+
+Date: 2026-11-13 · Status: accepted
+
+**Context.** Shuffle all queues the whole library (16k songs on the phone). Handing every item to ExoPlayer would make "Shuffle all starts in under 500 ms" depend on the library size, and mixes later need long queues too (plan C3). ADR 0010 says the player holds a window of the queue but not how that window is kept; this records it.
+
+**Decision.** `PlayQueue` (pure Kotlin, `:playback`) owns the whole order. `QueueWindowSync` keeps the player's item list equal to a window of it: `PlaybackConfig.windowBehind` and `windowAhead` songs (20 each) around the current one. A new play request and any loss of track call `fill()`, which replaces the list and restarts the current song. When the player advances by itself, the sync trims the front and appends at the back, so playback is never interrupted. A shuffle toggle replaces only the songs after the current one (`replaceTail`), so the current song keeps playing. A song the player cannot open leaves the queue and the window is refilled (`onItemFailed`). The player is reached only through the small `QueueWindowSync.PlayerItems` seam, which keeps the sync testable on the JVM with a fake. `PlaybackEngine` loads songs for twice the ahead window before the sync runs, because the sync cannot wait for the database, and drops queue entries that have left the library.
+
+**Consequences.** The player never holds more than 41 items (`PlaybackServiceTest`). Anything that reads the player's own list sees the window, not the queue; the queue is the source of truth. A window of 20 each way is a guess: if next or previous ever stalls at the window edge on the phone, change the two numbers in `PlaybackConfig`, not the sync. The 500 ms budget is the owner's measurement (plan Task 31) and is not verified by any test.

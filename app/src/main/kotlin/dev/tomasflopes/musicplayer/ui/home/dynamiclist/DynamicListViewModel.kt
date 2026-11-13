@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -38,11 +37,11 @@ class DynamicListViewModel
         private val playback: PlaybackController,
         providers: Set<@JvmSuppressWildcards DynamicListProvider>,
         private val settings: SettingsRepository,
-        private val config: LibraryConfig,
+        config: LibraryConfig,
     ) : ViewModel() {
         private val providersById = providers.associateBy { it.id }
         private val listId = MutableStateFlow<String?>(null)
-        private val daysError = MutableStateFlow<DaysError?>(null)
+        private val daysEditor = DaysWindowEditor(settings, config, viewModelScope)
 
         val state: StateFlow<DynamicListUiState> =
             listId
@@ -50,26 +49,17 @@ class DynamicListViewModel
                 .stateIn(viewModelScope, WhileSubscribed, DynamicListUiState.Loading)
 
         fun open(id: String) {
-            daysError.value = null
+            daysEditor.clearError()
             listId.value = id
         }
 
         /** A quick option or any in-range number; returns whether it was applied, so the picker can close. */
-        fun onQuickDays(days: Int): Boolean = apply(days)
+        fun onQuickDays(days: Int): Boolean = daysEditor.applyDays(days)
 
         /** The custom field's text; returns whether it was applied. */
-        fun onCustomDays(text: String): Boolean {
-            val days = text.trim().toIntOrNull()
-            if (days == null) {
-                daysError.value = DaysError.NOT_A_NUMBER
-                return false
-            }
-            return apply(days)
-        }
+        fun onCustomDays(text: String): Boolean = daysEditor.applyText(text)
 
-        fun onPickerDismissed() {
-            daysError.value = null
-        }
+        fun onPickerDismissed() = daysEditor.clearError()
 
         fun onPlay() = start(startIndex = 0, shuffle = false, picked = false)
 
@@ -77,16 +67,6 @@ class DynamicListViewModel
 
         /** Plays the list in its shown order, starting at the tapped song. */
         fun onSongClick(index: Int) = start(startIndex = index, shuffle = false, picked = true)
-
-        private fun apply(days: Int): Boolean {
-            if (days !in config.recentlyAddedDaysRange) {
-                daysError.value = DaysError.OUT_OF_RANGE
-                return false
-            }
-            daysError.value = null
-            viewModelScope.launch { settings.setRecentlyAddedDays(days) }
-            return true
-        }
 
         private fun start(
             startIndex: Int,
@@ -108,17 +88,13 @@ class DynamicListViewModel
         }
 
         private fun ready(provider: DynamicListProvider): Flow<DynamicListUiState> =
-            combine(provider.songs(), windowDays(provider), daysError) { songs, days, error ->
-                DynamicListUiState.Ready(provider.title, songs, provider.playSource, days?.let { window(it, error) })
+            combine(provider.songs(), windowDays(provider), daysEditor.error) { songs, days, error ->
+                val window = days?.let { daysEditor.window(it, error) }
+                DynamicListUiState.Ready(provider.title, songs, provider.playSource, window)
             }
 
         // Only Recently added has a days window today. A second windowed list would need the provider to say so
         // (a capability on the core interface) instead of this id check.
         private fun windowDays(provider: DynamicListProvider): Flow<Int?> =
             if (provider.id == RecentlyAddedProvider.ID) settings.recentlyAddedDays else flowOf(null)
-
-        private fun window(
-            days: Int,
-            error: DaysError?,
-        ) = DaysWindow(days, config.recentlyAddedQuickOptions, config.recentlyAddedDaysRange, error)
     }

@@ -7,7 +7,11 @@ adds taste-aware mixes, Wrapped-style stats and better search over time.
 - How the code is built: the **Engineering Guidelines** doc in the same project; `CONTRIBUTING.md` summarises it.
 - Why things are the way they are: [`docs/adr/`](docs/adr).
 
-Status: **scaffold only.** Phase 1 (an MP3 player that replaces Vinyl) has not started.
+Status: **phase 1 (an MP3 player that replaces Vinyl) is mostly built**: Home with Shuffle all and Recently added,
+Library (Artists, Albums, Songs), album and artist pages, search, Now Playing with the queue, notification and car
+controls, Settings, and the listening log in the background. Onboarding is still the one-screen folder prompt.
+Not done: measuring speed on a real phone against the budget in `docs/plans/2026-11-13-phase-1-mp3-player.md`
+(Task 31), and the acceptance check (can Vinyl be uninstalled?). Nothing outside phase 1 exists yet (no mixes, playlists, analysis or Wrapped).
 
 ## Setup (macOS)
 
@@ -32,7 +36,22 @@ ANDROID_SERIAL=emulator-5554 ./gradlew deviceCheck   # Room, MediaStore and play
 
 `deviceCheck` runs every module's instrumented tests and is **not** part of `check` or the pre-push hook
 (ADR 0009). It runs on every connected device unless `ANDROID_SERIAL` picks one, so set it when the phone
-is plugged in too.
+is plugged in too. Besides the Room, scanner and playback tests it runs two UI flows in `:app`
+(`OnboardingFlowTest`, `ShuffleAllFlowTest`). They need the sample library below on the device, they save the
+sample folder as the music folder while they run (the previous folder is put back and rescanned afterwards), and
+a scan of the sample folder retires every song outside it until the next scan. **Run them on the emulator only.**
+
+## Sample library
+
+A generated set of silent MP3s with real tags: albums with discs and tracks, albums without track numbers, search
+traps, every ID3 version, covers, symbols, and a file outside the music folder on purpose.
+
+```sh
+./gradlew :core:tags:generateSamples   # writes core/tags/build/samples/ (Music/ and Recordings/)
+scripts/push-samples.sh                # generates, pushes to /sdcard/ of the connected device, triggers a media scan
+```
+
+`push-samples.sh` writes to the device `adb` selects; set `ANDROID_SERIAL` when more than one is connected. Then pick `/sdcard/Music/Sample` as the music folder in the app.
 
 There is no cloud CI. `./gradlew check` runs before every push through the `.githooks/pre-push` hook.
 
