@@ -5,6 +5,8 @@ naming:
 style:
   MagicNumber:
     ignoreAnnotated: ['Composable']
+    # Config data classes (LibraryConfig, SearchConfig, PlaybackConfig) are where tunable numbers belong.
+    excludes: ['**/config/**', '**/test/**', '**/testFixtures/**', '**/androidTest/**']
     ignorePropertyDeclaration: true
     ignoreExtensionFunctions: true
 complexity:
