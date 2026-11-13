@@ -16,6 +16,7 @@ ksp {
 
 dependencies {
     implementation(projects.core.model)
+    implementation(projects.core.tags)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
