@@ -13,6 +13,9 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
         pluginManager.apply("com.google.devtools.ksp")
         pluginManager.apply("com.google.dagger.hilt.android")
         configureQuality()
+        configureAndroidUnitTests()
+        configureNoNetworkGuard()
+        exposeMergedManifestToUnitTests()
 
         extensions.configure<ApplicationExtension> {
             compileSdk = ANDROID_SDK

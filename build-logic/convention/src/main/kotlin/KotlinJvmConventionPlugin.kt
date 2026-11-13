@@ -1,9 +1,6 @@
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
 /** Pure-Kotlin modules (:core:*). No Android imports allowed; tests run on the JVM with JUnit 5. */
@@ -13,14 +10,6 @@ class KotlinJvmConventionPlugin : Plugin<Project> {
         configureQuality()
 
         extensions.configure<KotlinJvmProjectExtension> { jvmToolchain(JAVA_VERSION) }
-        tasks.withType<Test>().configureEach { useJUnitPlatform() }
-
-        dependencies {
-            "testImplementation"(platform(libs.lib("junit-bom")))
-            "testImplementation"(libs.lib("junit-jupiter"))
-            "testImplementation"(libs.lib("kotlinx-coroutines-test"))
-            "testImplementation"(libs.lib("turbine"))
-            "testRuntimeOnly"(libs.lib("junit-platform-launcher"))
-        }
+        configureUnitTests()
     }
 }
