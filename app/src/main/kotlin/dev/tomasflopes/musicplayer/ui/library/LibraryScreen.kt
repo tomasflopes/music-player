@@ -18,6 +18,7 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.ui.components.ScreenTitle
 import dev.tomasflopes.musicplayer.ui.library.albums.AlbumsTab
 import dev.tomasflopes.musicplayer.ui.library.artists.ArtistsTab
+import dev.tomasflopes.musicplayer.ui.library.folders.FoldersTab
 import dev.tomasflopes.musicplayer.ui.library.songs.SongsTab
 
 /** Where Library rows lead: the artist and album pages (plan Task 26). */
@@ -32,11 +33,12 @@ private class LibraryPage(
     val content: @Composable (LibraryActions) -> Unit,
 )
 
-/** In display order. Folders (plan Task 27) is one more entry, between Albums and Songs. */
+/** In display order (design 8.2). */
 private val pages =
     listOf(
         LibraryPage("Artists") { ArtistsTab(it.onOpenArtist) },
         LibraryPage("Albums") { AlbumsTab(it.onOpenAlbum) },
+        LibraryPage("Folders") { FoldersTab() },
         LibraryPage("Songs") { SongsTab() },
     )
 
