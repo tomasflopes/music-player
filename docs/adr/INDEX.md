@@ -14,3 +14,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0008](0008-listening-log-fields-beyond-the-design.md) | Listening log adds `songs` / `artist` sources, `started_by` and `shuffle` | accepted |
 | [0009](0009-room-tests-on-the-emulator.md) | Room, DAO and migration tests run on the emulator via `deviceCheck`, outside `check` | accepted |
 | [0010](0010-queue-modes-shuffle-toggle-and-repeat.md) | Queue modes: shuffle toggle, repeat off/all/one, manual entries survive a new play | accepted |
+| [0011](0011-basic-library-ui-shell.md) | Basic UI shell: one Library screen, one ViewModel, mini-player; replaced by real navigation later | accepted |

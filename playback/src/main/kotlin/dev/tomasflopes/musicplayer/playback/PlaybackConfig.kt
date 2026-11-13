@@ -8,4 +8,8 @@ data class PlaybackConfig(
     /** How often the "pending play" checkpoint is written while a song plays (plan D6). */
     val pendingCheckpointMs: Long = 10_000,
     val queueSaveDebounceMs: Long = 1_000,
+    /** Previous restarts the song when it has played longer than this, and goes back only before it. */
+    val restartThresholdMs: Long = 3_000,
+    /** How often the position shown on screen refreshes while playing. */
+    val positionTickMs: Long = 500,
 )
