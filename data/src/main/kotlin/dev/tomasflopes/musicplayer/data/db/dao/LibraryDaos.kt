@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.data.db.dao
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
@@ -16,7 +17,44 @@ interface ArtistDao {
 
     @Query("SELECT * FROM artist WHERE name = :name")
     suspend fun byName(name: String): ArtistEntity?
+
+    @Query(
+        "SELECT artist.id, artist.name, artist.sort_name, COUNT(song.id) AS song_count, " +
+            "COUNT(DISTINCT song.album_id) AS album_count FROM artist " +
+            "JOIN song ON song.artist_id = artist.id AND song.in_library = 1 " +
+            "GROUP BY artist.id ORDER BY artist.sort_name, artist.id",
+    )
+    fun observeAll(): Flow<List<ArtistRow>>
+
+    @Query(
+        "SELECT artist.id, artist.name, artist.sort_name, COUNT(song.id) AS song_count, " +
+            "COUNT(DISTINCT song.album_id) AS album_count FROM artist " +
+            "JOIN song ON song.artist_id = artist.id AND song.in_library = 1 WHERE artist.id = :id GROUP BY artist.id",
+    )
+    fun observe(id: Long): Flow<ArtistRow?>
 }
+
+data class ArtistRow(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "sort_name") val sortName: String,
+    @ColumnInfo(name = "song_count") val songCount: Int,
+    @ColumnInfo(name = "album_count") val albumCount: Int,
+)
+
+data class AlbumRow(
+    val id: Long,
+    val title: String,
+    @ColumnInfo(name = "album_artist") val albumArtist: String,
+    @ColumnInfo(name = "song_count") val songCount: Int,
+    @ColumnInfo(name = "cover_song_id") val coverSongId: Long?,
+)
+
+private const val ALBUM_ROWS =
+    "SELECT album.id, album.title, album.album_artist, COUNT(song.id) AS song_count, " +
+        "(SELECT s.id FROM song s WHERE s.album_id = album.id AND s.in_library = 1 AND s.has_cover = 1 " +
+        "ORDER BY COALESCE(s.disc_number, 1), s.track_number LIMIT 1) AS cover_song_id FROM album " +
+        "JOIN song ON song.album_id = album.id AND song.in_library = 1"
 
 @Dao
 interface AlbumDao {
@@ -28,6 +66,19 @@ interface AlbumDao {
         title: String,
         albumArtist: String,
     ): AlbumEntity?
+
+    @Query("$ALBUM_ROWS GROUP BY album.id ORDER BY album.sort_title, album.album_artist, album.id")
+    fun observeAll(): Flow<List<AlbumRow>>
+
+    @Query("$ALBUM_ROWS WHERE album.id = :id GROUP BY album.id")
+    fun observe(id: Long): Flow<AlbumRow?>
+
+    @Query(
+        "$ALBUM_ROWS WHERE album.id IN " +
+            "(SELECT DISTINCT album_id FROM song WHERE artist_id = :artistId AND in_library = 1) " +
+            "GROUP BY album.id ORDER BY album.sort_title, album.id",
+    )
+    fun observeByArtist(artistId: Long): Flow<List<AlbumRow>>
 }
 
 @Dao
@@ -35,9 +86,24 @@ interface FolderDao {
     @Insert
     suspend fun insert(folder: FolderEntity)
 
-    @Query("SELECT * FROM folder WHERE parent_path IS :parentPath ORDER BY name")
-    fun observeChildren(parentPath: String?): Flow<List<FolderEntity>>
+    @Query("SELECT * FROM folder WHERE path = :path")
+    suspend fun byPath(path: String): FolderEntity?
+
+    @Query(
+        "SELECT folder.path, folder.name, folder.parent_path, " +
+            "(SELECT COUNT(*) FROM song WHERE song.in_library = 1 AND " +
+            "(song.folder_path = folder.path OR song.folder_path LIKE folder.path || '/%')) AS song_count " +
+            "FROM folder WHERE folder.parent_path IS :parentPath ORDER BY folder.name",
+    )
+    fun observeChildren(parentPath: String?): Flow<List<FolderRow>>
 }
+
+data class FolderRow(
+    val path: String,
+    val name: String,
+    @ColumnInfo(name = "parent_path") val parentPath: String?,
+    @ColumnInfo(name = "song_count") val songCount: Int,
+)
 
 @Dao
 interface SongFeatureDao {

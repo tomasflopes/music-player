@@ -31,7 +31,7 @@ class SongDaoTest {
             val album = db.album("Album", "A")
             val positions = listOf(2 to 3, 1 to 2, 2 to 1, 1 to 3, 1 to 1, 2 to 2)
             positions.forEach { (disc, track) ->
-                db.songDao().insert(songEntity("d$disc t$track.mp3", artist, album, disc = disc, track = track))
+                db.songScanDao().insert(songEntity("d$disc t$track.mp3", artist, album, disc = disc, track = track))
             }
 
             val titles =
@@ -48,7 +48,7 @@ class SongDaoTest {
     fun addedSinceIsInclusiveAndNewestFirst() =
         runTest {
             val artist = db.artist("A")
-            listOf(99L, 100L, 101L).forEach { db.songDao().insert(songEntity("$it.mp3", artist, dateAdded = it)) }
+            listOf(99L, 100L, 101L).forEach { db.songScanDao().insert(songEntity("$it.mp3", artist, dateAdded = it)) }
 
             val added =
                 db
@@ -65,8 +65,8 @@ class SongDaoTest {
         runTest {
             val artist = db.artist("Kendrick Lamar")
             val album = db.album("DAMN.", "Kendrick Lamar")
-            db.songDao().insert(songEntity("HUMBLE..mp3", artist, album))
-            db.songDao().insert(songEntity("Single.mp3", artist))
+            db.songScanDao().insert(songEntity("HUMBLE..mp3", artist, album))
+            db.songScanDao().insert(songEntity("Single.mp3", artist))
 
             val rows = db.songDao().observeAll().first()
 
@@ -83,8 +83,11 @@ class SongDaoTest {
         runTest {
             val artist = db.artist("A")
             val album = db.album("Album", "A")
-            val live = db.songDao().insert(songEntity("live.mp3", artist, album, dateAdded = 5))
-            val retired = db.songDao().insert(songEntity("gone.mp3", artist, album, dateAdded = 5, inLibrary = false))
+            val live = db.songScanDao().insert(songEntity("live.mp3", artist, album, dateAdded = 5))
+            val retired =
+                db.songScanDao().insert(
+                    songEntity("gone.mp3", artist, album, dateAdded = 5, inLibrary = false),
+                )
             listOf(live, retired).forEach {
                 db.songFeatureDao().insert(SongFeatureEntity(songId = it, artistId = artist, rawName = "A"))
             }

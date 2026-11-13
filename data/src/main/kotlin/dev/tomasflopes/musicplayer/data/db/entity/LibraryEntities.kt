@@ -41,7 +41,10 @@ data class SongEntity(
     @ColumnInfo(name = "has_cover") val hasCover: Boolean,
     @ColumnInfo(name = "tag_version") val tagVersion: String,
     @ColumnInfo(name = "in_library") val inLibrary: Boolean,
-)
+) {
+    /** Rebuilt from the volume and MediaStore id, so the row stays correct when MediaStore re-indexes. */
+    fun contentUri(): String = "content://media/$volumeName/audio/media/$mediaStoreId"
+}
 
 @Entity(tableName = "artist", indices = [Index(value = ["name"], unique = true)])
 data class ArtistEntity(

@@ -6,4 +6,6 @@ data class LibraryConfig(
     val recentlyAddedQuickOptions: List<Int> = listOf(7, 15, 20, 30, 60, 90),
     val recentlyAddedDaysRange: IntRange = 1..3650,
     val scanBatchSize: Int = 500,
+    /** How long MediaStore must stay quiet before a change triggers a rescan. */
+    val mediaStoreDebounceMs: Long = 5_000,
 )

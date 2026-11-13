@@ -3,7 +3,6 @@ package dev.tomasflopes.musicplayer.data.db.dao
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Embedded
-import androidx.room.Insert
 import androidx.room.Query
 import dev.tomasflopes.musicplayer.data.db.entity.SongEntity
 import kotlinx.coroutines.flow.Flow
@@ -26,12 +25,9 @@ private const val SELECT_ROWS =
         "JOIN artist ON artist.id = song.artist_id LEFT JOIN album ON album.id = song.album_id " +
         "WHERE song.in_library = 1"
 
-/** Every reader query shows only songs in the library (`in_library = 1`). */
+/** Every reader query shows only songs in the library (`in_library = 1`). The scan writes through [SongScanDao]. */
 @Dao
 interface SongDao {
-    @Insert
-    suspend fun insert(song: SongEntity): Long
-
     @Query("$SELECT_ROWS ORDER BY song.sort_title, song.id")
     fun observeAll(): Flow<List<SongRow>>
 

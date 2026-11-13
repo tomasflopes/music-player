@@ -10,6 +10,7 @@ import dev.tomasflopes.musicplayer.data.db.dao.PlayEventDao
 import dev.tomasflopes.musicplayer.data.db.dao.SearchEventDao
 import dev.tomasflopes.musicplayer.data.db.dao.SongDao
 import dev.tomasflopes.musicplayer.data.db.dao.SongFeatureDao
+import dev.tomasflopes.musicplayer.data.db.dao.SongScanDao
 import dev.tomasflopes.musicplayer.data.db.entity.AlbumEntity
 import dev.tomasflopes.musicplayer.data.db.entity.ArtistEntity
 import dev.tomasflopes.musicplayer.data.db.entity.FolderEntity
@@ -34,6 +35,8 @@ import dev.tomasflopes.musicplayer.data.db.entity.SongFeatureEntity
 @TypeConverters(Converters::class)
 abstract class MusicDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao
+
+    abstract fun songScanDao(): SongScanDao
 
     abstract fun artistDao(): ArtistDao
 
