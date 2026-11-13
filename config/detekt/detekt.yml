@@ -12,3 +12,8 @@ style:
 complexity:
   LongParameterList:
     ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    # PlayQueue's API (plan Task 13) has 13 public functions; DAOs and Hilt modules also legitimately grow.
+    allowedFunctionsPerClass: 20
+    allowedFunctionsPerInterface: 20
+    allowedFunctionsPerObject: 20
