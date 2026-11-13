@@ -2,6 +2,7 @@ package dev.tomasflopes.musicplayer.playback.log
 
 import dev.tomasflopes.musicplayer.core.model.log.EndedBy
 import dev.tomasflopes.musicplayer.core.model.log.PlayEvent
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.playback.queue.QueueEntry
 
@@ -83,7 +84,7 @@ class PlayEventTracker(
                 listenedMs = if (completed) durationMs else listenedMs,
                 songDurationMs = durationMs,
                 endedBy = endedBy,
-                source = if (entry.manual) dev.tomasflopes.musicplayer.core.model.log.PlaySource.QUEUE else entry.source,
+                source = if (entry.manual) PlaySource.QUEUE else entry.source,
                 startedBy = startedBy,
                 shuffle = shuffle,
             )

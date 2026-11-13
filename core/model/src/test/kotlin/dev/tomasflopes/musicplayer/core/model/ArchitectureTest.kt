@@ -1,7 +1,7 @@
 package dev.tomasflopes.musicplayer.core.model
 
-import com.tngtech.archunit.core.importer.ImportOption
 import com.tngtech.archunit.core.importer.ClassFileImporter
+import com.tngtech.archunit.core.importer.ImportOption
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 import org.junit.jupiter.api.Test
 
@@ -17,7 +17,12 @@ class ArchitectureTest {
         noClasses()
             .should()
             .dependOnClassesThat()
-            .resideInAnyPackage("android..", "androidx..", "dev.tomasflopes.musicplayer.data..", "dev.tomasflopes.musicplayer.playback..", "dev.tomasflopes.musicplayer.ui..")
-            .check(classes)
+            .resideInAnyPackage(
+                "android..",
+                "androidx..",
+                "dev.tomasflopes.musicplayer.data..",
+                "dev.tomasflopes.musicplayer.playback..",
+                "dev.tomasflopes.musicplayer.ui..",
+            ).check(classes)
     }
 }

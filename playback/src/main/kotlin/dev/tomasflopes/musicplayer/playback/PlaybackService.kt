@@ -16,7 +16,10 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
+import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.playback.log.PendingPlayStore
+import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +38,8 @@ class PlaybackService : MediaSessionService() {
     @Inject lateinit var config: PlaybackConfig
 
     @Inject lateinit var mapper: MediaItemMapper
+
+    @Inject lateinit var history: PlayHistoryWriter
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var engine: PlaybackEngine? = null
@@ -55,7 +60,8 @@ class PlaybackService : MediaSessionService() {
                 ).setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_LOCAL)
                 .build()
-        val engine = PlaybackEngine(player, queue, songs, mapper, config, scope)
+        val recorder = PlayEventRecorder(history, scope, PendingPlayStore(filesDir.resolve("pending-play")))
+        val engine = PlaybackEngine(player, queue, songs, mapper, config, scope, recorder)
         this.engine = engine
         session =
             MediaSession

@@ -8,7 +8,9 @@ import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import dev.tomasflopes.musicplayer.playback.queue.QueueEntry
 import dev.tomasflopes.musicplayer.playback.queue.QueueWindowSync
@@ -29,6 +31,7 @@ internal class PlaybackEngine(
     private val mapper: MediaItemMapper,
     private val config: PlaybackConfig,
     private val scope: CoroutineScope,
+    private val recorder: PlayEventRecorder,
 ) : Player.Listener {
     private val cache = HashMap<SongId, Song>()
     private val mutex = Mutex()
@@ -48,6 +51,14 @@ internal class PlaybackEngine(
             sync.onQueueReplaced()
             player.prepare()
             player.play()
+            queue.current?.let {
+                recorder.started(
+                    it,
+                    player.duration.coerceAtLeast(0),
+                    if (request.picked) StartedBy.PICKED else StartedBy.AUTO,
+                    queue.shuffled,
+                )
+            }
             exposed.notifyModes()
         }
 
@@ -94,7 +105,10 @@ internal class PlaybackEngine(
 
     fun hasPrevious() = queue.index > 0 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0)
 
-    fun release() = player.removeListener(this)
+    fun release() {
+        recorder.stopped()
+        player.removeListener(this)
+    }
 
     // Player.Listener: the player moved on by itself, finished, or could not open a file.
 
@@ -104,6 +118,7 @@ internal class PlaybackEngine(
     ) {
         if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) return
         serial {
+            recorder.endedNaturally()
             queue.advanceOnTrackEnd()
             prepareWindow()
             sync.onPlayerAdvanced()
@@ -119,6 +134,8 @@ internal class PlaybackEngine(
             player.play()
         }
     }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) = recorder.playingChanged(isPlaying)
 
     override fun onPlayerError(error: PlaybackException) {
         serial {
