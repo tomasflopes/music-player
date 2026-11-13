@@ -12,6 +12,14 @@ Solo project, written so a future feature is "add code in one place".
 - No `INTERNET` permission and no network libraries.
 - Versions live only in `gradle/libs.versions.toml`.
 
+## Changing the database schema
+
+1. Change the entities and bump `version` in `MusicDatabase`.
+2. Add `Migration(n, n + 1)` to `Migrations.ALL` (hand-written SQL; never destructive).
+3. Build once and commit the new `data/schemas/…/<n + 1>.json`.
+4. Add a `migrateNToN+1` test in `MusicDatabaseMigrationTest` that inserts a `play_event` row at version n,
+   runs the migration, and finds the row afterwards. Run it with `./gradlew deviceCheck`.
+
 ## Before you push
 
 `./gradlew check` must pass (the pre-push hook runs it). One branch per feature; small commits.

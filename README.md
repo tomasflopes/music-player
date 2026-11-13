@@ -27,7 +27,12 @@ analysis speed.
 ./gradlew :core:model:check     # one module
 ./gradlew ktlintFormat          # fix formatting
 ./gradlew :app:installDebug     # install on the running emulator / phone
+ANDROID_SERIAL=emulator-5554 ./gradlew deviceCheck   # Room, MediaStore and playback tests on the emulator
 ```
+
+`deviceCheck` runs every module's instrumented tests and is **not** part of `check` or the pre-push hook
+(ADR 0009). It runs on every connected device unless `ANDROID_SERIAL` picks one, so set it when the phone
+is plugged in too.
 
 There is no cloud CI. `./gradlew check` runs before every push through the `.githooks/pre-push` hook.
 

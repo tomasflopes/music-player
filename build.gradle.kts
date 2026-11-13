@@ -10,3 +10,18 @@ plugins {
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
 }
+
+// Tests that need a running emulator or phone (Room, MediaStore, playback). Not part of `check` (plan C2, ADR 0009).
+val deviceCheck =
+    tasks.register("deviceCheck") {
+        group = "verification"
+        description = "Runs every module's instrumented tests on the connected emulator or phone."
+    }
+subprojects {
+    val modulePath = path
+    listOf("com.android.library", "com.android.application").forEach { plugin ->
+        pluginManager.withPlugin(plugin) {
+            deviceCheck.configure { dependsOn("$modulePath:connectedDebugAndroidTest") }
+        }
+    }
+}

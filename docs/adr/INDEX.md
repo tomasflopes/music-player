@@ -12,3 +12,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0006](0006-hand-written-id3-reader.md) | Hand-written ID3 reader in `:core:tags`, no tag library | accepted |
 | [0007](0007-file-name-fallback-for-untagged-files.md) | Untagged files take title and artist from an "Artist - Title" file name; tags always win | accepted |
 | [0008](0008-listening-log-fields-beyond-the-design.md) | Listening log adds `songs` / `artist` sources, `started_by` and `shuffle` | accepted |
+| [0009](0009-room-tests-on-the-emulator.md) | Room, DAO and migration tests run on the emulator via `deviceCheck`, outside `check` | accepted |
