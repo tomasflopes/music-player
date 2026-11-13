@@ -46,6 +46,17 @@ class ShellViewModelTest {
     }
 
     @Test
+    fun `picking another folder later replaces the saved one and scans again`() {
+        val viewModel = viewModel()
+        viewModel.folderPicked("content://first", "primary:Music")
+
+        viewModel.folderPicked("content://second", "1A2B-3C4D:Songs")
+
+        assertEquals(MusicRoot("content://second", "external_primary", "Music/"), settings.root.value)
+        assertEquals(2, scanner.scanRequests)
+    }
+
+    @Test
     fun `a folder MediaStore does not list changes nothing`() {
         viewModel().folderPicked("content://tree", "downloads")
 

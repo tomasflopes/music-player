@@ -5,11 +5,13 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
+import dagger.multibindings.Multibinds
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.taste.lists.RecentlyAddedProvider
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.home.sections.DynamicListsSection
 import dev.tomasflopes.musicplayer.ui.home.sections.ShuffleAllSection
+import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 
 /**
  * Where the extension points get their implementations: one `@IntoSet` line per new Home section or dynamic list
@@ -25,6 +27,10 @@ abstract class ExtensionPointsModule {
     @Binds
     @IntoSet
     abstract fun dynamicListsSection(section: DynamicListsSection): HomeSection
+
+    /** Empty in release; the debug source set adds its link with an `@IntoSet` binding (ADR 0019). */
+    @Multibinds
+    abstract fun settingsEntries(): Set<SettingsEntry>
 
     @Binds
     @IntoSet

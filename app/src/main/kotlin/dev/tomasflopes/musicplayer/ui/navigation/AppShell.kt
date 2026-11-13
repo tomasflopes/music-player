@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -41,6 +42,8 @@ import dev.tomasflopes.musicplayer.ui.nowplaying.NowPlayingSheet
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
 import dev.tomasflopes.musicplayer.ui.search.SearchScreen
+import dev.tomasflopes.musicplayer.ui.settings.SettingsRoute
+import dev.tomasflopes.musicplayer.ui.settings.SettingsScreen
 import dev.tomasflopes.musicplayer.ui.shell.ShellState
 import dev.tomasflopes.musicplayer.ui.shell.ShellViewModel
 
@@ -56,13 +59,13 @@ fun AppShell(
         when (state) {
             ShellState.LOADING -> Unit
             ShellState.NEEDS_FOLDER -> FolderPromptScreen(onPickFolder)
-            ShellState.READY -> Tabs()
+            ShellState.READY -> Tabs(onPickFolder)
         }
     }
 }
 
 @Composable
-private fun Tabs() {
+private fun Tabs(onPickFolder: () -> Unit) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
 
@@ -117,7 +120,18 @@ private fun Tabs() {
                     onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
                 )
             }
+            settingsDestination(navController, onPickFolder)
         }
+    }
+}
+
+/** Settings is a page opened from Home's gear, not a tab; the folder picker is the shell's own (ADR 0016). */
+private fun NavGraphBuilder.settingsDestination(
+    navController: NavHostController,
+    onPickFolder: () -> Unit,
+) {
+    composable(SettingsRoute.ROUTE) {
+        SettingsScreen(onBack = { navController.popBackStack() }, onPickFolder = onPickFolder)
     }
 }
 

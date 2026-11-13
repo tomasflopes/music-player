@@ -22,3 +22,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0016](0016-app-shell-with-tabs-theme-and-song-rows.md) | App shell: bottom tabs, one dark and orange theme, shared song row, covers without Coil; supersedes 0011 | accepted |
 | [0017](0017-search-tab-engine-per-snapshot-and-what-a-result-plays.md) | Search tab: one immutable engine per library snapshot behind an `:app` seam; what each result plays | accepted |
 | [0018](0018-notification-cover-through-a-session-bitmap-loader.md) | Notification, lock screen and car covers come from a session `BitmapLoader` over a `CoverBitmapSource` seam bound by `:app` | accepted |
+| [0019](0019-settings-entries-and-the-debug-link-through-the-debug-source-set.md) | Settings entries are a Hilt set; the debug link is added from the debug source set, not a runtime flag | accepted |

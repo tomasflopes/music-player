@@ -25,6 +25,7 @@ import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
+import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -218,6 +219,15 @@ class FakeHomeSection(
 ) : HomeSection {
     @Composable
     override fun Content(onNavigate: (String) -> Unit) = Unit
+}
+
+/** A Settings row that draws nothing; tests look at which entries Settings would show and in what order. */
+class FakeSettingsEntry(
+    override val id: String,
+    override val order: Int = 0,
+) : SettingsEntry {
+    @Composable
+    override fun Content() = Unit
 }
 
 class FakeScanController : LibraryScanController {
