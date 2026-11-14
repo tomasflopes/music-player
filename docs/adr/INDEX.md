@@ -26,3 +26,6 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0020](0020-windowed-queue-between-play-queue-and-player.md) | The player holds a window of the queue (20 each side), kept in line by `QueueWindowSync`; the queue owns the order | accepted |
 | [0021](0021-song-identity-and-retired-songs.md) | A song keeps its id for life, matched by volume and path then MediaStore id; missing files are retired, never deleted | accepted |
 | [0022](0022-recently-added-window-is-edited-in-settings-only.md) | The Recently added window is edited in Settings only; the list shows it as a read-only caption | accepted |
+| [0023](0023-top-100-is-scored-on-demand-behind-a-score-board.md) | The Top 100 is scored on demand behind a `ScoreBoard` port; a cached table is a later, separate decision | accepted |
+| [0024](0024-taste-weights-live-in-one-config-in-core-taste.md) | Taste weights, burst rule, decay and list size live in one `TasteConfig` in `:core:taste`, defaults in code | accepted |
+| [0025](0025-every-track-the-player-moves-to-is-logged.md) | Every track the player moves to gets its own `play_event` row; duration comes from the library; extends 0008 | accepted |

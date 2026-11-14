@@ -16,6 +16,15 @@ interface PlayHistoryReader {
     fun observeCount(): Flow<Int>
 }
 
+/** The listening log as input for scoring. */
+interface PlayEventSource {
+    /**
+     * Rows that started at or after [sinceEpochMs], oldest first, rows with equal times in the order they were
+     * logged. Emits again whenever the log changes.
+     */
+    fun observeSince(sinceEpochMs: Long): Flow<List<PlayEvent>>
+}
+
 interface SearchHistoryWriter {
     suspend fun append(event: SearchEvent)
 }

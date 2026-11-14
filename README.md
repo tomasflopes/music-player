@@ -11,13 +11,19 @@ Status: **phase 1 (an MP3 player that replaces Vinyl) is done** and tagged `phas
 Recently added, Library (Folders, Artists, Albums, Songs with an A-Z rail), album and artist pages (with "Featured on"),
 search, Now Playing with the queue, notification and car controls, Settings (music folder and the Recently added
 window), and the listening log in the background. The owner ran the acceptance list of Task 32 on a phone next to
-Vinyl and it passed. Nothing outside phase 1 exists yet (no mixes, playlists, analysis or Wrapped).
+Vinyl and it passed.
+
+**Phase 2, first slice (branch `phase2/top-100`, not merged):** a **Top 100** card on Home that follows current taste.
+Every track the player moves to now gets its own listening-log row (next, previous, auto-advance, queue jump), and
+`:core:taste` scores songs from the log: signed weights, softening of browsing bursts, completed plays forgiving
+earlier skips, and a 30-day half-life, all in one `TasteConfig`. Scores are computed on demand behind a `ScoreBoard`
+port (ADR 0023). Not built yet: smart shuffle, playlists, sound analysis, mixes.
 
 Not recorded: the speed measurements against the budget and a `deviceCheck` run (Task 31 in
-`docs/plans/2026-11-13-phase-1-mp3-player.md`). Known gaps, found by reading the code and not yet confirmed on the
+`docs/plans/2026-11-13-phase-1-mp3-player.md`), and any run of the phase 2 slice (see section 4 of
+`docs/plans/2026-11-14-phase-2-top-100.md`). Known gap, found by reading the code and not yet confirmed on the
 phone: after the app process is gone, headset and car buttons do not resume playback because the queue is not
-persisted (ADR 0015), and the listening log starts a row only for the song a play request starts, not for songs
-reached by next, previous or auto-advance.
+persisted (ADR 0015). Log rows written by phase 1 builds have unreliable listened times (ADR 0025).
 
 ## Setup (macOS)
 

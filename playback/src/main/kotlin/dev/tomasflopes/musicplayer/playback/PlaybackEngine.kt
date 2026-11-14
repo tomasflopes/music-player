@@ -11,6 +11,7 @@ import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
+import dev.tomasflopes.musicplayer.playback.log.PlaybackLog
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import dev.tomasflopes.musicplayer.playback.queue.QueueEntry
 import dev.tomasflopes.musicplayer.playback.queue.QueueWindowSync
@@ -31,17 +32,19 @@ internal class PlaybackEngine(
     private val mapper: MediaItemMapper,
     private val config: PlaybackConfig,
     private val scope: CoroutineScope,
-    private val recorder: PlayEventRecorder,
+    recorder: PlayEventRecorder,
 ) : Player.Listener {
     private val cache = HashMap<SongId, Song>()
     private val mutex = Mutex()
     private val sync = QueueWindowSync(queue, ExoPlayerItems(), config)
+    private val log = PlaybackLog(recorder, queue, { cache[it]?.durationMs ?: 0L }, { player.isPlaying })
+    private val playerEvents = PlayerEvents()
 
     /** What the session offers to controllers. */
     val exposed = QueueAwarePlayer(player, queue, this)
 
     init {
-        player.addListener(this)
+        player.addListener(playerEvents)
     }
 
     fun play(request: PlayRequest) =
@@ -53,14 +56,7 @@ internal class PlaybackEngine(
             sync.onQueueReplaced()
             player.prepare()
             player.play()
-            queue.current?.let {
-                recorder.started(
-                    it,
-                    player.duration.coerceAtLeast(0),
-                    if (request.picked) StartedBy.PICKED else StartedBy.AUTO,
-                    queue.shuffled,
-                )
-            }
+            log.started(if (request.picked) StartedBy.PICKED else StartedBy.AUTO)
             exposed.notifyModes()
         }
 
@@ -74,6 +70,7 @@ internal class PlaybackEngine(
             prepareWindow()
             sync.fill()
             player.play()
+            log.started(StartedBy.PICKED)
         }
 
     fun next() =
@@ -108,45 +105,8 @@ internal class PlaybackEngine(
     fun hasPrevious() = queue.index > 0 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0)
 
     fun release() {
-        recorder.stopped()
-        player.removeListener(this)
-    }
-
-    // Player.Listener: the player moved on by itself, finished, or could not open a file.
-
-    override fun onMediaItemTransition(
-        mediaItem: MediaItem?,
-        reason: Int,
-    ) {
-        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) return
-        serial {
-            recorder.endedNaturally()
-            queue.advanceOnTrackEnd()
-            prepareWindow()
-            sync.onPlayerAdvanced()
-        }
-    }
-
-    override fun onPlaybackStateChanged(playbackState: Int) {
-        if (playbackState != Player.STATE_ENDED || queue.repeatMode != RepeatMode.ALL) return
-        serial {
-            queue.advanceOnTrackEnd()
-            prepareWindow()
-            sync.fill()
-            player.play()
-        }
-    }
-
-    override fun onIsPlayingChanged(isPlaying: Boolean) = recorder.playingChanged(isPlaying)
-
-    override fun onPlayerError(error: PlaybackException) {
-        serial {
-            val failed = queue.current?.ref ?: return@serial
-            prepareWindow()
-            if (!sync.onItemFailed(failed)) return@serial player.stop()
-            player.prepare()
-            player.play()
-        }
+        log.stopped()
+        player.removeListener(playerEvents)
     }
 
     /** Edits the queue's order, then brings the part of the player after the current song in line. */
@@ -173,6 +133,7 @@ internal class PlaybackEngine(
             sync.fill()
         }
         player.play()
+        log.started(StartedBy.NAV)
     }
 
     /**
@@ -202,6 +163,59 @@ internal class PlaybackEngine(
 
     private fun serial(block: suspend () -> Unit) {
         scope.launch { mutex.withLock { block() } }
+    }
+
+    private inner class PlayerEvents : Player.Listener {
+        override fun onMediaItemTransition(
+            mediaItem: MediaItem?,
+            reason: Int,
+        ) {
+            when (reason) {
+                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> serial { advanceByItself() }
+                // Repeat one: the same song starts over, which is a new play (ADR 0025).
+                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT ->
+                    serial {
+                        log.completed()
+                        log.started(StartedBy.AUTO)
+                    }
+            }
+        }
+
+        private suspend fun advanceByItself() {
+            log.completed()
+            queue.advanceOnTrackEnd()
+            prepareWindow()
+            sync.onPlayerAdvanced()
+            log.started(StartedBy.AUTO)
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState != Player.STATE_ENDED) return
+            serial {
+                // The last song of the queue ends here; no item transition reports it.
+                log.completed()
+                if (queue.repeatMode != RepeatMode.ALL) return@serial
+                queue.advanceOnTrackEnd()
+                prepareWindow()
+                sync.fill()
+                player.play()
+                log.started(StartedBy.AUTO)
+            }
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) = log.playingChanged(isPlaying)
+
+        override fun onPlayerError(error: PlaybackException) {
+            serial {
+                val failed = queue.current?.ref ?: return@serial
+                log.stopped()
+                prepareWindow()
+                if (!sync.onItemFailed(failed)) return@serial player.stop()
+                player.prepare()
+                player.play()
+                log.started(StartedBy.AUTO)
+            }
+        }
     }
 
     private inner class ExoPlayerItems : QueueWindowSync.PlayerItems {

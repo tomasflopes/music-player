@@ -23,7 +23,11 @@ class PlayEventRecorder(
         durationMs: Long,
         startedBy: StartedBy,
         shuffle: Boolean,
-    ) = append(tracker.onStarted(entry, durationMs, startedBy, shuffle))
+        playing: Boolean = false,
+    ) {
+        append(tracker.onStarted(entry, durationMs, startedBy, shuffle, playing))
+        pending?.save(tracker.pending())
+    }
 
     fun playingChanged(isPlaying: Boolean) {
         tracker.onPlayingChanged(isPlaying)

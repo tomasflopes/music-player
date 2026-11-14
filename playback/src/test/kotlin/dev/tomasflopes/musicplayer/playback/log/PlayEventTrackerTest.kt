@@ -52,6 +52,30 @@ class PlayEventTrackerTest {
         )
     }
 
+    @Test
+    fun `a song started while the player keeps playing counts time from the start`() {
+        tracker.onStarted(entry(7), 200_000, StartedBy.PICKED, shuffle = false)
+        tracker.onPlayingChanged(true)
+        time += 5_000
+        val skipped = tracker.onStarted(entry(8), 200_000, StartedBy.NAV, shuffle = false, playing = true)
+        time += 7_000
+
+        assertEquals(5_000L, skipped?.listenedMs)
+        assertEquals(7_000L, tracker.onStarted(entry(9), 200_000, StartedBy.NAV, shuffle = false)?.listenedMs)
+    }
+
+    @Test
+    fun `the pending checkpoint does not stop the listening clock`() {
+        tracker.onStarted(entry(7), 200_000, StartedBy.PICKED, shuffle = false)
+        tracker.onPlayingChanged(true)
+        time += 5_000
+        assertEquals(5_000L, tracker.pending()?.listenedMs)
+        time += 5_000
+
+        assertEquals(10_000L, tracker.pending()?.listenedMs)
+        assertEquals(10_000L, tracker.onStarted(entry(8), 200_000, StartedBy.NAV, shuffle = false)?.listenedMs)
+    }
+
     private fun entry(
         id: Long,
         manual: Boolean = false,

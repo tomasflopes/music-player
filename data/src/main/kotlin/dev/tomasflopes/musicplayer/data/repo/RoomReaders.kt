@@ -15,6 +15,7 @@ import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.FolderReader
+import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
@@ -95,8 +96,12 @@ class RoomFolderReader(
 class RoomPlayHistory(
     private val db: MusicDatabase,
 ) : PlayHistoryWriter,
-    PlayHistoryReader {
+    PlayHistoryReader,
+    PlayEventSource {
     override suspend fun append(event: PlayEvent) = db.playEventDao().insert(PlayEventEntity.from(event))
+
+    override fun observeSince(sinceEpochMs: Long): Flow<List<PlayEvent>> =
+        db.playEventDao().observeSince(sinceEpochMs).map { rows -> rows.map { it.toDomain() } }
 
     override fun observeRecent(limit: Int): Flow<List<PlayEvent>> =
         db.playEventDao().observeRecent(limit).map { rows -> rows.map { it.toDomain() } }

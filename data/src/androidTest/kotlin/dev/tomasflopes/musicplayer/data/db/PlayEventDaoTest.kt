@@ -90,6 +90,24 @@ class PlayEventDaoTest {
         }
 
     @Test
+    fun sinceReturnsOnlyNewerRowsOldestFirstWithEqualTimesInLogOrder() =
+        runTest {
+            listOf(3L to 10L, 1L to 5L, 2L to 10L, 4L to 7L).forEach { (id, at) ->
+                val event = PlayEvent(SongId(id), at, 1, 1, EndedBy.COMPLETED, PlaySource.ALBUM, StartedBy.AUTO, false)
+                db.playEventDao().insert(PlayEventEntity.from(event))
+            }
+
+            assertEquals(
+                listOf(4L, 3L, 2L),
+                db
+                    .playEventDao()
+                    .observeSince(6)
+                    .first()
+                    .map { it.songId },
+            )
+        }
+
+    @Test
     fun searchEventsAreStored() =
         runTest {
             db.searchEventDao().insert(SearchEventEntity.from(SearchEvent("ed", SearchItemType.ARTIST, 7, 1_000)))

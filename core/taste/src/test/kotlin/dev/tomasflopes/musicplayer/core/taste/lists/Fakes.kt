@@ -9,6 +9,8 @@ import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ref
+import dev.tomasflopes.musicplayer.core.taste.score.ScoreBoard
+import dev.tomasflopes.musicplayer.core.taste.score.SongScore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -79,4 +81,11 @@ internal class FakeSettings(
     override suspend fun setRecentlyAddedDays(days: Int) {
         this.days.value = days
     }
+}
+
+/** A board that always answers with the same ranking. */
+internal class FakeScoreBoard(
+    private val ranked: List<SongScore>,
+) : ScoreBoard {
+    override fun observeRanked(): Flow<List<SongScore>> = flowOf(ranked)
 }

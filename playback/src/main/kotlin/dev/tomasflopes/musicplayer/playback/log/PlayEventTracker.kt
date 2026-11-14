@@ -15,21 +15,27 @@ class PlayEventTracker(
 ) {
     private var active: Active? = null
 
-    /** Starts [entry], returning the interrupted item as a skip when there was one. */
+    /**
+     * Starts [entry], returning the interrupted item as a skip when there was one. Pass [playing] when the player is
+     * already playing: gapless and queue moves fire no "is playing" change, so the clock has to start here.
+     */
     fun onStarted(
         entry: QueueEntry,
         durationMs: Long,
         startedBy: StartedBy,
         shuffle: Boolean,
+        playing: Boolean = false,
     ): PlayEvent? {
         val finished = finish(EndedBy.SKIPPED)
+        val now = nowMs()
         active =
             Active(
                 entry = entry,
-                startedAtMs = nowMs(),
+                startedAtMs = now,
                 durationMs = durationMs.coerceAtLeast(0),
                 startedBy = startedBy,
                 shuffle = shuffle,
+                playingSinceMs = if (playing) now else null,
             )
         return finished
     }
@@ -72,22 +78,26 @@ class PlayEventTracker(
             playingSinceMs = null
         }
 
+        /** Time listened up to [now], without touching the clock: a checkpoint must not stop it. */
+        private fun listenedAt(now: Long): Long {
+            val running = playingSinceMs?.let { (now - it).coerceAtLeast(0) } ?: 0
+            return listenedMs + running
+        }
+
         fun event(
             endedBy: EndedBy,
             now: Long,
             completed: Boolean = false,
-        ): PlayEvent {
-            stopListening(now)
-            return PlayEvent(
+        ): PlayEvent =
+            PlayEvent(
                 songId = entry.ref.songId,
                 startedAtEpochMs = startedAtMs,
-                listenedMs = if (completed) durationMs else listenedMs,
+                listenedMs = if (completed) durationMs else listenedAt(now),
                 songDurationMs = durationMs,
                 endedBy = endedBy,
                 source = if (entry.manual) PlaySource.QUEUE else entry.source,
                 startedBy = startedBy,
                 shuffle = shuffle,
             )
-        }
     }
 }

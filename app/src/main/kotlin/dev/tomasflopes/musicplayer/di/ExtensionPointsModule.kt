@@ -8,6 +8,7 @@ import dagger.multibindings.IntoSet
 import dagger.multibindings.Multibinds
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.taste.lists.RecentlyAddedProvider
+import dev.tomasflopes.musicplayer.core.taste.lists.TopHundredProvider
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.home.sections.DynamicListsSection
 import dev.tomasflopes.musicplayer.ui.home.sections.ShuffleAllSection
@@ -35,4 +36,8 @@ abstract class ExtensionPointsModule {
     @Binds
     @IntoSet
     abstract fun recentlyAdded(provider: RecentlyAddedProvider): DynamicListProvider
+
+    @Binds
+    @IntoSet
+    abstract fun topHundred(provider: TopHundredProvider): DynamicListProvider
 }

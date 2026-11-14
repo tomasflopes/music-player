@@ -7,6 +7,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
+import dev.tomasflopes.musicplayer.core.taste.config.TasteConfig
 import dev.tomasflopes.musicplayer.playback.CoverBitmapSource
 import dev.tomasflopes.musicplayer.ui.art.CoverArtBitmapSource
 import dev.tomasflopes.musicplayer.ui.art.CoverArtLoader
@@ -23,6 +24,10 @@ object AppModule {
     @Provides
     @Singleton
     fun libraryConfig() = LibraryConfig()
+
+    @Provides
+    @Singleton
+    fun tasteConfig() = TasteConfig()
 
     @Provides
     @Singleton
