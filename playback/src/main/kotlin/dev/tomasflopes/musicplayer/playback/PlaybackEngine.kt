@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.playback
 
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -72,6 +73,31 @@ internal class PlaybackEngine(
             player.play()
             log.started(StartedBy.PICKED)
         }
+
+    /**
+     * A controller (notification, car, headset) asked the player for a window index. A window index is a queue entry
+     * in the window around the current song, so it goes through the queue as a jump and is logged as picked
+     * (ADR 0032). Seeking inside the current song stays a plain seek.
+     */
+    fun seekToWindow(
+        windowIndex: Int,
+        positionMs: Long,
+    ) = serial {
+        val delta = windowIndex - player.currentMediaItemIndex
+        if (delta == 0) {
+            if (positionMs == C.TIME_UNSET) {
+                player.seekToDefaultPosition(windowIndex)
+            } else {
+                player.seekTo(windowIndex, positionMs)
+            }
+            return@serial
+        }
+        queue.jumpTo(queue.index + delta) ?: return@serial
+        prepareWindow()
+        sync.fill()
+        if (positionMs > 0 && positionMs != C.TIME_UNSET) player.seekTo(positionMs)
+        log.started(StartedBy.PICKED)
+    }
 
     fun next() =
         serial {

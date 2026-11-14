@@ -35,3 +35,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0029](0029-artist-images-come-from-a-chain-of-sources.md) | Artist images come from a priority chain of sources: owner choice > Deezer > album collage > initials | accepted |
 | [0030](0030-artist-image-overrides-live-in-room.md) | Artist image overrides and lookups live in Room (schema v2), gallery picks copied to app storage | accepted |
 | [0031](0031-listened-time-uses-a-monotonic-clock.md) | Listened time uses an injected monotonic clock; `started_at` stays on the wall clock; extends 0025 | accepted |
+| [0032](0032-a-controller-seek-to-a-window-index-is-a-queue-jump.md) | A controller seek to a window index goes through the queue as a jump and is logged as `picked`; extends 0025 | accepted |

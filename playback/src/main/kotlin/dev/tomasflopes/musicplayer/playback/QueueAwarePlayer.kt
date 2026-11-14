@@ -1,6 +1,7 @@
 package dev.tomasflopes.musicplayer.playback
 
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -65,6 +66,13 @@ internal class QueueAwarePlayer(
     override fun seekToPrevious() = engine.previous()
 
     override fun seekToPreviousMediaItem() = engine.previous()
+
+    override fun seekTo(
+        mediaItemIndex: Int,
+        positionMs: Long,
+    ) = engine.seekToWindow(mediaItemIndex, positionMs)
+
+    override fun seekToDefaultPosition(mediaItemIndex: Int) = engine.seekToWindow(mediaItemIndex, C.TIME_UNSET)
 
     override fun hasNextMediaItem() = engine.hasNext()
 

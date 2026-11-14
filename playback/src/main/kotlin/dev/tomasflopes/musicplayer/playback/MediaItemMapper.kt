@@ -18,7 +18,7 @@ data class ItemFields(
 )
 
 /** Turns a queue entry plus its song into the item the player and the notification show. Tag text is never altered. */
-class MediaItemMapper {
+open class MediaItemMapper {
     @Suppress("UnusedParameter")
     fun fieldsOf(
         entry: QueueEntry,
@@ -32,7 +32,7 @@ class MediaItemMapper {
         artworkUri = if (song.hasCover) CoverUri.of(song.id) else null,
     )
 
-    fun toMediaItem(
+    open fun toMediaItem(
         entry: QueueEntry,
         song: Song,
     ): MediaItem {
