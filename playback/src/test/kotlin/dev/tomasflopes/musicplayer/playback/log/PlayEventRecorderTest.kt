@@ -4,11 +4,13 @@ import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.EndedBy
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlayEventRecorderTest {
     private var time = 1_000L
     private val history = RecordingHistory()

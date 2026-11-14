@@ -121,10 +121,10 @@ class PlaybackService : MediaSessionService() {
         ): MediaSession.ConnectionResult {
             val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
             PlaybackCommands.all.forEach { commands.add(it) }
-            return MediaSession.ConnectionResult
-                .AcceptedResultBuilder(session)
-                .setAvailableSessionCommands(commands.build())
-                .build()
+            return MediaSession.ConnectionResult.accept(
+                commands.build(),
+                MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS,
+            )
         }
 
         override fun onCustomCommand(

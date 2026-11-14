@@ -10,12 +10,14 @@ import dev.tomasflopes.musicplayer.playback.queue.ReverseShuffle
 import dev.tomasflopes.musicplayer.playback.queue.queue
 import dev.tomasflopes.musicplayer.playback.queue.refs
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.random.Random
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackLogTest {
     private var time = 0L
     private var playing = false

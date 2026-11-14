@@ -10,7 +10,7 @@ fun ConnectivityManager.networkKind(): NetworkKind {
     val online = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     return when {
         !online -> NetworkKind.NONE
-        capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true -> NetworkKind.UNMETERED
+        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true -> NetworkKind.UNMETERED
         else -> NetworkKind.METERED
     }
 }
