@@ -195,7 +195,12 @@ private fun ResultsList(
                 SectionHeader("Songs", onSeeAll = seeAll(sections.moreSongs, SearchItemType.SONG, actions))
             }
             itemsIndexed(sections.songs, key = { _, item -> item.key }) { index, item ->
-                SelectableSongRow(item.song, selection, actions.onPlayNext, actions.onAddToQueue) { actions.onSong(index) }
+                SelectableSongRow(
+                    item.song,
+                    selection,
+                    actions.onPlayNext,
+                    actions.onAddToQueue,
+                ) { actions.onSong(index) }
             }
         }
     }
@@ -280,7 +285,13 @@ private fun SeeAllList(
                 when (item) {
                     is ArtistItem -> ArtistRow(item.artist, onClick = { actions.onOpen(item) })
                     is AlbumItem -> AlbumRow(item.album, item.cover, onClick = { actions.onOpen(item) })
-                    is SongItem -> SelectableSongRow(item.song, selection, actions.onPlayNext, actions.onAddToQueue) { actions.onSong(index) }
+                    is SongItem ->
+                        SelectableSongRow(
+                            item.song,
+                            selection,
+                            actions.onPlayNext,
+                            actions.onAddToQueue,
+                        ) { actions.onSong(index) }
                 }
             }
         }

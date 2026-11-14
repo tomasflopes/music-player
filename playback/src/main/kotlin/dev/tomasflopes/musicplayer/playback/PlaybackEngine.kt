@@ -1,14 +1,11 @@
 package dev.tomasflopes.musicplayer.playback
 
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
-import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
@@ -41,12 +38,67 @@ internal class PlaybackEngine(
     recorder: PlayEventRecorder,
     private val store: QueueStore,
     private val saving: QueueSaving,
-) : Player.Listener {
+) {
     private val cache = HashMap<SongId, Song>()
     private val mutex = Mutex()
-    private val sync = QueueWindowSync(queue, ExoPlayerItems(), config)
+    private val sync = QueueWindowSync(queue, ExoPlayerItems(player, cache, mapper), config)
     private val log = PlaybackLog(recorder, queue, { cache[it]?.durationMs ?: 0L }, { player.isPlaying })
-    private val playerEvents = PlayerEvents()
+    private val playerEvents =
+        PlaybackPlayerListener(
+            serial = ::serial,
+            onAutoAdvance = {
+                log.completed()
+                queue.advanceOnTrackEnd()
+                prepareWindow()
+                sync.onPlayerAdvanced()
+                log.started(StartedBy.AUTO)
+                saving.changed()
+            },
+            onRepeat = {
+                log.completed()
+                log.started(StartedBy.AUTO)
+            },
+            onEnded = {
+                log.completed()
+                if (queue.repeatMode == RepeatMode.ALL) {
+                    queue.advanceOnTrackEnd()
+                    prepareWindow()
+                    sync.fill()
+                    player.play()
+                    log.started(StartedBy.AUTO)
+                    saving.changed()
+                }
+            },
+            onError = {
+                queue.current?.ref?.let { failed ->
+                    log.stopped()
+                    prepareWindow()
+                    if (!sync.onItemFailed(failed)) {
+                        player.stop()
+                    } else {
+                        player.prepare()
+                        player.play()
+                        log.started(StartedBy.AUTO)
+                        saving.changed()
+                    }
+                }
+            },
+            onPlayingChanged = {
+                log.playingChanged(it)
+                ticker?.cancel()
+                if (it) {
+                    ticker =
+                        scope.launch {
+                            while (true) {
+                                delay(config.positionSaveIntervalMs)
+                                saving.saveNow()
+                            }
+                        }
+                } else {
+                    saving.saveNow()
+                }
+            },
+        )
 
     private var ticker: Job? = null
 
@@ -224,16 +276,18 @@ internal class PlaybackEngine(
 
     fun previous() =
         serial {
-            if (player.currentPosition > config.restartThresholdMs) return@serial restart()
-            queue.previous() ?: return@serial restart()
+            if (player.currentPosition > config.restartThresholdMs) {
+                player.seekTo(0)
+                log.restarted()
+                return@serial
+            }
+            if (queue.previous() == null) {
+                player.seekTo(0)
+                log.restarted()
+                return@serial
+            }
             moveTo(forward = false)
         }
-
-    /** Previous that stays on the song: the row so far ends as stopped and the replay is a new nav row (ADR 0033). */
-    private fun restart() {
-        player.seekTo(0)
-        log.restarted()
-    }
 
     fun setShuffle(on: Boolean) =
         serial {
@@ -302,116 +356,16 @@ internal class PlaybackEngine(
             songs.songsByIds(missing.map { it.songId }.distinct()).forEach { cache[it.id] = it }
             val gone = missing.filter { it.songId !in cache }
             if (gone.isEmpty()) return
-            removeFromQueue(gone.toSet())
+            val entries = queue.snapshot().entries
+            entries.indices
+                .filter { entries[it].ref in gone }
+                .asReversed()
+                .forEach { queue.removeAt(it) }
+            saving.changed()
         }
-    }
-
-    private fun removeFromQueue(gone: Set<SongRef>) {
-        val entries = queue.snapshot().entries
-        entries.indices
-            .filter { entries[it].ref in gone }
-            .asReversed()
-            .forEach { queue.removeAt(it) }
-        saving.changed()
     }
 
     private fun serial(block: suspend () -> Unit) {
         scope.launch { mutex.withLock { block() } }
-    }
-
-    private inner class PlayerEvents : Player.Listener {
-        override fun onMediaItemTransition(
-            mediaItem: MediaItem?,
-            reason: Int,
-        ) {
-            when (reason) {
-                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> serial { advanceByItself() }
-                // Repeat one: the same song starts over, which is a new play (ADR 0025).
-                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT ->
-                    serial {
-                        log.completed()
-                        log.started(StartedBy.AUTO)
-                    }
-            }
-        }
-
-        private suspend fun advanceByItself() {
-            log.completed()
-            queue.advanceOnTrackEnd()
-            prepareWindow()
-            sync.onPlayerAdvanced()
-            log.started(StartedBy.AUTO)
-            saving.changed()
-        }
-
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState != Player.STATE_ENDED) return
-            serial {
-                // The last song of the queue ends here; no item transition reports it.
-                log.completed()
-                if (queue.repeatMode != RepeatMode.ALL) return@serial
-                queue.advanceOnTrackEnd()
-                prepareWindow()
-                sync.fill()
-                player.play()
-                log.started(StartedBy.AUTO)
-                saving.changed()
-            }
-        }
-
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            log.playingChanged(isPlaying)
-            ticker?.cancel()
-            if (isPlaying) {
-                ticker =
-                    scope.launch {
-                        while (true) {
-                            delay(config.positionSaveIntervalMs)
-                            saving.saveNow()
-                        }
-                    }
-            } else {
-                saving.saveNow()
-            }
-        }
-
-        override fun onPlayerError(error: PlaybackException) {
-            serial {
-                val failed = queue.current?.ref ?: return@serial
-                log.stopped()
-                prepareWindow()
-                if (!sync.onItemFailed(failed)) return@serial player.stop()
-                player.prepare()
-                player.play()
-                log.started(StartedBy.AUTO)
-                saving.changed()
-            }
-        }
-    }
-
-    private inner class ExoPlayerItems : QueueWindowSync.PlayerItems {
-        override val count get() = player.mediaItemCount
-        override val index get() = player.currentMediaItemIndex
-
-        override fun setAll(
-            refs: List<SongRef>,
-            startIndex: Int,
-        ) = player.setMediaItems(refs.map(::item), startIndex, 0L)
-
-        override fun append(refs: List<SongRef>) = player.addMediaItems(refs.map(::item))
-
-        override fun removeRange(
-            from: Int,
-            to: Int,
-        ) = player.removeMediaItems(from, to)
-
-        override fun removeFirst(count: Int) = player.removeMediaItems(0, count)
-
-        override fun prepend(refs: List<SongRef>) = player.addMediaItems(0, refs.map(::item))
-
-        private fun item(ref: SongRef): MediaItem {
-            val song = checkNotNull(cache[ref.songId]) { "song ${ref.songId.value} was not loaded" }
-            return mapper.toMediaItem(QueueEntry(ref, PlaySource.SONGS, manual = false), song)
-        }
     }
 }

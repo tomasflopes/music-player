@@ -108,7 +108,10 @@ class QueueWindowSyncTest {
         rig.sync.onQueueEdited()
 
         assertEquals(rig.queue.window(2, 3).map { it.ref }, rig.player.items)
-        assertTrue(rig.player.log.none { it.startsWith("setAll") || it.startsWith("prepend") }, rig.player.log.toString())
+        assertTrue(
+            rig.player.log.none { it.startsWith("setAll") || it.startsWith("prepend") },
+            rig.player.log.toString(),
+        )
     }
 
     @Test

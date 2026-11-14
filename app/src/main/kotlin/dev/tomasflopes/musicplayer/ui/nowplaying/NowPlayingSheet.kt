@@ -89,7 +89,7 @@ private fun NowPlayingContent(
     QueueList(state, song, actions)
 }
 
-/** Played → now playing → up next (design 8.2). It opens on the song that plays, so the played ones are a scroll up. */
+/** Played → now playing → up next (design 8.2). */
 @Composable
 private fun QueueList(
     state: PlaybackState,
@@ -99,10 +99,17 @@ private fun QueueList(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = state.played.size)
     LazyColumn(Modifier.fillMaxWidth(), state = listState, contentPadding = PaddingValues(bottom = Spacing.l)) {
         // Keyed by place in the queue and song: a song can be queued twice, and a removal moves the rows after it.
-        itemsIndexed(state.played, key = { i, played -> "played-${state.playedIndices[i]}-${played.id.value}" }) { i, played ->
+        itemsIndexed(
+            state.played,
+            key = { i, played -> "played-${state.playedIndices[i]}-${played.id.value}" },
+        ) { i, played ->
             val index = state.playedIndices[i]
             SwipeToRemove(onRemove = { actions.onRemove(index, played) }, resetKey = index) {
-                SongRow(song = played, onClick = { actions.onJumpTo(index, played) }, modifier = Modifier.alpha(PLAYED_ALPHA))
+                SongRow(
+                    song = played,
+                    onClick = { actions.onJumpTo(index, played) },
+                    modifier = Modifier.alpha(PLAYED_ALPHA),
+                )
             }
         }
         item(key = "now-playing") { NowPlayingHeader(state, song, actions) }
@@ -121,7 +128,15 @@ private fun QueueList(
                 )
             }
             // A row that repeat ALL wrapped round has no place of its own, so it cannot be removed.
-            if (index >= 0) SwipeToRemove(onRemove = { actions.onRemove(index, upcoming) }, resetKey = index, content = row) else row()
+            if (index >= 0) {
+                SwipeToRemove(
+                    onRemove = { actions.onRemove(index, upcoming) },
+                    resetKey = index,
+                    content = row,
+                )
+            } else {
+                row()
+            }
         }
     }
 }

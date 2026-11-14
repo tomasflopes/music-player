@@ -13,6 +13,7 @@ import kotlin.random.Random
  * off puts them back in the order the list had, with the current song staying current. Manual entries
  * (Play next / Add to queue) sit right after the current song, in the order they were added, and never move.
  */
+@Suppress("TooManyFunctions")
 class PlayQueue(
     strategy: ShuffleStrategy,
     random: Random,
@@ -180,7 +181,9 @@ class PlayQueue(
         ahead: Int,
     ): List<Pair<Int, QueueEntry>> {
         val start = (currentIndex - behind).coerceAtLeast(0)
-        return window(behind, ahead).mapIndexed { i, entry -> (if (start + i < entries.size) start + i else -1) to entry }
+        return window(behind, ahead).mapIndexed { i, entry ->
+            (if (start + i < entries.size) start + i else -1) to entry
+        }
     }
 
     /** The current song and everything after it; see [QueueContent]. */
