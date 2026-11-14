@@ -59,18 +59,8 @@ fun PlaylistScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
         val ready = state as? PlaylistUiState.Ready
-        Box {
-            BackTitleRow(onBack, title = ready?.name.orEmpty())
-            if (ready !=
-                null
-            ) {
-                PlaylistMenu(
-                    ready.name,
-                    viewModel,
-                    onDeleted,
-                    Modifier.align(androidx.compose.ui.Alignment.CenterEnd),
-                )
-            }
+        BackTitleRow(onBack, title = ready?.name.orEmpty()) {
+            if (ready != null) PlaylistMenu(ready.name, viewModel, onDeleted)
         }
         when (val shown = state) {
             PlaylistUiState.Loading -> Unit
