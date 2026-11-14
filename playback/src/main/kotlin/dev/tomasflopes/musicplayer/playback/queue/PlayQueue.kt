@@ -15,8 +15,10 @@ import kotlin.random.Random
 class PlayQueue(
     strategy: ShuffleStrategy,
     random: Random,
+    /** Orders artist shuffles, which are exempt from smart shuffle's artist spacing (design 7.8, ADR 0035). */
+    artistShuffle: ShuffleStrategy = strategy,
 ) {
-    private val ordering = QueueOrdering(strategy, random)
+    private val ordering = QueueOrdering(strategy, random, artistShuffle)
     private val entries = mutableListOf<QueueEntry>()
     private var originalOrder: List<SongRef> = emptyList()
     private var currentIndex = -1
@@ -46,7 +48,8 @@ class PlayQueue(
         originalOrder = songs
         val label = source.withShuffle(shuffled)
         entries.clear()
-        val order = ordering.initial(songs, startIndex, shuffled, randomStart)
+        val manualAhead = pendingManual.map { it.ref }
+        val order = ordering.initial(songs, startIndex, source, shuffled, randomStart, manualAhead)
         entries += order.map { QueueEntry(it, label, manual = false) }
         currentIndex =
             when {
@@ -70,7 +73,12 @@ class PlayQueue(
             currentEntry?.let { rebuilt += it }
             rebuilt += manual
             val automatic = upcoming().filter { !it.manual }
-            rebuilt += if (on) ordering.reorder(automatic) else ordering.restoreOriginal(automatic, originalOrder)
+            rebuilt +=
+                if (on) {
+                    ordering.reorder(automatic, rebuilt.map { it.ref })
+                } else {
+                    ordering.restoreOriginal(automatic, originalOrder)
+                }
             currentIndex = if (currentEntry == null) -1 else played.size
         } else {
             // Back to the original order with the current song in its own place; manual entries follow it.
@@ -164,7 +172,7 @@ class PlayQueue(
     /** Repeat reached the end: start over, reshuffled when shuffle is on. */
     private fun wrapToStart(): QueueEntry? {
         if (shuffled) {
-            val reordered = ordering.reorder(entries.filter { !it.manual })
+            val reordered = ordering.reorder(entries.filter { !it.manual }, entries.map { it.ref })
             entries.clear()
             entries += reordered
         }
