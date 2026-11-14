@@ -14,6 +14,9 @@ import dev.tomasflopes.musicplayer.ui.art.CoverArtLoader
 import dev.tomasflopes.musicplayer.ui.art.MediaStoreCoverArtLoader
 import dev.tomasflopes.musicplayer.ui.search.CoreSearchEngineFactory
 import dev.tomasflopes.musicplayer.ui.search.SearchEngineFactory
+import dev.tomasflopes.musicplayer.ui.search.SearchWorkDispatcher
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import java.time.Clock
 import javax.inject.Singleton
 
@@ -47,4 +50,8 @@ object AppModule {
     @Provides
     @Singleton
     fun searchEngineFactory(): SearchEngineFactory = CoreSearchEngineFactory()
+
+    @Provides
+    @SearchWorkDispatcher
+    fun searchWorkDispatcher(): CoroutineDispatcher = Dispatchers.Default
 }

@@ -2,10 +2,12 @@ package dev.tomasflopes.musicplayer.ui.search
 
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.ArtistId
+import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
+import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ref
 import dev.tomasflopes.musicplayer.core.search.SearchResults
 import dev.tomasflopes.musicplayer.fakes.FakeAlbumReader
@@ -22,7 +24,12 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -33,12 +40,14 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.coroutines.ContinuationInterceptor
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
@@ -94,17 +103,20 @@ class SearchViewModelTest {
     /** A ViewModel whose state is being collected, as it is while the Search tab is on screen. */
     private fun TestScope.viewModel(
         factory: SearchEngineFactory = CoreSearchEngineFactory(dispatcher = dispatcher),
+        songs: SongReader = songReader,
+        workDispatcher: CoroutineDispatcher = dispatcher,
     ): SearchViewModel {
         val viewModel =
             SearchViewModel(
                 playback,
-                songReader,
+                songs,
                 artistReader,
                 albumReader,
                 featureReader,
                 history,
                 clock,
                 factory,
+                workDispatcher,
             )
         backgroundScope.launch(dispatcher) { viewModel.state.collect {} }
         return viewModel
@@ -410,6 +422,26 @@ class SearchViewModelTest {
 
             assertEquals(listOf("Ed", "Eddie Kane"), before)
             assertEquals(listOf("Ed", "Eddie Kane", "Edgar"), after)
+        }
+
+    @Test
+    fun `the library flows are collected on the work dispatcher, not the collector's`() =
+        runTest {
+            val work = StandardTestDispatcher(testScheduler)
+            var collectedOn: ContinuationInterceptor? = null
+            val spying =
+                object : SongReader by songReader {
+                    override fun observeSongs(): Flow<List<Song>> =
+                        flow {
+                            collectedOn = currentCoroutineContext()[ContinuationInterceptor]
+                            emitAll(songReader.observeSongs())
+                        }
+                }
+
+            viewModel(songs = spying, workDispatcher = work)
+            advanceUntilIdle()
+
+            assertSame(work, collectedOn)
         }
 
     private companion object {

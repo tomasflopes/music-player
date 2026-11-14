@@ -22,6 +22,7 @@ import dev.tomasflopes.musicplayer.core.search.SongHit
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.ui.WhileSubscribed
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
@@ -61,6 +63,7 @@ class SearchViewModel
         private val history: SearchHistoryWriter,
         private val clock: Clock,
         private val engineFactory: SearchEngineFactory,
+        @SearchWorkDispatcher private val workDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
         private val queryText = MutableStateFlow("")
         private val seeAllType = MutableStateFlow<SearchItemType?>(null)
@@ -72,11 +75,14 @@ class SearchViewModel
         /** `true` while a query is being answered; the screen keeps the last results up and shows progress. */
         val searching: StateFlow<Boolean> = busy.asStateFlow()
 
+        // The library flows are collected and combined on [workDispatcher], so mapping thousands of rows never
+        // lands on the main thread while the tab opens.
         // Featured artists have no change signal of their own and are rewritten at the end of a scan, so a short
         // debounce lets that write land before the index reads it. Lazily: the index is kept while the tab's
         // ViewModel lives, so switching tabs does not rebuild 16k songs.
         private val engines: StateFlow<SearchEngine?> =
             combine(artistReader.observeArtists(), albumReader.observeAlbums(), songReader.observeSongs(), ::Triple)
+                .flowOn(workDispatcher)
                 .debounce(REBUILD_DEBOUNCE_MS)
                 .mapLatest { (artists, albums, songs) ->
                     engineFactory.build(LibrarySnapshot(artists, albums, songs, featureReader.all()))
