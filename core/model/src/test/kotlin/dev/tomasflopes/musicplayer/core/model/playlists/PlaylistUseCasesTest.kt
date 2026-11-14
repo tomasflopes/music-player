@@ -180,7 +180,16 @@ class PlaylistUseCasesTest {
         private val artist: ArtistId,
         private val songs: List<Song>,
     ) : SongReader by NoSongs {
-        override fun observeArtistSongs(id: ArtistId): Flow<List<Song>> = flowOf(if (id == artist) songs else emptyList())
+        override fun observeArtistSongs(id: ArtistId): Flow<List<Song>> =
+            flowOf(
+                if (id ==
+                    artist
+                ) {
+                    songs
+                } else {
+                    emptyList()
+                },
+            )
     }
 
     private object NoSongs : SongReader {

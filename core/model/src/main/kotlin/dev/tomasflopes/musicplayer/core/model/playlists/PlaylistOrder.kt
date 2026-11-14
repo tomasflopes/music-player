@@ -12,5 +12,10 @@ object PlaylistOrder {
     fun reassign(
         current: List<Pair<SongId, Int>>,
         order: List<SongId>,
-    ): List<Pair<SongId, Int>>? = TODO("not yet")
+    ): List<Pair<SongId, Int>>? {
+        val sameSongs = order.size == current.size && order.toSet() == current.map { it.first }.toSet()
+        if (!sameSongs) return null
+        val places = current.map { it.second }.sorted()
+        return order.zip(places)
+    }
 }

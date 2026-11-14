@@ -4,6 +4,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistReader
+import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistStore
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.FolderReader
@@ -28,6 +30,8 @@ import dev.tomasflopes.musicplayer.data.repo.RoomFeatureReader
 import dev.tomasflopes.musicplayer.data.repo.RoomFolderReader
 import dev.tomasflopes.musicplayer.data.repo.RoomLibraryChanges
 import dev.tomasflopes.musicplayer.data.repo.RoomPlayHistory
+import dev.tomasflopes.musicplayer.data.repo.RoomPlaylistReader
+import dev.tomasflopes.musicplayer.data.repo.RoomPlaylistStore
 import dev.tomasflopes.musicplayer.data.repo.RoomSearchHistory
 import dev.tomasflopes.musicplayer.data.repo.RoomSongReader
 import java.time.Clock
@@ -77,6 +81,10 @@ object RepositoryModule {
     @Provides fun playHistoryReader(history: RoomPlayHistory): PlayHistoryReader = history
 
     @Provides fun playEventSource(history: RoomPlayHistory): PlayEventSource = history
+
+    @Provides fun playlistReader(db: MusicDatabase): PlaylistReader = RoomPlaylistReader(db)
+
+    @Provides fun playlistStore(db: MusicDatabase): PlaylistStore = RoomPlaylistStore(db)
 
     @Provides fun searchHistoryWriter(db: MusicDatabase): SearchHistoryWriter = RoomSearchHistory(db)
 }

@@ -29,5 +29,6 @@ class ArtistSongOrderTest {
     }
 
     @Test
-    fun `an artist with no songs gives an empty list`() = assertEquals(emptyList<Song>(), ArtistSongOrder.sort(emptyList()))
+    fun `an artist with no songs gives an empty list`() =
+        assertEquals(emptyList<Song>(), ArtistSongOrder.sort(emptyList()))
 }
