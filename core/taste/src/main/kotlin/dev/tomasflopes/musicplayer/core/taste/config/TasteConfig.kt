@@ -24,7 +24,17 @@ data class SignalWeights(
     val midSkipFraction: Double = 0.5,
     /** A play strictly past this fraction counts as completed, whatever ended it. */
     val completedFraction: Double = 0.8,
-)
+) {
+    init {
+        require(listOf(picked, completed, skipEarly, skipMid, skipLate).all { it.isFinite() }) {
+            "signal weights must be finite"
+        }
+        require(earlySkipMs >= 0) { "earlySkipMs must not be negative: $earlySkipMs" }
+        require(midSkipFraction in 0.0..1.0) { "midSkipFraction must be in 0..1: $midSkipFraction" }
+        require(completedFraction in 0.0..1.0) { "completedFraction must be in 0..1: $completedFraction" }
+        require(midSkipFraction <= completedFraction) { "midSkipFraction must not exceed completedFraction" }
+    }
+}
 
 /** Consecutive quick skips are "looking for something", not a verdict on the songs (design §7.4). */
 data class BurstRule(
@@ -32,13 +42,24 @@ data class BurstRule(
     val softening: Double = 0.1,
     /** Quick skips whose starts are further apart than this are separate occasions. */
     val maxGapMs: Long = 60_000,
-)
+) {
+    init {
+        require(minSkips >= 1) { "minSkips must be at least 1: $minSkips" }
+        require(softening in 0.0..1.0) { "softening must be in 0..1: $softening" }
+        require(maxGapMs >= 0) { "maxGapMs must not be negative: $maxGapMs" }
+    }
+}
 
 data class DecayRule(
     val halfLifeDays: Double = 30.0,
     /** Older rows are not read: after 8 half-lives under 0.4 % of a weight is left. */
     val horizonDays: Int = 240,
 ) {
+    init {
+        require(halfLifeDays.isFinite() && halfLifeDays > 0) { "halfLifeDays must be positive: $halfLifeDays" }
+        require(horizonDays > 0) { "horizonDays must be positive: $horizonDays" }
+    }
+
     val halfLifeMs: Double get() = halfLifeDays * MS_PER_DAY
     val horizonMs: Long get() = horizonDays * MS_PER_DAY.toLong()
 
@@ -51,4 +72,9 @@ data class TopListRule(
     val size: Int = 100,
     /** Only songs scoring above this are listed. */
     val minScore: Double = 0.0,
-)
+) {
+    init {
+        require(size >= 1) { "size must be at least 1: $size" }
+        require(minScore.isFinite()) { "minScore must be finite: $minScore" }
+    }
+}
