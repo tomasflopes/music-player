@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
+import dev.tomasflopes.musicplayer.core.taste.suggest.SuggestionPlace
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.SearchField
@@ -28,15 +29,23 @@ import dev.tomasflopes.musicplayer.ui.home.sections.songCountLabel
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
-/** "Add songs" to [playlistId]: search the library, tick songs, add them all at once. */
+/**
+ * "Add songs" to [playlistId]: search the library, tick songs, add them all at once. Once the playlist holds 2 songs,
+ * "Suggested for this playlist" tops the list while the search box is empty (design 7.13, ADR 0051).
+ */
 @Composable
 fun SongPickerScreen(
     playlistId: PlaylistId,
     onBack: () -> Unit,
     viewModel: SongPickerViewModel = hiltViewModel(),
+    suggestionsViewModel: PlaylistSuggestionsViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(playlistId) { viewModel.open(playlistId) }
+    LaunchedEffect(playlistId) {
+        viewModel.open(playlistId)
+        suggestionsViewModel.open(playlistId, SuggestionPlace.NEW_PLAYLIST_PICKER)
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val suggested by suggestionsViewModel.songs.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     Column(Modifier.fillMaxSize()) {
@@ -46,6 +55,9 @@ fun SongPickerScreen(
             EmptyState("No songs match.", Modifier.weight(1f))
         } else {
             LazyColumn(Modifier.weight(1f)) {
+                if (state.query.isBlank()) {
+                    suggestionsBlock(suggested, suggestionsViewModel::onAdd, suggestionsViewModel::onDismiss)
+                }
                 items(state.songs, key = { it.id.value }) { song ->
                     val inside = song.id in state.alreadyIn
                     SongRow(

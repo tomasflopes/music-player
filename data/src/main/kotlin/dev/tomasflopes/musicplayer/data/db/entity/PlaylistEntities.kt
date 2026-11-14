@@ -40,3 +40,26 @@ data class PlaylistSongEntity(
     val position: Int,
     @ColumnInfo(name = "added_at") val addedAt: Long,
 )
+
+/**
+ * A suggestion the owner dismissed for one playlist (design 7.13, ADR 0051). It belongs to the playlist, so it goes
+ * with it (cascade); [songId] has no foreign key, for the reason in [PlaylistSongEntity]. Unlike the append-only
+ * logs this is plain state: dismissing twice keeps the first row.
+ */
+@Entity(
+    tableName = "playlist_dismissed",
+    primaryKeys = ["playlist_id", "song_id"],
+    foreignKeys = [
+        ForeignKey(
+            entity = PlaylistEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["playlist_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class PlaylistDismissedEntity(
+    @ColumnInfo(name = "playlist_id") val playlistId: Long,
+    @ColumnInfo(name = "song_id") val songId: Long,
+    val at: Long,
+)

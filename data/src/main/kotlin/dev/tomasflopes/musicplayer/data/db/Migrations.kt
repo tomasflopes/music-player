@@ -63,5 +63,22 @@ object Migrations {
             }
         }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    /**
+     * Playlist suggestions (ADR 0051): the songs dismissed per playlist. One table, no extra index (the primary key
+     * starts with `playlist_id`). It cascades from `playlist` like `playlist_song`.
+     */
+    val MIGRATION_4_5: Migration =
+        object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `playlist_dismissed` (`playlist_id` INTEGER NOT NULL, " +
+                        "`song_id` INTEGER NOT NULL, `at` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`playlist_id`, `song_id`), " +
+                        "FOREIGN KEY(`playlist_id`) REFERENCES `playlist`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE )",
+                )
+            }
+        }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }

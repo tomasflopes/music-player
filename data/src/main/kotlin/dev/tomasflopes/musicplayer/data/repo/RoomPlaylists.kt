@@ -5,6 +5,7 @@ import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.playlists.Playlist
+import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistDismissals
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistOrder
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistReader
@@ -12,6 +13,7 @@ import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistStore
 import dev.tomasflopes.musicplayer.data.db.MusicDatabase
 import dev.tomasflopes.musicplayer.data.db.dao.PlaylistRow
 import dev.tomasflopes.musicplayer.data.db.entity.PlaylistAddEventEntity
+import dev.tomasflopes.musicplayer.data.db.entity.PlaylistDismissedEntity
 import dev.tomasflopes.musicplayer.data.db.entity.PlaylistEntity
 import dev.tomasflopes.musicplayer.data.db.entity.PlaylistSongEntity
 import kotlinx.coroutines.flow.Flow
@@ -107,5 +109,23 @@ class RoomPlaylistStore(
             dao.setPosition(id.value, songId.value, position)
         }
         Unit
+    }
+}
+
+class RoomPlaylistDismissals(
+    private val db: MusicDatabase,
+) : PlaylistDismissals {
+    override fun observe(id: PlaylistId): Flow<Set<SongId>> =
+        db.playlistDismissedDao().observeSongIds(id.value).map { rows -> rows.mapTo(HashSet(), ::SongId) }
+
+    override suspend fun dismiss(
+        id: PlaylistId,
+        song: SongId,
+        nowEpochMs: Long,
+    ) {
+        val dao = db.playlistDismissedDao()
+        db.withTransaction {
+            if (dao.playlistCount(id.value) > 0) dao.insert(PlaylistDismissedEntity(id.value, song.value, nowEpochMs))
+        }
     }
 }

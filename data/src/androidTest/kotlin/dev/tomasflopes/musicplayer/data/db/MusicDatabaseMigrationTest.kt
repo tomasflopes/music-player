@@ -115,6 +115,37 @@ class MusicDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration4To5KeepsPlaylistsAndAddsTheDismissedTableThatCascades() {
+        helper.createDatabase(db, 4).use { v4 ->
+            v4.execSQL(
+                "INSERT INTO playlist (id, name, created_at, updated_at, last_used_at) VALUES (1, 'Gym', 1, 1, 1)",
+            )
+            v4.execSQL("INSERT INTO playlist_song (playlist_id, song_id, position, added_at) VALUES (1, 42, 0, 1)")
+            v4.execSQL("INSERT INTO playlist_add_event (song_id, playlist_id, at) VALUES (42, 1, 5)")
+        }
+
+        helper.runMigrationsAndValidate(db, 5, true, Migrations.MIGRATION_4_5).use { v5 ->
+            v5.query("SELECT COUNT(*) FROM playlist_song").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(1, it.getInt(0))
+            }
+            v5.query("SELECT COUNT(*) FROM playlist_add_event").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(1, it.getInt(0))
+            }
+            v5.execSQL("PRAGMA foreign_keys = ON")
+            v5.execSQL("INSERT INTO playlist_dismissed (playlist_id, song_id, at) VALUES (1, 77, 9)")
+            assertEquals(setOf("playlist"), foreignKeys(v5, "playlist_dismissed"))
+
+            v5.execSQL("DELETE FROM playlist WHERE id = 1")
+            v5.query("SELECT COUNT(*) FROM playlist_dismissed").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(0, it.getInt(0))
+            }
+        }
+    }
+
     private fun foreignKeys(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,

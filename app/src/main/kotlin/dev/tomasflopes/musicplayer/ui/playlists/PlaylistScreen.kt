@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
+import dev.tomasflopes.musicplayer.core.taste.suggest.SuggestionPlace
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
@@ -52,8 +53,12 @@ fun PlaylistScreen(
     onAddSongs: () -> Unit,
     onDeleted: () -> Unit,
     viewModel: PlaylistViewModel = hiltViewModel(),
+    suggestionsViewModel: PlaylistSuggestionsViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(playlistId) { viewModel.open(playlistId) }
+    LaunchedEffect(playlistId) {
+        viewModel.open(playlistId)
+        suggestionsViewModel.open(playlistId, SuggestionPlace.PLAYLIST_PAGE)
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
         val ready = state as? PlaylistUiState.Ready
@@ -63,7 +68,7 @@ fun PlaylistScreen(
         when (val shown = state) {
             PlaylistUiState.Loading -> Unit
             PlaylistUiState.NotFound -> EmptyState("This playlist does not exist.")
-            is PlaylistUiState.Ready -> ReadyContent(shown, viewModel, onAddSongs)
+            is PlaylistUiState.Ready -> ReadyContent(shown, viewModel, suggestionsViewModel, onAddSongs)
         }
     }
 }
@@ -124,6 +129,7 @@ private fun PlaylistMenu(
 private fun ReadyContent(
     ready: PlaylistUiState.Ready,
     viewModel: PlaylistViewModel,
+    suggestionsViewModel: PlaylistSuggestionsViewModel,
     onAddSongs: () -> Unit,
 ) {
     PlayShuffleButtons(
@@ -137,7 +143,7 @@ private fun ReadyContent(
     if (ready.songs.isEmpty()) {
         EmptyState("No songs yet. Tap Add songs, or use + on any song.")
     } else {
-        SongList(ready.songs, viewModel)
+        SongList(ready.songs, viewModel, suggestionsViewModel)
     }
 }
 
@@ -147,7 +153,9 @@ private fun ReadyContent(
 private fun SongList(
     songs: List<Song>,
     viewModel: PlaylistViewModel,
+    suggestionsViewModel: PlaylistSuggestionsViewModel,
 ) {
+    val suggested by suggestionsViewModel.songs.collectAsStateWithLifecycle()
     var shown by remember(songs) { mutableStateOf(songs) }
     var dragged by remember { mutableStateOf<SongId?>(null) }
     val listState = rememberLazyListState()
@@ -190,5 +198,6 @@ private fun SongList(
                 }
             }
         }
+        suggestionsBlock(suggested, suggestionsViewModel::onAdd, suggestionsViewModel::onDismiss)
     }
 }
