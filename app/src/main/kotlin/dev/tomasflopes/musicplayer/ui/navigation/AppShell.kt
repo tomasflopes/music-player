@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -68,9 +69,16 @@ fun AppShell(
 private fun Tabs(onPickFolder: () -> Unit) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
+    // Raised each time the Search tab is tapped from somewhere else; the screen opens the keyboard once per value.
+    var searchFocusRequest by rememberSaveable { mutableIntStateOf(0) }
+    val onSelectTab = { destination: TopLevelDestination ->
+        val onSearch = backStackEntry?.destination?.route == TopLevelDestination.SEARCH.route
+        if (destination == TopLevelDestination.SEARCH && !onSearch) searchFocusRequest++
+        navController.navigateToTopLevel(destination)
+    }
 
     Scaffold(
-        bottomBar = { BottomChrome(navController, backStackEntry?.destination) },
+        bottomBar = { BottomChrome(onSelectTab, backStackEntry?.destination) },
     ) { padding ->
         NavHost(
             navController = navController,
@@ -95,12 +103,7 @@ private fun Tabs(onPickFolder: () -> Unit) {
                     onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
                 )
             }
-            composable(TopLevelDestination.SEARCH.route) {
-                SearchScreen(
-                    onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
-                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
-                )
-            }
+            searchDestination(navController, searchFocusRequest)
             composable(
                 route = AlbumRoute.PATTERN,
                 arguments = listOf(navArgument(AlbumRoute.ARG_ID) { type = NavType.LongType }),
@@ -125,6 +128,21 @@ private fun Tabs(onPickFolder: () -> Unit) {
     }
 }
 
+/** The Search tab; its keyboard opens after the tab's enter animation, once per [focusRequest]. */
+private fun NavGraphBuilder.searchDestination(
+    navController: NavHostController,
+    focusRequest: Int,
+) {
+    composable(TopLevelDestination.SEARCH.route) {
+        SearchScreen(
+            onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
+            onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+            focusRequest = focusRequest,
+            transition = transition,
+        )
+    }
+}
+
 /** Settings is a page opened from Home's gear, not a tab; the folder picker is the shell's own (ADR 0016). */
 private fun NavGraphBuilder.settingsDestination(
     navController: NavHostController,
@@ -138,7 +156,7 @@ private fun NavGraphBuilder.settingsDestination(
 /** The mini-player sits directly above the tab bar, on every tab; tapping it opens the Now Playing sheet. */
 @Composable
 private fun BottomChrome(
-    navController: NavHostController,
+    onSelectTab: (TopLevelDestination) -> Unit,
     current: NavDestination?,
 ) {
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
@@ -151,7 +169,7 @@ private fun BottomChrome(
             TopLevelDestination.entries.forEach { destination ->
                 NavigationBarItem(
                     selected = current?.hierarchy?.any { it.route == destination.route } == true,
-                    onClick = { navController.navigateToTopLevel(destination) },
+                    onClick = { onSelectTab(destination) },
                     icon = { Icon(destination.icon, contentDescription = null) },
                     label = { Text(destination.label) },
                 )

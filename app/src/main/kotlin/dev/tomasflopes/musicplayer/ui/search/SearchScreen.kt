@@ -1,6 +1,8 @@
 package dev.tomasflopes.musicplayer.ui.search
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.Transition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +24,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -45,6 +52,7 @@ import dev.tomasflopes.musicplayer.ui.components.SongRow
 import dev.tomasflopes.musicplayer.ui.components.TopResultCard
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
+import kotlinx.coroutines.flow.first
 
 /** What the screen can ask for, so the composables below take one parameter instead of a callback per button. */
 private class SearchActions(
@@ -57,11 +65,18 @@ private class SearchActions(
     val onSong: (Int) -> Unit,
 )
 
-/** [onOpenArtist] and [onOpenAlbum] navigate to the page of the chosen result; the choice is logged here first. */
+/**
+ * [onOpenArtist] and [onOpenAlbum] navigate to the page of the chosen result; the choice is logged here first.
+ *
+ * The keyboard opens once per [focusRequest] (the shell raises it when the Search tab is tapped), and only after
+ * [transition], the tab's enter animation, has finished, so the IME never animates in the middle of it.
+ */
 @Composable
 fun SearchScreen(
     onOpenArtist: (ArtistId) -> Unit,
     onOpenAlbum: (AlbumId) -> Unit,
+    focusRequest: Int,
+    transition: Transition<EnterExitState>,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -87,7 +102,7 @@ fun SearchScreen(
             )
         }
     BackHandler(enabled = state is SearchUiState.SeeAll, onBack = actions.onCloseSeeAll)
-    SearchContent(query, state, searching, actions)
+    SearchContent(query, state, searching, actions, focusRequest, transition)
 }
 
 @Composable
@@ -96,9 +111,11 @@ private fun SearchContent(
     state: SearchUiState,
     searching: Boolean,
     actions: SearchActions,
+    focusRequest: Int,
+    transition: Transition<EnterExitState>,
 ) {
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    AutofocusOnceSettled(focusRequest, transition, focus)
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Search")
         SearchField(query, actions.onQueryChange, Modifier.focusRequester(focus))
@@ -110,6 +127,27 @@ private fun SearchContent(
             is SearchUiState.Results -> ResultsList(state.sections, actions)
             is SearchUiState.SeeAll -> SeeAllList(state, actions)
         }
+    }
+}
+
+/**
+ * Focuses [focus] once for each new [focusRequest], after [transition] has settled. What has been handled is kept
+ * with the screen's saved state, so coming back from an artist or album page, or a restore, does not open the
+ * keyboard again, and a request is never served twice.
+ */
+@Composable
+private fun AutofocusOnceSettled(
+    focusRequest: Int,
+    transition: Transition<EnterExitState>,
+    focus: FocusRequester,
+) {
+    var handled by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(focusRequest) {
+        if (focusRequest == handled) return@LaunchedEffect
+        snapshotFlow { transition.currentState == EnterExitState.Visible }.first { it }
+        withFrameNanos { }
+        focus.requestFocus()
+        handled = focusRequest
     }
 }
 
