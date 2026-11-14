@@ -15,9 +15,14 @@ import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.log.PlaybackLog
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import dev.tomasflopes.musicplayer.playback.queue.QueueEntry
+import dev.tomasflopes.musicplayer.playback.queue.QueueRestorer
+import dev.tomasflopes.musicplayer.playback.queue.QueueSaving
+import dev.tomasflopes.musicplayer.playback.queue.QueueStore
 import dev.tomasflopes.musicplayer.playback.queue.QueueWindowSync
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -34,12 +39,16 @@ internal class PlaybackEngine(
     private val config: PlaybackConfig,
     private val scope: CoroutineScope,
     recorder: PlayEventRecorder,
+    private val store: QueueStore,
+    private val saving: QueueSaving,
 ) : Player.Listener {
     private val cache = HashMap<SongId, Song>()
     private val mutex = Mutex()
     private val sync = QueueWindowSync(queue, ExoPlayerItems(), config)
     private val log = PlaybackLog(recorder, queue, { cache[it]?.durationMs ?: 0L }, { player.isPlaying })
     private val playerEvents = PlayerEvents()
+
+    private var ticker: Job? = null
 
     /** What the session offers to controllers. */
     val exposed = QueueAwarePlayer(player, queue, this)
@@ -59,6 +68,31 @@ internal class PlaybackEngine(
             player.play()
             log.started(if (request.picked) StartedBy.PICKED else StartedBy.AUTO)
             exposed.notifyModes()
+            saving.changed()
+        }
+
+    /**
+     * Rebuilds the queue the process lost: paused at the saved position, and no log row until the owner plays
+     * (ADR 0036). A queue that already exists is never replaced. The job ends when the restore is done.
+     */
+    fun restore(): Job =
+        scope.launch {
+            mutex.withLock {
+                val saved = if (queue.size == 0) QueueRestorer.load(store, songs) else null
+                if (saved != null) {
+                    queue.restore(saved.snapshot)
+                    prepareWindow()
+                    player.repeatMode =
+                        if (queue.repeatMode == RepeatMode.ONE) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+                    sync.fill()
+                    player.prepare()
+                    player.seekTo(saved.positionMs)
+                    player.pause()
+                    log.awaitFirstPlay()
+                    exposed.notifyModes()
+                    saving.changed()
+                }
+            }
         }
 
     fun playNext(refs: List<SongRef>) = serial { edit { queue.playNext(refs) } }
@@ -72,6 +106,7 @@ internal class PlaybackEngine(
             sync.fill()
             player.play()
             log.started(StartedBy.PICKED)
+            saving.changed()
         }
 
     /**
@@ -97,6 +132,7 @@ internal class PlaybackEngine(
         sync.fill()
         if (positionMs > 0 && positionMs != C.TIME_UNSET) player.seekTo(positionMs)
         log.started(StartedBy.PICKED)
+        saving.changed()
     }
 
     fun next() =
@@ -137,7 +173,9 @@ internal class PlaybackEngine(
     fun hasPrevious() = queue.index > 0 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0)
 
     fun release() {
+        ticker?.cancel()
         log.stopped()
+        saving.saveBlocking()
         player.removeListener(playerEvents)
     }
 
@@ -146,6 +184,7 @@ internal class PlaybackEngine(
         change()
         prepareWindow()
         sync.onQueueReordered()
+        saving.changed()
     }
 
     /** The queue already moved by one; slide the player along, or reload when the window does not line up. */
@@ -166,6 +205,7 @@ internal class PlaybackEngine(
         }
         player.play()
         log.started(StartedBy.NAV)
+        saving.changed()
     }
 
     /**
@@ -191,6 +231,7 @@ internal class PlaybackEngine(
             .filter { entries[it].ref in gone }
             .asReversed()
             .forEach { queue.removeAt(it) }
+        saving.changed()
     }
 
     private fun serial(block: suspend () -> Unit) {
@@ -219,6 +260,7 @@ internal class PlaybackEngine(
             prepareWindow()
             sync.onPlayerAdvanced()
             log.started(StartedBy.AUTO)
+            saving.changed()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -232,10 +274,25 @@ internal class PlaybackEngine(
                 sync.fill()
                 player.play()
                 log.started(StartedBy.AUTO)
+                saving.changed()
             }
         }
 
-        override fun onIsPlayingChanged(isPlaying: Boolean) = log.playingChanged(isPlaying)
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            log.playingChanged(isPlaying)
+            ticker?.cancel()
+            if (isPlaying) {
+                ticker =
+                    scope.launch {
+                        while (true) {
+                            delay(config.positionSaveIntervalMs)
+                            saving.saveNow()
+                        }
+                    }
+            } else {
+                saving.saveNow()
+            }
+        }
 
         override fun onPlayerError(error: PlaybackException) {
             serial {
@@ -246,6 +303,7 @@ internal class PlaybackEngine(
                 player.prepare()
                 player.play()
                 log.started(StartedBy.AUTO)
+                saving.changed()
             }
         }
     }
