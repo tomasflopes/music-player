@@ -51,3 +51,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0045](0045-library-has-no-folders-tab.md) | Library has no Folders tab (Artists, Albums, Songs, Playlists); "Save as playlist" on folders (ADR 0044) goes with it; folder data and the `FOLDER` source stay | accepted |
 | [0046](0046-one-undo-slot-shared-by-the-queue-and-playlists.md) | One `UndoSlot` in `:core:model` shared by the queue and playlists; one `SwipeToRemove` row; extends 0043 | accepted |
 | [0047](0047-queue-removal-history-and-jumps-work-on-the-play-queue.md) | Queue removal, played history and jumps work on the `PlayQueue` by place and song; the window swaps in place; extends 0020 | accepted |
+| [0048](0048-shuffle-is-the-primary-action-of-a-list-and-play-in-order-the-secondary.md) | Shuffle is the primary (filled, first) action of a list header and the search Top result; "Play in order" is secondary | accepted |

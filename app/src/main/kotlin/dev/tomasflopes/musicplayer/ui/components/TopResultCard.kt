@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,7 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /**
- * The best match of a search, large, with Play and (when the result is a list of songs) Shuffle.
+ * The best match of a search, large, with Shuffle first and Play in order (ADR 0048), or just Play for one song.
  * [onClick] makes the whole card tappable (open the artist or album page); the buttons keep their own action.
  * [leading] is the artwork slot, so an artist, an album and a song can share the card.
  */
@@ -76,17 +74,16 @@ private fun TopResultBody(
         )
         Spacer(Modifier.height(Spacing.s))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = onPlay) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(Modifier.width(Spacing.xxs))
-                Text("Play")
-            }
             if (onShuffle != null) {
+                ShuffleButton(onShuffle)
                 Spacer(Modifier.width(Spacing.xxs))
-                FilledTonalButton(onClick = onShuffle) {
-                    Icon(Icons.Default.Shuffle, contentDescription = null)
+                PlayInOrderButton(onPlay)
+            } else {
+                // A single song has nothing to shuffle, so Play stays the primary button.
+                Button(onClick = onPlay) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(Modifier.width(Spacing.xxs))
-                    Text("Shuffle")
+                    Text("Play")
                 }
             }
             if (menu != null) {
