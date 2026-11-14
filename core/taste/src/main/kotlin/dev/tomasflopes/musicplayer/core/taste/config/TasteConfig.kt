@@ -22,7 +22,7 @@ data class SignalWeights(
     val skipLate: Double = 0.0,
     val earlySkipMs: Long = 15_000,
     val midSkipFraction: Double = 0.5,
-    /** A play past this fraction counts as completed, whatever ended it. */
+    /** A play strictly past this fraction counts as completed, whatever ended it. */
     val completedFraction: Double = 0.8,
 )
 

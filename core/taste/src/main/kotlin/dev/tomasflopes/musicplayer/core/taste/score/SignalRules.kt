@@ -17,7 +17,7 @@ class SignalRules(
         val fraction = fractionListened(event)
         return when {
             event.endedBy == EndedBy.COMPLETED -> PlayOutcome.COMPLETED
-            fraction != null && fraction >= weights.completedFraction -> PlayOutcome.COMPLETED
+            fraction != null && fraction > weights.completedFraction -> PlayOutcome.COMPLETED
             event.endedBy == EndedBy.STOPPED -> PlayOutcome.NEUTRAL
             event.listenedMs < weights.earlySkipMs -> PlayOutcome.SKIPPED_EARLY
             fraction != null && fraction < weights.midSkipFraction -> PlayOutcome.SKIPPED_MID

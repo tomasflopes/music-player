@@ -69,10 +69,10 @@ class SignalRulesTest {
     }
 
     @Test
-    fun `play at 80 percent counts as completed even when skipped`() {
-        assertEquals(PlayOutcome.SKIPPED_LATE, outcome(event(159_999)))
-        assertEquals(PlayOutcome.COMPLETED, outcome(event(160_000)))
-        assertEquals(1.0, weight(event(160_000, shuffle = true)))
+    fun `play past 80 percent counts as completed even when skipped`() {
+        assertEquals(PlayOutcome.SKIPPED_LATE, outcome(event(160_000)))
+        assertEquals(PlayOutcome.COMPLETED, outcome(event(160_001)))
+        assertEquals(1.0, weight(event(160_001, shuffle = true)))
     }
 
     @Test
