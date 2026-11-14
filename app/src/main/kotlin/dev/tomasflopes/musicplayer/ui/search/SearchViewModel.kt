@@ -118,6 +118,10 @@ class SearchViewModel
 
         fun onShuffleTop(item: SearchItem) = choose(item, shuffle = true)
 
+        fun onPlayNext(song: Song) = playback.playNext(listOf(song.ref))
+
+        fun onAddToQueue(song: Song) = playback.addToQueue(listOf(song.ref))
+
         /**
          * An artist or album row opens its page (plan Task 26): the choice is logged here and the screen navigates,
          * so nothing plays until the owner presses something on the page.
