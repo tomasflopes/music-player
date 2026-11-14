@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.IntState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -70,10 +71,10 @@ private fun Tabs(onPickFolder: () -> Unit) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     // Raised each time the Search tab is tapped from somewhere else; the screen opens the keyboard once per value.
-    var searchFocusRequest by rememberSaveable { mutableIntStateOf(0) }
+    val searchFocusRequest = rememberSaveable { mutableIntStateOf(0) }
     val onSelectTab = { destination: TopLevelDestination ->
         val onSearch = backStackEntry?.destination?.route == TopLevelDestination.SEARCH.route
-        if (destination == TopLevelDestination.SEARCH && !onSearch) searchFocusRequest++
+        if (destination == TopLevelDestination.SEARCH && !onSearch) searchFocusRequest.intValue++
         navController.navigateToTopLevel(destination)
     }
 
@@ -128,16 +129,19 @@ private fun Tabs(onPickFolder: () -> Unit) {
     }
 }
 
-/** The Search tab; its keyboard opens after the tab's enter animation, once per [focusRequest]. */
+/**
+ * The Search tab; its keyboard opens after the tab's enter animation, once per [focusRequest] value. The graph is
+ * built once and remembered, so the value is passed as state and read inside the screen, never captured here.
+ */
 private fun NavGraphBuilder.searchDestination(
     navController: NavHostController,
-    focusRequest: Int,
+    focusRequest: IntState,
 ) {
     composable(TopLevelDestination.SEARCH.route) {
         SearchScreen(
             onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
             onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
-            focusRequest = focusRequest,
+            focusRequest = focusRequest.intValue,
             transition = transition,
         )
     }

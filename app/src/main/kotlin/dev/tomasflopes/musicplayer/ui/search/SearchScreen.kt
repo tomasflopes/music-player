@@ -53,6 +53,7 @@ import dev.tomasflopes.musicplayer.ui.components.TopResultCard
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** What the screen can ask for, so the composables below take one parameter instead of a callback per button. */
 private class SearchActions(
@@ -144,12 +145,18 @@ private fun AutofocusOnceSettled(
     var handled by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(focusRequest) {
         if (focusRequest == handled) return@LaunchedEffect
-        snapshotFlow { transition.currentState == EnterExitState.Visible }.first { it }
+        // If the transition never reports settled, the keyboard still opens, just later.
+        withTimeoutOrNull(SETTLE_TIMEOUT_MS) {
+            snapshotFlow { transition.currentState == EnterExitState.Visible }.first { it }
+        }
         withFrameNanos { }
         focus.requestFocus()
         handled = focusRequest
     }
 }
+
+/** The longest the keyboard waits for the tab transition (the default navigation fade is 700 ms). */
+private const val SETTLE_TIMEOUT_MS = 1_000L
 
 /** A thin bar under the field while results are on their way; its height is always reserved so nothing jumps. */
 @Composable
