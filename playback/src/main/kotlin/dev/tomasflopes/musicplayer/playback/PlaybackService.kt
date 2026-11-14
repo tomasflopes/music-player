@@ -181,6 +181,11 @@ class PlaybackService : MediaSessionService() {
                 PlaybackCommands.playNext -> engine.playNext(PlaybackCommands.refsOf(args))
                 PlaybackCommands.addToQueue -> engine.addToQueue(PlaybackCommands.refsOf(args))
                 PlaybackCommands.jumpToUpcoming -> engine.jumpToUpcoming(PlaybackCommands.indexOf(args))
+                PlaybackCommands.jumpToQueueIndex ->
+                    engine.jumpToQueueIndex(PlaybackCommands.indexOf(args), PlaybackCommands.songIdOf(args))
+                PlaybackCommands.removeFromQueue ->
+                    engine.removeFromQueue(PlaybackCommands.indexOf(args), PlaybackCommands.songIdOf(args))
+                PlaybackCommands.restoreToQueue -> engine.restoreToQueue(PlaybackCommands.removedOf(args))
                 else -> return Futures.immediateFuture(
                     SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unknown command")),
                 )

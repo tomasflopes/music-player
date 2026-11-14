@@ -116,6 +116,80 @@ internal class PlaybackEngine(
             saving.changed()
         }
 
+    /** Jumps to any entry of the queue, played or upcoming; the queue itself is not changed (ADR 0047). */
+    fun jumpToQueueIndex(
+        index: Int,
+        songId: SongId,
+    ) = serial {
+        if (queue.entryAt(index)?.ref?.songId != songId) return@serial
+        queue.jumpTo(index) ?: return@serial
+        prepareWindow()
+        sync.fill()
+        player.prepare()
+        player.play()
+        log.started(StartedBy.PICKED)
+        exposed.notifyModes()
+        saving.changed()
+    }
+
+    /**
+     * Takes one entry out of the queue (ADR 0047). Any entry but the current one is swapped out of the window
+     * without touching the song that plays. Removing the current song ends its row, and the next song takes its
+     * place (playing if the player was); with no next song, playback stops on the one before it.
+     */
+    fun removeFromQueue(
+        index: Int,
+        songId: SongId,
+    ) = serial {
+        if (queue.entryAt(index)?.ref?.songId != songId) return@serial
+        if (index != queue.index) {
+            queue.remove(index)
+            prepareWindow()
+            sync.onQueueEdited()
+        } else {
+            val playing = player.playWhenReady
+            log.stopped()
+            queue.remove(index)
+            prepareWindow()
+            sync.fill()
+            val hasNext = queue.size > 0 && index < queue.size
+            if (playing && hasNext) {
+                player.prepare()
+                player.play()
+                log.started(StartedBy.NAV)
+            } else {
+                player.pause()
+                log.awaitFirstPlay()
+            }
+        }
+        exposed.notifyModes()
+        saving.changed()
+    }
+
+    /** Puts a removed entry back (undo). A removed current song becomes current again, at its position. */
+    fun restoreToQueue(removed: RemovedQueueEntry) =
+        serial {
+            queue.insertAt(removed.index, QueueEntry(removed.ref, removed.source, removed.manual, removed.playlistId))
+            prepareWindow()
+            if (removed.wasCurrent) {
+                queue.jumpTo(removed.index.coerceAtMost(queue.size - 1)) ?: return@serial
+                sync.fill()
+                player.prepare()
+                player.seekTo(removed.positionMs)
+                if (removed.wasPlaying) {
+                    player.play()
+                    log.started(StartedBy.NAV)
+                } else {
+                    player.pause()
+                    log.awaitFirstPlay()
+                }
+            } else {
+                sync.onQueueEdited()
+            }
+            exposed.notifyModes()
+            saving.changed()
+        }
+
     /**
      * A controller (notification, car, headset) asked the player for a window index. A window index is a queue entry
      * in the window around the current song, so it goes through the queue as a jump and is logged as picked
@@ -332,6 +406,8 @@ internal class PlaybackEngine(
         ) = player.removeMediaItems(from, to)
 
         override fun removeFirst(count: Int) = player.removeMediaItems(0, count)
+
+        override fun prepend(refs: List<SongRef>) = player.addMediaItems(0, refs.map(::item))
 
         private fun item(ref: SongRef): MediaItem {
             val song = checkNotNull(cache[ref.songId]) { "song ${ref.songId.value} was not loaded" }

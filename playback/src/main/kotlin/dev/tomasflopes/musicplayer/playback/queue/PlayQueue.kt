@@ -144,6 +144,45 @@ class PlayQueue(
         if (index < currentIndex) currentIndex--
     }
 
+    fun entryAt(index: Int): QueueEntry? = entries.getOrNull(index)
+
+    /**
+     * Takes the entry at [index] out, current one included (ADR 0047). The current index follows: an earlier entry
+     * moves it back by one, and when the current entry itself goes, the entry after it becomes current (or the one
+     * before it when it was the last; -1 when nothing is left).
+     */
+    fun remove(index: Int): QueueEntry? {
+        val entry = entries.getOrNull(index) ?: return null
+        entries.removeAt(index)
+        when {
+            index < currentIndex -> currentIndex--
+            index == currentIndex -> currentIndex = if (entries.isEmpty()) -1 else minOf(index, entries.lastIndex)
+        }
+        return entry
+    }
+
+    /** Puts [entry] back at [index] (clamped); the current song stays the same song unless it was the empty queue. */
+    fun insertAt(
+        index: Int,
+        entry: QueueEntry,
+    ) {
+        val at = index.coerceIn(0, entries.size)
+        entries.add(at, entry)
+        if (currentIndex >= 0 && at <= currentIndex) currentIndex++
+    }
+
+    /**
+     * Like [window], with each entry's place in the whole queue (-1 for an entry that repeat ALL wrapped round),
+     * and no more than [behind] earlier entries.
+     */
+    fun indexedWindow(
+        behind: Int,
+        ahead: Int,
+    ): List<Pair<Int, QueueEntry>> {
+        val start = (currentIndex - behind).coerceAtLeast(0)
+        return window(behind, ahead).mapIndexed { i, entry -> (if (start + i < entries.size) start + i else -1) to entry }
+    }
+
     /** The current song and everything after it; see [QueueContent]. */
     fun content(): QueueContent {
         val tail = entries.drop(maxOf(currentIndex, 0))

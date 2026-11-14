@@ -11,6 +11,7 @@ import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistReader
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistStore
 import dev.tomasflopes.musicplayer.core.model.playlists.RenamePlaylist
 import dev.tomasflopes.musicplayer.core.model.ref
+import dev.tomasflopes.musicplayer.core.model.undo.UndoSlot
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.ui.WhileSubscribed
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Clock
 import javax.inject.Inject
 
 sealed interface PlaylistUiState {
@@ -51,6 +53,8 @@ class PlaylistViewModel
         private val store: PlaylistStore,
         private val renamePlaylist: RenamePlaylist,
         private val playback: PlaybackController,
+        private val undo: UndoSlot,
+        private val clock: Clock,
     ) : ViewModel() {
         private val playlistId = MutableStateFlow<PlaylistId?>(null)
 
@@ -91,9 +95,16 @@ class PlaylistViewModel
             viewModelScope.launch { store.delete(id) }
         }
 
+        /** Takes the song out and offers the shared undo, which puts it back at its place (ADR 0046). */
         fun remove(song: SongId) {
-            val id = playlistId.value ?: return
-            viewModelScope.launch { store.removeSong(id, song) }
+            val ready = state.value as? PlaylistUiState.Ready ?: return
+            val removed = ready.songs.firstOrNull { it.id == song } ?: return
+            val order = ready.songs.map { it.id }
+            viewModelScope.launch { store.removeSong(ready.id, song) }
+            undo.offer("Removed \"${removed.title}\" from ${ready.name}") {
+                store.addSongs(ready.id, listOf(song), clock.millis())
+                store.reorder(ready.id, order)
+            }
         }
 
         /** Moves the song at [from] to [to] (both positions in the list on screen); out of range is ignored. */

@@ -32,6 +32,9 @@ class QueueWindowSync(
         )
 
         fun removeFirst(count: Int)
+
+        /** Puts [refs] before everything the player holds; the current item keeps playing. */
+        fun prepend(refs: List<SongRef>)
     }
 
     /** What the player holds, by song; the player cannot be asked for refs, only for counts. */
@@ -62,6 +65,29 @@ class QueueWindowSync(
         val have = player.count - player.index - 1
         val want = window.size - position - 1
         if (want > have) append(window.takeLast(want - have))
+    }
+
+    /**
+     * Something other than the current song was added to or taken out of the queue, before it or after it. The
+     * songs before the current one are swapped in place and the ones after it are replaced, so the current song
+     * keeps playing without a gap.
+     */
+    fun onQueueEdited() {
+        val window = queue.window(config.windowBehind, config.windowAhead).map { it.ref }
+        val position = currentPosition(window.size)
+        if (window.isEmpty() || held.getOrNull(player.index) != queue.current?.ref) return fill()
+        if (held.take(player.index) != window.take(position)) {
+            if (player.index > 0) {
+                held.subList(0, player.index).clear()
+                player.removeFirst(player.index)
+            }
+            val behind = window.take(position)
+            if (behind.isNotEmpty()) {
+                held.addAll(0, behind)
+                player.prepend(behind)
+            }
+        }
+        replaceTail()
     }
 
     /** Shuffle was toggled: the songs after the current one change, the current one keeps playing. */

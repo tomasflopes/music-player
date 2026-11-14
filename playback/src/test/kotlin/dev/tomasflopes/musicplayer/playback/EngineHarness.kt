@@ -134,6 +134,7 @@ private class FakePlayerHandler(
         when (method.name) {
             "getCurrentPosition" -> state.position
             "isPlaying" -> state.playing
+            "getPlayWhenReady" -> state.playing
             "getCurrentMediaItemIndex" -> state.itemIndex
             "getMediaItemCount" -> state.itemCount
             "hashCode" -> System.identityHashCode(proxy)

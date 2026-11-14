@@ -29,6 +29,7 @@ import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.QueueContent
+import dev.tomasflopes.musicplayer.playback.RemovedQueueEntry
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 import kotlinx.coroutines.flow.Flow
@@ -94,6 +95,39 @@ class FakePlaybackController : PlaybackController {
 
     override fun jumpToUpcoming(index: Int) {
         jumps += index
+    }
+
+    /** Queue edits (ADR 0047): what was asked, and what a removal answers (an entry that was there, by default). */
+    val queueJumps = mutableListOf<Pair<Int, SongId>>()
+    val removals = mutableListOf<Pair<Int, SongId>>()
+    val restored = mutableListOf<RemovedQueueEntry>()
+
+    override fun jumpToQueueIndex(
+        index: Int,
+        songId: SongId,
+    ) {
+        queueJumps += index to songId
+    }
+
+    override fun removeFromQueue(
+        index: Int,
+        songId: SongId,
+    ): RemovedQueueEntry? {
+        removals += index to songId
+        return RemovedQueueEntry(
+            index = index,
+            ref = SongRef(songId, ArtistId(1)),
+            source = PlaySource.QUEUE,
+            manual = false,
+            playlistId = null,
+            wasCurrent = false,
+            positionMs = 0,
+            wasPlaying = false,
+        )
+    }
+
+    override fun restoreToQueue(entry: RemovedQueueEntry) {
+        restored += entry
     }
 
     override fun setShuffle(on: Boolean) {
