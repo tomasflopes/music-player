@@ -15,6 +15,7 @@ import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.FolderReader
+import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
@@ -30,6 +31,13 @@ import kotlinx.coroutines.flow.map
 private fun Flow<List<SongRow>>.songs(): Flow<List<Song>> = map { rows -> rows.map(SongRow::toSong) }
 
 private val BY_FILE_NAME = compareBy(NaturalOrder, Song::fileName)
+
+/** Fires on every write to the `song` table, which is where a scan adds, retires and revives songs (ADR 0034). */
+class RoomLibraryChanges(
+    private val db: MusicDatabase,
+) : LibraryChanges {
+    override fun observe(): Flow<Unit> = db.invalidationTracker.createFlow("song").map { }
+}
 
 /** `:core:model` ports over Room. The SQL does the heavy sorting; the domain comparators settle the rest. */
 class RoomSongReader(

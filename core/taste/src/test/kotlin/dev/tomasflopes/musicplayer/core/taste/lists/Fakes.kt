@@ -5,6 +5,7 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
@@ -88,4 +89,9 @@ internal class FakeScoreBoard(
     private val ranked: List<SongScore>,
 ) : ScoreBoard {
     override fun observeRanked(): Flow<List<SongScore>> = flowOf(ranked)
+}
+
+/** A library that never changes after the first read. */
+internal object NeverChanges : LibraryChanges {
+    override fun observe(): Flow<Unit> = flowOf(Unit)
 }

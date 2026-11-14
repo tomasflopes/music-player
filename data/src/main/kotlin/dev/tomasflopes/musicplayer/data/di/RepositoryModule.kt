@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.FolderReader
+import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
@@ -25,6 +26,7 @@ import dev.tomasflopes.musicplayer.data.repo.RoomAlbumReader
 import dev.tomasflopes.musicplayer.data.repo.RoomArtistReader
 import dev.tomasflopes.musicplayer.data.repo.RoomFeatureReader
 import dev.tomasflopes.musicplayer.data.repo.RoomFolderReader
+import dev.tomasflopes.musicplayer.data.repo.RoomLibraryChanges
 import dev.tomasflopes.musicplayer.data.repo.RoomPlayHistory
 import dev.tomasflopes.musicplayer.data.repo.RoomSearchHistory
 import dev.tomasflopes.musicplayer.data.repo.RoomSongReader
@@ -55,8 +57,11 @@ object RepositoryModule {
     @Provides fun topHundredProvider(
         board: ScoreBoard,
         songReader: SongReader,
+        changes: LibraryChanges,
         config: TasteConfig,
-    ): TopHundredProvider = TopHundredProvider(board, songReader, config)
+    ): TopHundredProvider = TopHundredProvider(board, songReader, changes, config)
+
+    @Provides fun libraryChanges(db: MusicDatabase): LibraryChanges = RoomLibraryChanges(db)
 
     @Provides fun artistReader(db: MusicDatabase): ArtistReader = RoomArtistReader(db)
 

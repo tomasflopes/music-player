@@ -24,7 +24,7 @@ class TopHundredProviderTest : DynamicListProviderContract() {
     private fun providerOf(
         scores: List<SongScore>,
         songs: FakeSongReader = library(1..scores.size.coerceAtLeast(1)),
-    ) = TopHundredProvider(FakeScoreBoard(scores), songs, TasteConfig())
+    ) = TopHundredProvider(FakeScoreBoard(scores), songs, NeverChanges, TasteConfig())
 
     private suspend fun DynamicListProvider.ids() = songs().first().map { it.id.value }
 

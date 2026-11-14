@@ -15,7 +15,7 @@ class TopHundredAuditTest {
         runTest {
             val scores = listOf(SongScore(SongId(1), 1.0, 1), SongScore(SongId(2), 1e-16, 1))
             val library = FakeSongReader(listOf(song(1, 0), song(2, 0)))
-            val provider = TopHundredProvider(FakeScoreBoard(scores), library, TasteConfig())
+            val provider = TopHundredProvider(FakeScoreBoard(scores), library, NeverChanges, TasteConfig())
 
             assertEquals(listOf(SongId(1)), provider.songs().first().map { it.id })
         }
