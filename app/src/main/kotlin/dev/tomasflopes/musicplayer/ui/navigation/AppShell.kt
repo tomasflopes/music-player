@@ -102,41 +102,49 @@ private fun Tabs(onPickFolder: () -> Unit) {
             startDestination = TopLevelDestination.HOME.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(TopLevelDestination.HOME.route) {
-                HomeScreen(onNavigate = { route -> navController.navigate(route) })
-            }
-            dynamicListDestination(navController)
-            composable(TopLevelDestination.LIBRARY.route) {
-                LibraryScreen(
-                    onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
-                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
-                    onNavigate = { route -> navController.navigate(route) },
-                )
-            }
-            playlistDestinations(navController)
-            searchDestination(navController, searchFocusRequest)
-            composable(
-                route = AlbumRoute.PATTERN,
-                arguments = listOf(navArgument(AlbumRoute.ARG_ID) { type = NavType.LongType }),
-            ) { entry ->
-                AlbumScreen(
-                    albumId = AlbumId(entry.arguments?.getLong(AlbumRoute.ARG_ID) ?: 0L),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(
-                route = ArtistRoute.PATTERN,
-                arguments = listOf(navArgument(ArtistRoute.ARG_ID) { type = NavType.LongType }),
-            ) { entry ->
-                ArtistScreen(
-                    artistId = ArtistId(entry.arguments?.getLong(ArtistRoute.ARG_ID) ?: 0L),
-                    onBack = { navController.popBackStack() },
-                    onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
-                )
-            }
-            settingsDestination(navController, onPickFolder)
+            appDestinations(navController, searchFocusRequest, onPickFolder)
         }
     }
+}
+
+private fun NavGraphBuilder.appDestinations(
+    navController: NavHostController,
+    searchFocusRequest: IntState,
+    onPickFolder: () -> Unit,
+) {
+    composable(TopLevelDestination.HOME.route) {
+        HomeScreen(onNavigate = { route -> navController.navigate(route) })
+    }
+    dynamicListDestination(navController)
+    composable(TopLevelDestination.LIBRARY.route) {
+        LibraryScreen(
+            onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
+            onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+            onNavigate = { route -> navController.navigate(route) },
+        )
+    }
+    playlistDestinations(navController)
+    searchDestination(navController, searchFocusRequest)
+    composable(
+        route = AlbumRoute.PATTERN,
+        arguments = listOf(navArgument(AlbumRoute.ARG_ID) { type = NavType.LongType }),
+    ) { entry ->
+        AlbumScreen(
+            albumId = AlbumId(entry.arguments?.getLong(AlbumRoute.ARG_ID) ?: 0L),
+            onBack = { navController.popBackStack() },
+        )
+    }
+    composable(
+        route = ArtistRoute.PATTERN,
+        arguments = listOf(navArgument(ArtistRoute.ARG_ID) { type = NavType.LongType }),
+    ) { entry ->
+        ArtistScreen(
+            artistId = ArtistId(entry.arguments?.getLong(ArtistRoute.ARG_ID) ?: 0L),
+            onBack = { navController.popBackStack() },
+            onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+        )
+    }
+    settingsDestination(navController, onPickFolder)
 }
 
 /** The screen of one dynamic list, opened from a Home card. */

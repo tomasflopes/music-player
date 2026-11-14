@@ -132,7 +132,13 @@ class NowPlayingViewModelTest {
             undo.undo(undo.pending.value!!.id)
 
             assertEquals(listOf(3), playback.restored.map { it.index })
-            assertEquals(testSong(7).id, playback.restored.single().ref.songId)
+            assertEquals(
+                testSong(7).id,
+                playback.restored
+                    .single()
+                    .ref
+                    .songId,
+            )
         }
 
     @Test

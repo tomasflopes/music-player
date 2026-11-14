@@ -73,6 +73,7 @@ class QueueWindowSync(
      * keeps playing without a gap.
      */
     fun onQueueEdited() {
+        if (held.isEmpty()) return
         val window = queue.window(config.windowBehind, config.windowAhead).map { it.ref }
         val position = currentPosition(window.size)
         if (window.isEmpty() || held.getOrNull(player.index) != queue.current?.ref) return fill()

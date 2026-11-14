@@ -37,7 +37,13 @@ class PlaybackEngineRemoveTest {
         harness.engine.removeFromQueue(1, harness.id('B'))
 
         assertEquals("ACDE", harness.queue.names())
-        assertEquals('D'.code.toLong(), harness.queue.current?.ref?.songId?.value)
+        assertEquals(
+            'D'.code.toLong(),
+            harness.queue.current
+                ?.ref
+                ?.songId
+                ?.value,
+        )
         assertFalse(harness.touched("setMediaItems"))
         assertFalse(harness.touched("pause"))
     }
@@ -60,7 +66,13 @@ class PlaybackEngineRemoveTest {
         harness.engine.removeFromQueue(0, harness.id('A'))
 
         assertEquals("BC", harness.queue.names())
-        assertEquals('B'.code.toLong(), harness.queue.current?.ref?.songId?.value)
+        assertEquals(
+            'B'.code.toLong(),
+            harness.queue.current
+                ?.ref
+                ?.songId
+                ?.value,
+        )
         assertTrue(harness.touched("setMediaItems"))
         assertTrue(harness.touched("play["))
     }
@@ -101,7 +113,13 @@ class PlaybackEngineRemoveTest {
 
         harness.engine.removeFromQueue(0, harness.id('A'))
 
-        assertEquals('B'.code.toLong(), harness.queue.current?.ref?.songId?.value)
+        assertEquals(
+            'B'.code.toLong(),
+            harness.queue.current
+                ?.ref
+                ?.songId
+                ?.value,
+        )
         assertFalse(harness.touched("play["))
     }
 

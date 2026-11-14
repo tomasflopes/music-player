@@ -182,7 +182,10 @@ class PlaylistViewModelTest {
             assertEquals("Removed \"${songs[2].title}\" from Gym", offer?.message)
             undo.undo(offer!!.id)
 
-            val restored = viewModel.state.first { (it as? PlaylistUiState.Ready)?.songs?.size == 2 } as PlaylistUiState.Ready
+            val restored =
+                viewModel.state.first {
+                    (it as? PlaylistUiState.Ready)?.songs?.size == 2
+                } as PlaylistUiState.Ready
             assertEquals(listOf(songs[2], songs[0]), restored.songs)
         }
 
