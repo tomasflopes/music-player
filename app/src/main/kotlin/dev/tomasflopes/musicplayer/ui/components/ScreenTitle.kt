@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /** The large title at the top of a tab. */
@@ -16,6 +17,8 @@ fun ScreenTitle(
     Text(
         text = text,
         style = MaterialTheme.typography.headlineMedium,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier.padding(horizontal = Spacing.s, vertical = Spacing.s),
     )
 }

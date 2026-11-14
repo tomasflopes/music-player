@@ -11,17 +11,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
-/** The top row of a page opened from a tab: a back button and, when the page has no header of its own, [title]. */
+/**
+ * The top row of a page opened from a tab: a back button and, when the page has no header of its own, [title].
+ * [trailing] (e.g. a menu) takes its own space, so the title truncates instead of running under it.
+ */
 @Composable
 fun BackTitleRow(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     title: String? = null,
+    trailing: @Composable () -> Unit = {},
 ) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack, modifier = Modifier.padding(start = Spacing.xxxs)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
-        if (title != null) ScreenTitle(title)
+        if (title != null) ScreenTitle(title, Modifier.weight(1f))
+        trailing()
     }
 }
