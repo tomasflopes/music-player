@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.artistShuffleSongs
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
@@ -137,7 +138,14 @@ class SearchViewModel
             viewModelScope.launch {
                 when (item) {
                     is ArtistItem -> {
-                        val songs = songReader.observeArtistSongs(item.artist.id).firstOrNull().orEmpty()
+                        val own = songReader.observeArtistSongs(item.artist.id).firstOrNull().orEmpty()
+                        val songs =
+                            if (shuffle) {
+                                val featured = songReader.observeFeaturedOn(item.artist.id).firstOrNull().orEmpty()
+                                artistShuffleSongs(own, featured)
+                            } else {
+                                own
+                            }
                         playList(songs, shuffle, if (shuffle) PlaySource.ARTIST_SHUFFLE else PlaySource.ARTIST)
                     }
                     is AlbumItem -> {

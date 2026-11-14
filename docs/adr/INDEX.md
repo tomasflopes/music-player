@@ -29,3 +29,5 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0023](0023-top-100-is-scored-on-demand-behind-a-score-board.md) | The Top 100 is scored on demand behind a `ScoreBoard` port; a cached table is a later, separate decision | accepted |
 | [0024](0024-taste-weights-live-in-one-config-in-core-taste.md) | Taste weights, burst rule, decay and list size live in one `TasteConfig` in `:core:taste`, defaults in code | accepted |
 | [0025](0025-every-track-the-player-moves-to-is-logged.md) | Every track the player moves to gets its own `play_event` row; duration comes from the library; extends 0008 | accepted |
+| [0026](0026-display-artist-comes-from-the-file-name-when-it-differs-from-the-tag.md) | The shown artist is the file-name artist when it differs from the tag, derived on read; the tag stays the grouping key | accepted |
+| [0027](0027-artist-shuffle-also-queues-the-songs-that-feature-the-artist.md) | Artist shuffle also queues the songs that feature the artist; extends 0017 | accepted |

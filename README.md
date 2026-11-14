@@ -19,6 +19,8 @@ Every track the player moves to now gets its own listening-log row (next, previo
 earlier skips, and a 30-day half-life, all in one `TasteConfig`. Scores are computed on demand behind a `ScoreBoard`
 port (ADR 0023). Not built yet: smart shuffle, playlists, sound analysis, mixes.
 
+**Post-test polish (branch `fix/post-test-polish`, not merged):** Search opens with the keyboard up, round A-Z bubble next to the rail, a tappable top-result card, songs show the file-name artist when the tag differs (ADR 0026), and artist shuffle includes "Featured on" songs (ADR 0027).
+
 Not recorded: the speed measurements against the budget and a `deviceCheck` run (Task 31 in
 `docs/plans/2026-11-13-phase-1-mp3-player.md`), and any run of the phase 2 slice (see section 4 of
 `docs/plans/2026-11-14-phase-2-top-100.md`). Known gap, found by reading the code and not yet confirmed on the

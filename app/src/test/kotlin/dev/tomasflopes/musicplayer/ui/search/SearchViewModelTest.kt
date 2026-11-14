@@ -74,6 +74,7 @@ class SearchViewModelTest {
         FakeSongReader(
             songs = listOf(morning, night, faded, ended, bigEd, empire),
             artistSongs = mapOf(ArtistId(1) to listOf(morning), ArtistId(4) to listOf(empire)),
+            featuredOn = mapOf(ArtistId(4) to listOf(night)),
             albumSongs = mapOf(AlbumId(10) to listOf(bigEd)),
         )
     private val artistReader = FakeArtistReader(listOf(ed, eddie, kendrick, jayZ, sample))
@@ -259,6 +260,31 @@ class SearchViewModelTest {
             assertEquals(listOf(SearchEvent("JayZ", SearchItemType.ARTIST, 4, NOW)), history.events)
             assertEquals(
                 listOf(PlayRequest(listOf(empire.ref), 0, shuffle = false, PlaySource.ARTIST, picked = false)),
+                playback.requests,
+            )
+        }
+
+    @Test
+    fun `shuffling the top artist also queues the songs that feature them, playing in order does not`() =
+        runTest {
+            val viewModel = viewModel()
+            val top = typed(viewModel, "JayZ").results().top
+
+            viewModel.onPlayTop(top)
+            viewModel.onShuffleTop(top)
+            advanceUntilIdle()
+
+            assertEquals(
+                listOf(
+                    PlayRequest(listOf(empire.ref), 0, shuffle = false, PlaySource.ARTIST, picked = false),
+                    PlayRequest(
+                        listOf(empire.ref, night.ref),
+                        0,
+                        shuffle = true,
+                        PlaySource.ARTIST_SHUFFLE,
+                        picked = false,
+                    ),
+                ),
                 playback.requests,
             )
         }

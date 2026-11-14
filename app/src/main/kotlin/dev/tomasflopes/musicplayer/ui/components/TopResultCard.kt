@@ -24,6 +24,7 @@ import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /**
  * The best match of a search, large, with Play and (when the result is a list of songs) Shuffle.
+ * [onClick] makes the whole card tappable (open the artist or album page); the buttons keep their own action.
  * [leading] is the artwork slot, so an artist, an album and a song can share the card.
  */
 @Composable
@@ -34,41 +35,55 @@ fun TopResultCard(
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,
     onShuffle: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.xxs),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(Modifier.padding(Spacing.s)) {
-            leading()
-            Spacer(Modifier.height(Spacing.xs))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(Spacing.s))
-            Row {
-                Button(onClick = onPlay) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+    val cardModifier = modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.xxs)
+    val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    val body: @Composable () -> Unit = { TopResultBody(title, subtitle, leading, onPlay, onShuffle) }
+    if (onClick == null) {
+        Card(modifier = cardModifier, colors = colors) { body() }
+    } else {
+        Card(onClick = onClick, modifier = cardModifier, colors = colors) { body() }
+    }
+}
+
+@Composable
+private fun TopResultBody(
+    title: String,
+    subtitle: String,
+    leading: @Composable () -> Unit,
+    onPlay: () -> Unit,
+    onShuffle: (() -> Unit)?,
+) {
+    Column(Modifier.padding(Spacing.s)) {
+        leading()
+        Spacer(Modifier.height(Spacing.xs))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(Spacing.s))
+        Row {
+            Button(onClick = onPlay) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(Modifier.width(Spacing.xxs))
+                Text("Play")
+            }
+            if (onShuffle != null) {
+                Spacer(Modifier.width(Spacing.xxs))
+                FilledTonalButton(onClick = onShuffle) {
+                    Icon(Icons.Default.Shuffle, contentDescription = null)
                     Spacer(Modifier.width(Spacing.xxs))
-                    Text("Play")
-                }
-                if (onShuffle != null) {
-                    Spacer(Modifier.width(Spacing.xxs))
-                    FilledTonalButton(onClick = onShuffle) {
-                        Icon(Icons.Default.Shuffle, contentDescription = null)
-                        Spacer(Modifier.width(Spacing.xxs))
-                        Text("Shuffle")
-                    }
+                    Text("Shuffle")
                 }
             }
         }
