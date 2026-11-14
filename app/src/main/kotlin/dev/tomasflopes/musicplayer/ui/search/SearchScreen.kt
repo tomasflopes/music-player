@@ -39,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.ArtistId
+import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
 import dev.tomasflopes.musicplayer.ui.components.AlbumArt
 import dev.tomasflopes.musicplayer.ui.components.AlbumRow
@@ -48,6 +49,7 @@ import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.ScreenTitle
 import dev.tomasflopes.musicplayer.ui.components.SearchField
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
+import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.TopResultCard
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
@@ -65,6 +67,8 @@ private class SearchActions(
     val onShuffleTop: (SearchItem) -> Unit,
     val onOpen: (SearchItem) -> Unit,
     val onSong: (Int) -> Unit,
+    val onPlayNext: (Song) -> Unit,
+    val onAddToQueue: (Song) -> Unit,
 )
 
 /**
@@ -101,6 +105,8 @@ fun SearchScreen(
                     }
                 },
                 onSong = viewModel::onSongClick,
+                onPlayNext = viewModel::onPlayNext,
+                onAddToQueue = viewModel::onAddToQueue,
             )
         }
     BackHandler(enabled = state is SearchUiState.SeeAll, onBack = actions.onCloseSeeAll)
@@ -189,7 +195,7 @@ private fun ResultsList(
                 SectionHeader("Songs", onSeeAll = seeAll(sections.moreSongs, SearchItemType.SONG, actions))
             }
             itemsIndexed(sections.songs, key = { _, item -> item.key }) { index, item ->
-                SelectableSongRow(item.song, selection) { actions.onSong(index) }
+                SelectableSongRow(item.song, selection, actions.onPlayNext, actions.onAddToQueue) { actions.onSong(index) }
             }
         }
     }
@@ -245,6 +251,13 @@ private fun TopResult(
                 leading = { AlbumArt(item.song, ArtSize.card) },
                 onPlay = { actions.onPlayTop(item) },
                 onClick = { actions.onPlayTop(item) },
+                menu = {
+                    SongMenuButton(
+                        songId = item.song.id,
+                        onPlayNext = { actions.onPlayNext(item.song) },
+                        onAddToQueue = { actions.onAddToQueue(item.song) },
+                    )
+                },
             )
     }
 }
@@ -267,7 +280,7 @@ private fun SeeAllList(
                 when (item) {
                     is ArtistItem -> ArtistRow(item.artist, onClick = { actions.onOpen(item) })
                     is AlbumItem -> AlbumRow(item.album, item.cover, onClick = { actions.onOpen(item) })
-                    is SongItem -> SelectableSongRow(item.song, selection) { actions.onSong(index) }
+                    is SongItem -> SelectableSongRow(item.song, selection, actions.onPlayNext, actions.onAddToQueue) { actions.onSong(index) }
                 }
             }
         }

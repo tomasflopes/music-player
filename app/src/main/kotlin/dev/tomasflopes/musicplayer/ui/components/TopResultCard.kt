@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
@@ -36,10 +37,11 @@ fun TopResultCard(
     modifier: Modifier = Modifier,
     onShuffle: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    menu: (@Composable () -> Unit)? = null,
 ) {
     val cardModifier = modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.xxs)
     val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    val body: @Composable () -> Unit = { TopResultBody(title, subtitle, leading, onPlay, onShuffle) }
+    val body: @Composable () -> Unit = { TopResultBody(title, subtitle, leading, onPlay, onShuffle, menu) }
     if (onClick == null) {
         Card(modifier = cardModifier, colors = colors) { body() }
     } else {
@@ -54,6 +56,7 @@ private fun TopResultBody(
     leading: @Composable () -> Unit,
     onPlay: () -> Unit,
     onShuffle: (() -> Unit)?,
+    menu: (@Composable () -> Unit)?,
 ) {
     Column(Modifier.padding(Spacing.s)) {
         leading()
@@ -72,7 +75,7 @@ private fun TopResultBody(
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(Spacing.s))
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = onPlay) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(Spacing.xxs))
@@ -85,6 +88,10 @@ private fun TopResultBody(
                     Spacer(Modifier.width(Spacing.xxs))
                     Text("Shuffle")
                 }
+            }
+            if (menu != null) {
+                Spacer(Modifier.weight(1f))
+                menu()
             }
         }
     }

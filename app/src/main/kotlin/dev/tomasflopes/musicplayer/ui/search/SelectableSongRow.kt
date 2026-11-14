@@ -2,6 +2,7 @@ package dev.tomasflopes.musicplayer.ui.search
 
 import androidx.compose.runtime.Composable
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 
@@ -10,6 +11,8 @@ import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 internal fun SelectableSongRow(
     song: Song,
     selection: SelectionState,
+    onPlayNext: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
     onPlay: () -> Unit,
 ) {
     SongRow(
@@ -17,6 +20,13 @@ internal fun SelectableSongRow(
         onClick = { selection.onTap(song.id, onPlay) },
         onLongClick = { selection.onLongPress(song.id) },
         selected = selection.isSelected(song.id),
+        trailing = {
+            SongMenuButton(
+                songId = song.id,
+                onPlayNext = { onPlayNext(song) },
+                onAddToQueue = { onAddToQueue(song) },
+            )
+        },
     )
 }
 

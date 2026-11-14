@@ -122,6 +122,24 @@ class SearchViewModelTest {
         return viewModel
     }
 
+    @Test
+    fun `Play next from a search row sends that song's ref only`() =
+        runTest(dispatcher) {
+            viewModel().onPlayNext(morning)
+
+            assertEquals(listOf(listOf(morning.ref)), playback.playNextCalls)
+            assertTrue(playback.requests.isEmpty())
+        }
+
+    @Test
+    fun `Add to queue from a search row sends that song's ref only`() =
+        runTest(dispatcher) {
+            viewModel().onAddToQueue(morning)
+
+            assertEquals(listOf(listOf(morning.ref)), playback.addToQueueCalls)
+            assertTrue(playback.requests.isEmpty())
+        }
+
     private fun TestScope.typed(
         viewModel: SearchViewModel,
         text: String,
