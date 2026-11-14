@@ -12,4 +12,14 @@ fun interface ShuffleStrategy {
         items: List<SongRef>,
         random: Random,
     ): List<SongRef>
+
+    /**
+     * Like [order] for items that will play right after [preceding] (oldest first), which an order may want to
+     * stay clear of. Only the last few of [preceding] can matter. Defaults to [order].
+     */
+    fun orderAfter(
+        preceding: List<SongRef>,
+        items: List<SongRef>,
+        random: Random,
+    ): List<SongRef> = order(items, random)
 }
