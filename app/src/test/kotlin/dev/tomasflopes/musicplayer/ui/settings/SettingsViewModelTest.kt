@@ -4,9 +4,12 @@ import dev.tomasflopes.musicplayer.core.artistimage.ArtistPhotoMode
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
+import dev.tomasflopes.musicplayer.core.model.ports.ScanPhase
+import dev.tomasflopes.musicplayer.core.model.ports.ScanProgress
 import dev.tomasflopes.musicplayer.core.taste.lists.RecentlyAddedProvider
 import dev.tomasflopes.musicplayer.fakes.FakeArtistPhotoSettings
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
+import dev.tomasflopes.musicplayer.fakes.FakeScanController
 import dev.tomasflopes.musicplayer.fakes.FakeSettingsEntry
 import dev.tomasflopes.musicplayer.fakes.FakeSettingsRepository
 import dev.tomasflopes.musicplayer.fakes.FakeSongReader
@@ -36,6 +39,7 @@ class SettingsViewModelTest {
     private val config = LibraryConfig()
     private val settings = FakeSettingsRepository()
     private val artistPhotos = FakeArtistPhotoSettings()
+    private val scanner = FakeScanController()
 
     @BeforeEach
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -44,7 +48,7 @@ class SettingsViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun viewModel(vararg entries: FakeSettingsEntry) =
-        SettingsViewModel(settings, artistPhotos, config, entries.toSet())
+        SettingsViewModel(settings, artistPhotos, config, scanner, entries.toSet())
 
     /** Keeps the state subscribed, as the screen does, so `value` follows the settings. */
     private fun TestScope.subscribed(viewModel: SettingsViewModel): SettingsViewModel {
@@ -179,12 +183,30 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun `rescan asks the scan controller once`() {
+        viewModel().onRescan()
+
+        assertEquals(1, scanner.scanRequests)
+    }
+
+    @Test
+    fun `the scan's progress is shown for the rescan row`() {
+        val viewModel = viewModel()
+        assertEquals(ScanPhase.IDLE, viewModel.scan.value.phase)
+
+        scanner.state.value = ScanProgress(ScanPhase.INDEXING, 5, 20)
+
+        assertEquals(ScanProgress(ScanPhase.INDEXING, 5, 20), viewModel.scan.value)
+    }
+
+    @Test
     fun `two entries with the same id are refused`() {
         assertThrows(IllegalArgumentException::class.java) {
             SettingsViewModel(
                 settings,
                 artistPhotos,
                 config,
+                scanner,
                 setOf(FakeSettingsEntry("debug"), FakeSettingsEntry("debug", order = 1)),
             )
         }

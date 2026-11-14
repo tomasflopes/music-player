@@ -18,9 +18,11 @@ import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SettingRow
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DaysWindowSheet
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.daysLabel
+import dev.tomasflopes.musicplayer.ui.home.isRunning
 
 /**
- * Settings: the music folder, the Recently added window and the artist photo setting, then the registered entries.
+ * Settings: the music folder, rescanning it, the Recently added window and the artist photo setting, then the
+ * registered entries.
  * [onPickFolder] is the one folder-picker launcher of `MainActivity`; the folder it returns is saved and scanned by
  * the shell.
  */
@@ -31,6 +33,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val scan by viewModel.scan.collectAsStateWithLifecycle()
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
     var photosOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -38,6 +41,7 @@ fun SettingsScreen(
         BackTitleRow(onBack, title = "Settings")
         SectionHeader("Library")
         SettingRow("Music folder", state.musicFolder ?: "Not set", onPickFolder)
+        SettingRow("Rescan library", rescanSummary(scan), viewModel::onRescan, enabled = !scan.isRunning())
         SettingRow("Recently added window", daysLabel(state.recentlyAdded.days), { pickerOpen = true })
         SectionHeader("Artists")
         SettingRow("Artist photos from the internet", artistPhotoLabel(state.artistPhotos), { photosOpen = true })

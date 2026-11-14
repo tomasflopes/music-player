@@ -8,20 +8,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
-/** A tappable row of the Settings screen: what it is, and under it what it is set to. */
+private const val DISABLED_ALPHA = 0.5f
+
+/**
+ * A tappable row of the Settings screen: what it is, and under it what it is set to. A row that is not [enabled]
+ * (an action that is already running) is dimmed and ignores taps.
+ */
 @Composable
 fun SettingRow(
     title: String,
     value: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Column(
         modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = Spacing.s, vertical = Spacing.xs),
     ) {
         Text(title, style = MaterialTheme.typography.titleMedium)

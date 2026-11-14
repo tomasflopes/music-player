@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * The Home tab: which sections it shows and in what order, the library's scan state, and Shuffle all
+ * The Home tab: which sections it shows and in what order, the library's scan progress, and Shuffle all
  * (which the Shuffle all section draws and calls through this ViewModel).
  */
 @HiltViewModel
@@ -34,8 +34,6 @@ class HomeViewModel
         val sections: List<HomeSection> = homeSections.sortedWith(compareBy({ it.order }, { it.id }))
 
         val scan: StateFlow<ScanProgress> = scanner.progress
-
-        fun rescan() = scanner.requestScan()
 
         /** Every song once, in a random order; does nothing while the library is empty. */
         fun shuffleAll() {

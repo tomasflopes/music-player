@@ -27,22 +27,21 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val scan by viewModel.scan.collectAsStateWithLifecycle()
-    HomeContent(viewModel.sections, scan, onNavigate, viewModel::rescan)
+    HomeContent(viewModel.sections, scan, onNavigate)
 }
 
-/** The registered sections in order, then the library's scan state. */
+/** The registered sections in order, then the scan's progress while a scan runs or has failed. */
 @Composable
 private fun HomeContent(
     sections: List<HomeSection>,
     scan: ScanProgress,
     onNavigate: (String) -> Unit,
-    onRescan: () -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "title") { HomeTitle(onOpenSettings = { onNavigate(SettingsRoute.ROUTE) }) }
         items(sections, key = { it.id }) { section -> section.Content(onNavigate) }
-        item(key = "scan") {
-            ScanStatus(scan, onRescan, Modifier.padding(horizontal = Spacing.s, vertical = Spacing.s))
+        scan.label()?.let { label ->
+            item(key = "scan") { ScanStatus(label, Modifier.padding(horizontal = Spacing.s, vertical = Spacing.s)) }
         }
     }
 }

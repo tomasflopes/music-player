@@ -4,6 +4,8 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.ports.ScanPhase
+import dev.tomasflopes.musicplayer.core.model.ports.ScanProgress
 import dev.tomasflopes.musicplayer.fakes.FakeHomeSection
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.FakeScanController
@@ -57,10 +59,13 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `rescan asks the scan controller once`() {
-        viewModel(FakeSongReader()).rescan()
+    fun `home shows the scan's progress but never starts a scan`() {
+        scanner.state.value = ScanProgress(ScanPhase.READING_TAGS, 3, 10)
 
-        assertEquals(1, scanner.scanRequests)
+        val viewModel = viewModel(FakeSongReader())
+
+        assertEquals(ScanProgress(ScanPhase.READING_TAGS, 3, 10), viewModel.scan.value)
+        assertEquals(0, scanner.scanRequests)
     }
 
     @Test

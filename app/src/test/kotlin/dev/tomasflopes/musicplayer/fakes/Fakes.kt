@@ -292,7 +292,9 @@ class FakeSettingsEntry(
 }
 
 class FakeScanController : LibraryScanController {
-    override val progress: StateFlow<ScanProgress> = MutableStateFlow(ScanProgress(ScanPhase.IDLE, 0, 0))
+    /** Tests set this to show a scan in any phase. */
+    val state = MutableStateFlow(ScanProgress(ScanPhase.IDLE, 0, 0))
+    override val progress: StateFlow<ScanProgress> = state
     var scanRequests = 0
 
     override fun requestScan() {

@@ -40,13 +40,7 @@ fun NewPlaylistCard(
         ) {
             Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         }
-        Text(
-            text = "New playlist",
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = Spacing.xxs),
-        )
+        CardCaption("New playlist", subtitle = null)
     }
 }
 
