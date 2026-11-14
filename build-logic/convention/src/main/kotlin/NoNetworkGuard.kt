@@ -13,7 +13,7 @@ import org.gradle.kotlin.dsl.register
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.work.DisableCachingByDefault
 
-/** `group:module` prefixes that can never be on a runtime classpath: the app is 100% offline. */
+/** `group:module` prefixes that stay off the runtime classpath: the app is offline except for artist photos. */
 internal val FORBIDDEN_NETWORK_COORDINATES =
     listOf(
         "com.squareup.okhttp3",
@@ -26,6 +26,17 @@ internal val FORBIDDEN_NETWORK_COORDINATES =
         "com.google.firebase",
     )
 
+/** Only the artist-photo download may use these, and only in `:app` (ADR 0028): Coil's OkHttp fetcher. */
+private val ARTIST_PHOTO_COORDINATES = listOf("com.squareup.okhttp3", "io.coil-kt.coil3:coil-network")
+private const val ARTIST_PHOTO_MODULE = ":app"
+
+private fun Project.forbiddenCoordinates(): List<String> =
+    if (path == ARTIST_PHOTO_MODULE) {
+        FORBIDDEN_NETWORK_COORDINATES - ARTIST_PHOTO_COORDINATES.toSet()
+    } else {
+        FORBIDDEN_NETWORK_COORDINATES
+    }
+
 /** Adds `verifyNoNetworkLibraries<Variant>` for every variant of an Android module and runs it in `check`. */
 internal fun Project.configureNoNetworkGuard() {
     extensions.getByType(AndroidComponentsExtension::class.java).onVariants { variant ->
@@ -35,7 +46,7 @@ internal fun Project.configureNoNetworkGuard() {
                 group = LifecycleBasePlugin.VERIFICATION_GROUP
                 description = "Fails if a network library is on the ${variant.name} runtime classpath."
                 modulePath.set(path)
-                forbiddenPrefixes.set(FORBIDDEN_NETWORK_COORDINATES)
+                forbiddenPrefixes.set(forbiddenCoordinates())
                 runtimeGraph.set(variant.runtimeConfiguration.incoming.resolutionResult.rootComponent)
             }
         tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { dependsOn(guard) }

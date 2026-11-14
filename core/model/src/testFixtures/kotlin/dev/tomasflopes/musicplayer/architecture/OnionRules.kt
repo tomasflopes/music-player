@@ -16,7 +16,7 @@ import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 object OnionRules {
     private const val ROOT = "dev.tomasflopes.musicplayer"
     private const val MODEL = "model"
-    private val coreModules = listOf(MODEL, "tags", "search", "taste", "analysis")
+    private val coreModules = listOf(MODEL, "tags", "search", "taste", "analysis", "artistimage")
     private val outerLayers = listOf("data", "playback", "ui", "di")
 
     /** Checks one `:core:<module>`; call it from that module's tests. */

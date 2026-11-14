@@ -1,6 +1,6 @@
 # Music Player
 
-A personal, fully offline Android music player for a large MP3 library. It replaces Vinyl for daily use and
+A personal, offline Android music player for a large MP3 library (the one network use is artist photos, ADR 0028). It replaces Vinyl for daily use and
 adds taste-aware mixes, Wrapped-style stats and better search over time.
 
 - Product design and decisions: the **Music Player** project on claude.ai (`design/2026-11-13-music-player-design.md`).
@@ -12,6 +12,11 @@ Recently added, Library (Folders, Artists, Albums, Songs with an A-Z rail), albu
 search, Now Playing with the queue, notification and car controls, Settings (music folder and the Recently added
 window), and the listening log in the background. The owner ran the acceptance list of Task 32 on a phone next to
 Vinyl and it passed.
+
+**Artist photos (branch `feature/artist-images`, not merged):** artist rows, avatars and the artist page show a Deezer
+photo when the name matches, else a collage of the artist's album covers, else letters on an orange tile. "Change photo"
+on the artist page picks another Deezer candidate, a gallery image, the generated image, or automatic. Settings >
+Artist photos from the internet is Off / Wi-Fi only (default) / Always; Off makes no request. ADRs 0028-0030.
 
 **Phase 2, first slice (branch `phase2/top-100`, not merged):** a **Top 100** card on Home that follows current taste.
 Every track the player moves to now gets its own listening-log row (next, previous, auto-advance, queue jump), and
@@ -78,6 +83,7 @@ There is no cloud CI. `./gradlew check` runs before every push through the `.git
 | `:core:taste` | pure Kotlin | signal weights, decay, Top 100, smart shuffle, mix engine |
 | `:core:search` | pure Kotlin | normalising, match tiers, ranking, featured-artist parsing |
 | `:core:analysis` | pure Kotlin | sound-profile DSP (shared by the phone and the Mac analyser) |
+| `:core:artistimage` | pure Kotlin | artist image sources and their chain, Deezer reply parsing, overrides, resolver |
 | `:data` | Android library | Room, MediaStore scanner, DataStore, repositories |
 | `:playback` | Android library | `MediaSessionService`, ExoPlayer, queue |
 | `build-logic/` | Gradle | convention plugins: one place for SDK levels, JDK, ktlint and detekt |

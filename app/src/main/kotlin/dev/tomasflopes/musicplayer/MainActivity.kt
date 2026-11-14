@@ -13,7 +13,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
 import dagger.hilt.android.AndroidEntryPoint
+import dev.tomasflopes.musicplayer.ui.art.ArtistImageHost
 import dev.tomasflopes.musicplayer.ui.art.CoverArtLoader
+import dev.tomasflopes.musicplayer.ui.art.LocalArtistImageHost
 import dev.tomasflopes.musicplayer.ui.art.LocalCoverArtLoader
 import dev.tomasflopes.musicplayer.ui.navigation.AppShell
 import dev.tomasflopes.musicplayer.ui.shell.ShellViewModel
@@ -25,6 +27,8 @@ class MainActivity : ComponentActivity() {
     private val shell: ShellViewModel by viewModels()
 
     @Inject lateinit var coverArtLoader: CoverArtLoader
+
+    @Inject lateinit var artistImageHost: ArtistImageHost
 
     private val audioPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -46,7 +50,10 @@ class MainActivity : ComponentActivity() {
         audioPermission.launch(Manifest.permission.READ_MEDIA_AUDIO)
         setContent {
             MusicPlayerTheme {
-                CompositionLocalProvider(LocalCoverArtLoader provides coverArtLoader) {
+                CompositionLocalProvider(
+                    LocalCoverArtLoader provides coverArtLoader,
+                    LocalArtistImageHost provides artistImageHost,
+                ) {
                     AppShell(shell, onPickFolder = { picker.launch(null) })
                 }
             }

@@ -1,6 +1,8 @@
 package dev.tomasflopes.musicplayer.fakes
 
 import androidx.compose.runtime.Composable
+import dev.tomasflopes.musicplayer.core.artistimage.ArtistPhotoMode
+import dev.tomasflopes.musicplayer.core.artistimage.ArtistPhotoSettings
 import dev.tomasflopes.musicplayer.core.model.Album
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.Artist
@@ -206,6 +208,15 @@ class FakeSettingsRepository : SettingsRepository {
     override suspend fun setRecentlyAddedDays(days: Int) {
         savedDays += days
         this.days.value = days
+    }
+}
+
+class FakeArtistPhotoSettings : ArtistPhotoSettings {
+    val current = MutableStateFlow(ArtistPhotoMode.DEFAULT)
+    override val mode: Flow<ArtistPhotoMode> = current
+
+    override suspend fun setMode(mode: ArtistPhotoMode) {
+        current.value = mode
     }
 }
 

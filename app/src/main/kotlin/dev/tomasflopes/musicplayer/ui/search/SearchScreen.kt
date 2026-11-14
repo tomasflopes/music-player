@@ -174,7 +174,7 @@ private fun TopResult(
             TopResultCard(
                 title = item.artist.name,
                 subtitle = "Artist",
-                leading = { ArtistAvatar(ArtSize.card) },
+                leading = { ArtistAvatar(item.artist.id, item.artist.name, ArtSize.card) },
                 onPlay = { actions.onPlayTop(item) },
                 onShuffle = { actions.onShuffleTop(item) },
                 onClick = { actions.onOpen(item) },

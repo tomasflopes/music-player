@@ -31,3 +31,6 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0025](0025-every-track-the-player-moves-to-is-logged.md) | Every track the player moves to gets its own `play_event` row; duration comes from the library; extends 0008 | accepted |
 | [0026](0026-display-artist-comes-from-the-file-name-when-it-differs-from-the-tag.md) | The shown artist is the file-name artist when it differs from the tag, derived on read; the tag stays the grouping key | accepted |
 | [0027](0027-artist-shuffle-also-queues-the-songs-that-feature-the-artist.md) | Artist shuffle also queues the songs that feature the artist; extends 0017 | accepted |
+| [0028](0028-artist-photos-are-the-only-network-use.md) | Artist photos are the only network use, gated by a setting; amends design 3 | accepted |
+| [0029](0029-artist-images-come-from-a-chain-of-sources.md) | Artist images come from a priority chain of sources: owner choice > Deezer > album collage > initials | accepted |
+| [0030](0030-artist-image-overrides-live-in-room.md) | Artist image overrides and lookups live in Room (schema v2), gallery picks copied to app storage | accepted |

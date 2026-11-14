@@ -9,7 +9,9 @@ Solo project, written so a future feature is "add code in one place".
 - Every tunable number (skip weights, half-life, exploration ratio, batch sizes) lives in one config object, never inline.
 - The listening log (`play_event`, `search_event`) is append-only. Scores, Top 100 and Wrapped are derived and rebuildable from it.
 - Room: every schema change has a migration and a migration test. Never `fallbackToDestructiveMigration`.
-- No `INTERNET` permission and no network libraries.
+- The app is offline except artist photos (ADR 0028): `INTERNET` and `ACCESS_NETWORK_STATE` are the only network
+  permissions, OkHttp and Coil's network fetcher are allowed in `:app` only, and every request goes through the
+  `OnlinePolicy` (the "Artist photos from the internet" setting). Nothing else may use the network.
 - Versions live only in `gradle/libs.versions.toml`.
 
 ## Before you push
@@ -80,6 +82,15 @@ nothing else changes. A decision behind a new extension point still gets an ADR 
   Change the right-hand side.
 - **Test:** a class extending `ShuffleStrategyContract` (`core/taste/src/test/.../shuffle/`) that implements
   `strategy()`; see `PlainShuffleTest`.
+
+### Add an artist image source
+
+- **Interface:** `ArtistImageSource` in `:core:artistimage`: `priority` (unique, lower first), `online`, and
+  `find(artist)` returning `Found`, `Miss` or `SkipOnline`. Pure Kotlin, ports in the constructor. Use
+  `ArtistImagePriority` for the slots; a source that uses the network must say `online = true` and ask the
+  `OnlinePolicy` first.
+- **Binding line:** one `@Provides @IntoSet` in `ArtistImageModule` (`:app`).
+- **Test:** a class extending `ArtistImageSourceContract` (`core/artistimage/src/test/.../`); see `DeezerSourceTest`.
 
 ### Change the schema
 

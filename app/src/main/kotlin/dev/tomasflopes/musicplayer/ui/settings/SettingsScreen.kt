@@ -20,8 +20,9 @@ import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DaysWindowSheet
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.daysLabel
 
 /**
- * Settings: the music folder and the Recently added window, then whatever entries are registered. [onPickFolder]
- * is the one folder-picker launcher of `MainActivity`; the folder it returns is saved and scanned by the shell.
+ * Settings: the music folder, the Recently added window and the artist photo setting, then the registered entries.
+ * [onPickFolder] is the one folder-picker launcher of `MainActivity`; the folder it returns is saved and scanned by
+ * the shell.
  */
 @Composable
 fun SettingsScreen(
@@ -31,13 +32,24 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
+    var photosOpen by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         BackTitleRow(onBack, title = "Settings")
         SectionHeader("Library")
         SettingRow("Music folder", state.musicFolder ?: "Not set", onPickFolder)
         SettingRow("Recently added window", daysLabel(state.recentlyAdded.days), { pickerOpen = true })
+        SectionHeader("Artists")
+        SettingRow("Artist photos from the internet", artistPhotoLabel(state.artistPhotos), { photosOpen = true })
         viewModel.entries.forEach { entry -> key(entry.id) { entry.Content() } }
+    }
+
+    if (photosOpen) {
+        ArtistPhotoModeSheet(
+            selected = state.artistPhotos,
+            onSelect = viewModel::onArtistPhotoMode,
+            onDismiss = { photosOpen = false },
+        )
     }
 
     if (pickerOpen) {

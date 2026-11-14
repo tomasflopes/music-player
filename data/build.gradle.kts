@@ -19,6 +19,7 @@ dependencies {
     implementation(projects.core.model)
     implementation(projects.core.tags)
     implementation(projects.core.search)
+    implementation(projects.core.artistimage)
     implementation(projects.core.taste)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

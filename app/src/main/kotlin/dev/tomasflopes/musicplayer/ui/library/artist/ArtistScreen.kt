@@ -7,6 +7,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,6 +23,8 @@ import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.library.artist.photo.ArtistPhotoHeader
+import dev.tomasflopes.musicplayer.ui.library.artist.photo.ChangePhotoSheet
 
 /** One artist: [artistId] is the route argument; [onBack] pops it and [onOpenAlbum] opens one of the albums. */
 @Composable
@@ -47,7 +52,10 @@ private fun ReadyContent(
     viewModel: ArtistViewModel,
     onOpenAlbum: (AlbumId) -> Unit,
 ) {
+    var changingPhoto by rememberSaveable { mutableStateOf(false) }
+    if (changingPhoto) ChangePhotoSheet(ready.artist, onDismiss = { changingPhoto = false })
     LazyColumn(Modifier.fillMaxSize()) {
+        item(key = "photo") { ArtistPhotoHeader(ready.artist, onChangePhoto = { changingPhoto = true }) }
         item(key = "buttons") {
             PlayShuffleButtons(
                 onPlay = viewModel::onPlay,

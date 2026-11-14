@@ -17,6 +17,7 @@ hiltNavigationCompose = "1.4.0"
 hiltWork = "1.4.0"
 coil = "3.6.3"
 coroutines = "1.11.0"
+kotlinxSerialization = "1.11.0"
 junit = "6.1.3"
 turbine = "1.2.1"
 androidxTestRunner = "1.7.0"
@@ -68,11 +69,13 @@ hilt-work-compiler = { module = "androidx.hilt:hilt-compiler", version.ref = "hi
 
 # Images (embedded album art; local only, no network engine)
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
 # Coroutines
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 # Testing
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }

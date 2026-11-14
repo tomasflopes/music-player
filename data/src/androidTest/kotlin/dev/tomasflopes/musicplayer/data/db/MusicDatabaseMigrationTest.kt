@@ -54,6 +54,29 @@ class MusicDatabaseMigrationTest {
         database.close()
     }
 
+    @Test
+    fun migration1To2KeepsTheLibraryAndAddsTheArtistImageTables() {
+        helper.createDatabase(db, 1).use { v1 ->
+            v1.execSQL("INSERT INTO artist (id, name, sort_name) VALUES (7, 'Rui Veloso', 'rui veloso')")
+        }
+
+        helper.runMigrationsAndValidate(db, 2, true, Migrations.MIGRATION_1_2).use { v2 ->
+            v2.query("SELECT name FROM artist WHERE id = 7").use {
+                assertTrue(it.moveToFirst())
+                assertEquals("Rui Veloso", it.getString(0))
+            }
+            v2.execSQL(
+                "INSERT INTO artist_image_override (artist_id, kind, value, updated_at) " +
+                    "VALUES (7, 'generated', NULL, 1)",
+            )
+            v2.execSQL("INSERT INTO artist_image_lookup (artist_id, picture_url, checked_at) VALUES (7, NULL, 1)")
+            v2.query("SELECT COUNT(*) FROM artist_image_override").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(1, it.getInt(0))
+            }
+        }
+    }
+
     private fun foreignKeys(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,
