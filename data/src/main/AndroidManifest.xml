@@ -1,1 +1,5 @@
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- NetworkKinds reads the active network's capabilities (ADR 0028). The app declares it too; the manifests merge. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

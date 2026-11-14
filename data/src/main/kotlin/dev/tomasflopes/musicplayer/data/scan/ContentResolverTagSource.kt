@@ -1,7 +1,7 @@
 package dev.tomasflopes.musicplayer.data.scan
 
 import android.content.ContentResolver
-import android.net.Uri
+import androidx.core.net.toUri
 import dev.tomasflopes.musicplayer.core.tags.TagSource
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -18,10 +18,10 @@ class ContentResolverTagSource(
     override val fileName: String get() = file.path.substringAfterLast('/')
 
     override fun openStream(): InputStream =
-        resolver.openInputStream(Uri.parse(file.contentUri)) ?: throw FileNotFoundException(file.contentUri)
+        resolver.openInputStream(file.contentUri.toUri()) ?: throw FileNotFoundException(file.contentUri)
 
     override fun readTail(byteCount: Int): ByteArray? =
-        resolver.openFileDescriptor(Uri.parse(file.contentUri), "r")?.use { descriptor ->
+        resolver.openFileDescriptor(file.contentUri.toUri(), "r")?.use { descriptor ->
             if (descriptor.statSize < byteCount) return null
             FileInputStream(descriptor.fileDescriptor).use { stream ->
                 stream.channel.position(descriptor.statSize - byteCount)
