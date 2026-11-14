@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 class PlayEventTrackerTest {
     private var time = 1_000L
-    private val tracker = PlayEventTracker { time }
+    private val tracker = PlayEventTracker({ time }, { time })
 
     @Test
     fun `natural end is completed with full duration`() {

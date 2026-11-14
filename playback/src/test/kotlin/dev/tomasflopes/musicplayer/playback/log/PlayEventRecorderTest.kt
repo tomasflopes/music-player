@@ -17,8 +17,10 @@ class PlayEventRecorderTest {
     private val scope = CoroutineScope(UnconfinedTestDispatcher())
     private val checkpoint = Files.createTempDirectory("pending-play").resolve("event").toFile()
 
+    private fun tracker() = PlayEventTracker({ time }, { time })
+
     /** A new recorder is what the service builds when the process starts again. */
-    private fun recorder() = PlayEventRecorder(history, scope, PendingPlayStore(checkpoint), PlayEventTracker { time })
+    private fun recorder() = PlayEventRecorder(history, scope, PendingPlayStore(checkpoint), tracker())
 
     @Test
     fun `starting a song refreshes the pending checkpoint`() {

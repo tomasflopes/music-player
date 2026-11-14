@@ -12,7 +12,7 @@ class PlayEventRecorder(
     private val history: PlayHistoryWriter,
     private val scope: CoroutineScope,
     private val pending: PendingPlayStore? = null,
-    private val tracker: PlayEventTracker = PlayEventTracker(System::currentTimeMillis),
+    private val tracker: PlayEventTracker = PlayEventTracker(System::currentTimeMillis, ::monotonicMs),
 ) {
     init {
         append(pending?.takeLeftover())

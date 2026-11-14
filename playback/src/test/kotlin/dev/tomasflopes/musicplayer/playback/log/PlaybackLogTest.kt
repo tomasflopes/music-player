@@ -23,7 +23,11 @@ class PlaybackLogTest {
     private var playing = false
     private val history = RecordingHistory()
     private val recorder =
-        PlayEventRecorder(history, CoroutineScope(UnconfinedTestDispatcher()), tracker = PlayEventTracker { time })
+        PlayEventRecorder(
+            history,
+            CoroutineScope(UnconfinedTestDispatcher()),
+            tracker = PlayEventTracker({ time }, { time }),
+        )
 
     private data class Row(
         val song: Char,

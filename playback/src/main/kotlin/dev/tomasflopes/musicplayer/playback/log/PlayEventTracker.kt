@@ -6,12 +6,21 @@ import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.playback.queue.QueueEntry
 
+/** Milliseconds on a clock that only moves forward; the default listening clock (ADR 0031). */
+fun monotonicMs(): Long = System.nanoTime() / NANOS_PER_MS
+
+private const val NANOS_PER_MS = 1_000_000L
+
 /**
  * Pure state machine for one audible item at a time. It deliberately measures time spent playing rather
  * than player position, so seeking and time spent paused never distort the listening log.
+ *
+ * Two clocks, both injected (ADR 0031): [wallMs] stamps when a row started, because that is a date; [monoMs] times
+ * how long it played, because a wall clock that is set or corrected mid-song would otherwise bend the listened time.
  */
 class PlayEventTracker(
-    private val nowMs: () -> Long,
+    private val wallMs: () -> Long,
+    private val monoMs: () -> Long,
 ) {
     private var active: Active? = null
 
@@ -27,11 +36,11 @@ class PlayEventTracker(
         playing: Boolean = false,
     ): PlayEvent? {
         val finished = finish(EndedBy.SKIPPED)
-        val now = nowMs()
+        val now = monoMs()
         active =
             Active(
                 entry = entry,
-                startedAtMs = now,
+                startedAtMs = wallMs(),
                 durationMs = durationMs.coerceAtLeast(0),
                 startedBy = startedBy,
                 shuffle = shuffle,
@@ -42,7 +51,7 @@ class PlayEventTracker(
 
     fun onPlayingChanged(isPlaying: Boolean) {
         val current = active ?: return
-        val now = nowMs()
+        val now = monoMs()
         if (isPlaying && current.playingSinceMs == null) current.playingSinceMs = now
         if (!isPlaying) current.stopListening(now)
     }
@@ -52,7 +61,7 @@ class PlayEventTracker(
     fun onStopped(): PlayEvent? = finish(EndedBy.STOPPED)
 
     /** The event to append as stopped after an unexpected process death. */
-    fun pending(): PlayEvent? = active?.event(EndedBy.STOPPED, nowMs())
+    fun pending(): PlayEvent? = active?.event(EndedBy.STOPPED, monoMs())
 
     private fun finish(
         endedBy: EndedBy,
@@ -60,7 +69,7 @@ class PlayEventTracker(
     ): PlayEvent? {
         val current = active ?: return null
         active = null
-        return current.event(endedBy, nowMs(), completed)
+        return current.event(endedBy, monoMs(), completed)
     }
 
     private class Active(
