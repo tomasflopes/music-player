@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.FolderRow
@@ -18,6 +19,7 @@ import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 
@@ -66,6 +68,11 @@ private fun FolderList(
                 onShuffle = viewModel::onShuffle,
                 enabled = shown.songs.isNotEmpty(),
             )
+        }
+        item(key = "save-folder") {
+            SaveAsPlaylistButton(shown.current?.name ?: "Music", enabled = shown.songs.isNotEmpty()) {
+                saveList(it, shown.songs.map { song -> song.id }, PlaySource.FOLDER)
+            }
         }
         if (shown.folders.isNotEmpty()) {
             item(key = "folders-header") { SectionHeader("Folders") }

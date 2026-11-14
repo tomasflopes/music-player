@@ -55,6 +55,8 @@ internal class MediaControllerPlaybackController(
 
     override fun play(request: PlayRequest) = send(PlaybackCommands.play, PlaybackCommands.bundleOf(request))
 
+    override fun queueContent(): QueueContent = queue.content()
+
     override fun playNext(songs: List<SongRef>) = send(PlaybackCommands.playNext, PlaybackCommands.bundleOf(songs))
 
     override fun addToQueue(songs: List<SongRef>) = send(PlaybackCommands.addToQueue, PlaybackCommands.bundleOf(songs))

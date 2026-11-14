@@ -19,6 +19,7 @@ import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /** Now Playing (design 8.2): a bottom sheet over whichever tab is showing, opened from the mini-player. */
@@ -72,6 +73,7 @@ private fun NowPlayingContent(
     }
     LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = Spacing.l)) {
         item { NowPlayingHeader(state, song, actions) }
+        item { SaveAsPlaylistButton("Queue", enabled = true) { saveQueue(it) } }
         item { SectionHeader("Up next") }
         if (state.upcoming.isEmpty()) {
             item { NothingUpNext() }

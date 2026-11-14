@@ -236,4 +236,33 @@ class PlayQueueTest {
 
         assertEquals(listOf(null, null), queue.snapshot().entries.map { it.playlistId })
     }
+
+    @Test
+    fun `the content is the current song and what follows, with the sources of the songs not queued by hand`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+        queue.replace(refs("ABCD"), 0, PlaySource.ALBUM, false)
+        queue.jumpTo(1)
+        queue.playNext(refs("Z"))
+
+        val content = queue.content()
+
+        assertEquals(listOf('B', 'Z', 'C', 'D').map { ref(it).songId }, content.songs)
+        assertEquals(setOf(PlaySource.ALBUM), content.sources)
+    }
+
+    @Test
+    fun `an empty queue has no content`() {
+        val content = PlayQueue(ReverseShuffle, Random(1)).content()
+
+        assertEquals(emptyList<SongId>(), content.songs)
+        assertEquals(emptySet<PlaySource>(), content.sources)
+    }
+
+    @Test
+    fun `a queue of Shuffle all says so in its sources`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+        queue.replace(refs("ABC"), 0, PlaySource.SONGS, true, randomStart = true)
+
+        assertEquals(setOf(PlaySource.SHUFFLE_ALL), queue.content().sources)
+    }
 }

@@ -18,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.ui.components.AlbumHeader
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
@@ -27,6 +28,7 @@ import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
 import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
 import dev.tomasflopes.musicplayer.ui.playlists.AddWholeButton
+import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
@@ -72,6 +74,11 @@ private fun ReadyContent(
                 AddTarget.Album(ready.album.id),
                 enabled = ready.songs.isNotEmpty(),
             )
+        }
+        item(key = "save-album") {
+            SaveAsPlaylistButton(ready.album.title, enabled = ready.songs.isNotEmpty()) {
+                saveList(it, ready.songs.map { song -> song.id }, PlaySource.ALBUM)
+            }
         }
         items(ready.entries, key = { it.key }, contentType = { it::class }) { entry ->
             when (entry) {

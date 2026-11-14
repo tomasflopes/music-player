@@ -28,6 +28,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.PlaybackState
+import dev.tomasflopes.musicplayer.playback.QueueContent
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +58,11 @@ class FakePlaybackController : PlaybackController {
     val seeks = mutableListOf<Long>()
     val jumps = mutableListOf<Int>()
     val shuffleCalls = mutableListOf<Boolean>()
+
+    /** What [queueContent] answers; tests set it. */
+    var queue = QueueContent(emptyList(), emptySet())
+
+    override fun queueContent(): QueueContent = queue
 
     override fun play(request: PlayRequest) {
         requests += request

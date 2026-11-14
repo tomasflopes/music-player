@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.ui.components.AlbumRow
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
@@ -28,6 +29,7 @@ import dev.tomasflopes.musicplayer.ui.library.artist.photo.ArtistPhotoHeader
 import dev.tomasflopes.musicplayer.ui.library.artist.photo.ChangePhotoSheet
 import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
 import dev.tomasflopes.musicplayer.ui.playlists.AddWholeButton
+import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 
@@ -76,6 +78,11 @@ private fun ReadyContent(
                 AddTarget.Artist(ready.artist.id),
                 enabled = ready.songs.isNotEmpty(),
             )
+        }
+        item(key = "save-artist") {
+            SaveAsPlaylistButton(ready.artist.name, enabled = ready.songs.isNotEmpty()) {
+                saveList(it, ready.songs.map { song -> song.id }, PlaySource.ARTIST)
+            }
         }
         items(ready.entries, key = { it.key }, contentType = { it::class }) { entry ->
             when (entry) {
