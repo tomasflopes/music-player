@@ -38,3 +38,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0032](0032-a-controller-seek-to-a-window-index-is-a-queue-jump.md) | A controller seek to a window index goes through the queue as a jump and is logged as `picked`; extends 0025 | accepted |
 | [0033](0033-previous-that-restarts-the-song-starts-a-new-row.md) | Previous that only restarts the song ends the row as `stopped` and starts a new `nav` row; extends 0025 | accepted |
 | [0034](0034-top-100-rebuilds-when-the-library-changes.md) | The Top 100 rebuilds when the library changes, through a small `LibraryChanges` port over Room's invalidation tracker | accepted |
+| [0035](0035-smart-shuffle-lives-behind-the-shuffle-strategy-and-artist-shuffle-is-exempted-in-the-queue.md) | Smart shuffle is a `ShuffleStrategy` with `orderAfter`; the queue exempts artist shuffle; gap 4 in `SmartShuffleConfig`, relaxed to fit; extends 0010 | accepted |
