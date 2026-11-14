@@ -18,7 +18,6 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.ui.components.ScreenTitle
 import dev.tomasflopes.musicplayer.ui.library.albums.AlbumsTab
 import dev.tomasflopes.musicplayer.ui.library.artists.ArtistsTab
-import dev.tomasflopes.musicplayer.ui.library.folders.FoldersTab
 import dev.tomasflopes.musicplayer.ui.library.playlists.PlaylistsTab
 import dev.tomasflopes.musicplayer.ui.library.songs.SongsTab
 
@@ -40,7 +39,6 @@ private val pages =
     listOf(
         LibraryPage("Artists") { ArtistsTab(it.onOpenArtist) },
         LibraryPage("Albums") { AlbumsTab(it.onOpenAlbum) },
-        LibraryPage("Folders") { FoldersTab() },
         LibraryPage("Songs") { SongsTab() },
         LibraryPage("Playlists") { PlaylistsTab(it.onNavigate) },
     )
