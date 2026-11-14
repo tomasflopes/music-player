@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.core.taste.score
 
+import dev.tomasflopes.musicplayer.core.model.log.PlayEvent
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.taste.config.TasteConfig
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,14 @@ class OnDemandScoreBoard(
 ) : ScoreBoard {
     override fun observeRanked(): Flow<List<SongScore>> =
         flow { emitAll(events.observeSince(clock.millis() - config.decay.horizonMs)) }
-            .map { rows -> scorer.score(rows, clock.millis()) }
+            .map(::rank)
             .flowOn(computeOn)
             .distinctUntilChanged()
+
+    /** The query's lower bound was fixed when collection began; the horizon moves with the clock. */
+    private fun rank(rows: List<PlayEvent>): List<SongScore> {
+        val now = clock.millis()
+        val oldest = now - config.decay.horizonMs
+        return scorer.score(rows.filter { it.startedAtEpochMs >= oldest }, now)
+    }
 }
