@@ -26,11 +26,12 @@ class TasteScorer(
         val tallies = HashMap<SongId, Tally>()
         events.forEachIndexed { index, event ->
             val tally = tallies.getOrPut(event.songId) { Tally() }
-            val weight = rules.weightOf(event, outcomes[index]) * if (softened[index]) softening else 1.0
-            // A completed play forgives the skips before it (design §7.4); the +1 is added after.
+            val factor = (if (softened[index]) softening else 1.0) * decay.factor(nowEpochMs - event.startedAtEpochMs)
+            // A completed play forgives the skips before it (design §7.4); the +1 is added after. The start bonus
+            // and the end weight are tallied apart, so the -1 of a picked song skipped mid-way is forgiven too.
             if (outcomes[index] == PlayOutcome.COMPLETED) tally.negative = 0.0
-            val contribution = weight * decay.factor(nowEpochMs - event.startedAtEpochMs)
-            if (contribution < 0) tally.negative += contribution else tally.positive += contribution
+            tally.add(rules.startBonusOf(event, outcomes[index]) * factor)
+            tally.add(rules.endWeightOf(event, outcomes[index]) * factor)
             tally.lastPlayedAtEpochMs = maxOf(tally.lastPlayedAtEpochMs, event.startedAtEpochMs)
         }
         return tallies
@@ -42,7 +43,11 @@ class TasteScorer(
         var positive: Double = 0.0,
         var negative: Double = 0.0,
         var lastPlayedAtEpochMs: Long = Long.MIN_VALUE,
-    )
+    ) {
+        fun add(contribution: Double) {
+            if (contribution < 0) negative += contribution else positive += contribution
+        }
+    }
 
     private companion object {
         val RANKING =

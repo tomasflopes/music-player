@@ -28,18 +28,20 @@ class SignalRules(
     fun weightOf(
         event: PlayEvent,
         outcome: PlayOutcome,
-    ): Double = startBonus(event, outcome) + endWeight(event, outcome)
+    ): Double = startBonusOf(event, outcome) + endWeightOf(event, outcome)
 
     /** Null when the duration is unknown: rows written before the log read it from the library have none. */
     private fun fractionListened(event: PlayEvent): Double? =
         if (event.songDurationMs <= 0) null else event.listenedMs.toDouble() / event.songDurationMs
 
-    private fun startBonus(
+    /** What choosing the song earned. The scorer tallies it apart from the end weight (audit S6). */
+    fun startBonusOf(
         event: PlayEvent,
         outcome: PlayOutcome,
     ): Double = if (event.startedBy == StartedBy.PICKED && outcome != PlayOutcome.SKIPPED_EARLY) weights.picked else 0.0
 
-    private fun endWeight(
+    /** What the way the play ended earned: completed is positive, skips are negative. */
+    fun endWeightOf(
         event: PlayEvent,
         outcome: PlayOutcome,
     ): Double =
