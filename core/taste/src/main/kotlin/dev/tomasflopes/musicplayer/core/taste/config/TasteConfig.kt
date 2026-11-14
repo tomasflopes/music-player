@@ -70,8 +70,8 @@ data class DecayRule(
 
 data class TopListRule(
     val size: Int = 100,
-    /** Only songs scoring above this are listed. */
-    val minScore: Double = 0.0,
+    /** Only songs scoring above this are listed; above 0, so sums that cancel up to rounding stay out. */
+    val minScore: Double = 1e-9,
 ) {
     init {
         require(size >= 1) { "size must be at least 1: $size" }
