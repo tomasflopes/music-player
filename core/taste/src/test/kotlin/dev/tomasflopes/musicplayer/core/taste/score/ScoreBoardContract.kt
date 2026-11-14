@@ -32,4 +32,13 @@ abstract class ScoreBoardContract {
 
             assertEquals(ranked.size, ranked.map { it.songId }.toSet().size)
         }
+
+    @Test
+    fun `artists are ranked best first and appear once`() =
+        runTest {
+            val ranked = board().observeArtistRanked().first()
+
+            assertEquals(ranked.sortedByDescending { it.score }.map { it.artistId }, ranked.map { it.artistId })
+            assertEquals(ranked.size, ranked.map { it.artistId }.toSet().size)
+        }
 }

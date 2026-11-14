@@ -11,6 +11,7 @@ import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistReader
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistStore
 import dev.tomasflopes.musicplayer.data.db.MusicDatabase
 import dev.tomasflopes.musicplayer.data.db.dao.PlaylistRow
+import dev.tomasflopes.musicplayer.data.db.entity.PlaylistAddEventEntity
 import dev.tomasflopes.musicplayer.data.db.entity.PlaylistEntity
 import dev.tomasflopes.musicplayer.data.db.entity.PlaylistSongEntity
 import kotlinx.coroutines.flow.Flow
@@ -77,9 +78,19 @@ class RoomPlaylistStore(
                 songs.distinct().mapIndexed { index, songId ->
                     PlaylistSongEntity(id.value, songId.value, start + index, nowEpochMs)
                 }
-            val added = dao.insertSongs(rows).count { it != NOT_INSERTED }
+            val inserted = dao.insertSongs(rows).withIndex().filter { it.value != NOT_INSERTED }
+            // Each song that really went in is one taste signal (ADR 0049); a repeat adds nothing.
+            db.playlistAddEventDao().insertAll(
+                inserted.map {
+                    PlaylistAddEventEntity(
+                        songId = rows[it.index].songId,
+                        playlistId = id.value,
+                        at = nowEpochMs,
+                    )
+                },
+            )
             dao.touch(id.value, nowEpochMs)
-            added
+            inserted.size
         }
 
     override suspend fun removeSong(

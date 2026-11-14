@@ -10,4 +10,7 @@ import kotlinx.coroutines.flow.Flow
 interface ScoreBoard {
     /** Every song that has a score, best first. Emits again when the listening log changes. */
     fun observeRanked(): Flow<List<SongScore>>
+
+    /** Every main artist that has a score, best first (ADR 0049). Emits again when a log changes. */
+    fun observeArtistRanked(): Flow<List<ArtistScore>>
 }

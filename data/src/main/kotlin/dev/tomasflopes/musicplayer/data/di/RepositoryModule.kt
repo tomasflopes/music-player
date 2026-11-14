@@ -13,8 +13,11 @@ import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.PlaylistAddSource
+import dev.tomasflopes.musicplayer.core.model.ports.SearchEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
+import dev.tomasflopes.musicplayer.core.model.ports.SongArtistSource
 import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.taste.config.TasteConfig
@@ -30,9 +33,11 @@ import dev.tomasflopes.musicplayer.data.repo.RoomFeatureReader
 import dev.tomasflopes.musicplayer.data.repo.RoomFolderReader
 import dev.tomasflopes.musicplayer.data.repo.RoomLibraryChanges
 import dev.tomasflopes.musicplayer.data.repo.RoomPlayHistory
+import dev.tomasflopes.musicplayer.data.repo.RoomPlaylistAdds
 import dev.tomasflopes.musicplayer.data.repo.RoomPlaylistReader
 import dev.tomasflopes.musicplayer.data.repo.RoomPlaylistStore
 import dev.tomasflopes.musicplayer.data.repo.RoomSearchHistory
+import dev.tomasflopes.musicplayer.data.repo.RoomSongArtists
 import dev.tomasflopes.musicplayer.data.repo.RoomSongReader
 import java.time.Clock
 import javax.inject.Singleton
@@ -54,9 +59,21 @@ object RepositoryModule {
     /** The decision point of ADR 0023: bind a cached `ScoreBoard` here to replace the on-demand one. */
     @Provides fun scoreBoard(
         events: PlayEventSource,
+        playlistAdds: PlaylistAddSource,
+        searches: SearchEventSource,
+        artists: SongArtistSource,
         config: TasteConfig,
         clock: Clock,
-    ): ScoreBoard = OnDemandScoreBoard(events, TasteScorer(config), config, clock)
+    ): ScoreBoard =
+        OnDemandScoreBoard(
+            events,
+            TasteScorer(config),
+            config,
+            clock,
+            playlistAdds = playlistAdds,
+            searches = searches,
+            artists = artists,
+        )
 
     @Provides fun topHundredProvider(
         board: ScoreBoard,
@@ -87,4 +104,10 @@ object RepositoryModule {
     @Provides fun playlistStore(db: MusicDatabase): PlaylistStore = RoomPlaylistStore(db)
 
     @Provides fun searchHistoryWriter(db: MusicDatabase): SearchHistoryWriter = RoomSearchHistory(db)
+
+    @Provides fun searchEventSource(db: MusicDatabase): SearchEventSource = RoomSearchHistory(db)
+
+    @Provides fun playlistAddSource(db: MusicDatabase): PlaylistAddSource = RoomPlaylistAdds(db)
+
+    @Provides fun songArtistSource(db: MusicDatabase): SongArtistSource = RoomSongArtists(db)
 }

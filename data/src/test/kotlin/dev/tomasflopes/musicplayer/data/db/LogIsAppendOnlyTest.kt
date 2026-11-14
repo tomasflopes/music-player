@@ -21,18 +21,22 @@ class LogIsAppendOnlyTest {
     }
 
     @Test
-    fun `the scan sees the main sources and both log DAOs`() {
+    fun `the scan sees the main sources and the three log DAOs`() {
         assertTrue(mainSources.isNotEmpty())
-        assertEquals(2, sourcesOf("PlayEventDao.kt", "SearchEventDao.kt").size)
+        assertEquals(3, sourcesOf("PlayEventDao.kt", "SearchEventDao.kt", "PlaylistAddEventDao.kt").size)
     }
 
     @Test
     fun `log tables are insert-only and migrations are never destructive`() {
         assertNoMatch(Regex("fallbackToDestructiveMigration"), mainSources)
-        assertNoMatch(Regex("@(Update|Delete|Upsert)"), sourcesOf("PlayEventDao.kt", "SearchEventDao.kt"))
+        assertNoMatch(
+            Regex("@(Update|Delete|Upsert)"),
+            sourcesOf("PlayEventDao.kt", "SearchEventDao.kt", "PlaylistAddEventDao.kt"),
+        )
         assertNoMatch(
             Regex(
-                "(DELETE\\s+FROM|UPDATE|REPLACE\\s+INTO|DROP\\s+TABLE)\\s+`?(play_event|search_event)",
+                "(DELETE\\s+FROM|UPDATE|REPLACE\\s+INTO|DROP\\s+TABLE)\\s+" +
+                    "`?(play_event|search_event|playlist_add_event)",
                 RegexOption.IGNORE_CASE,
             ),
             mainSources,

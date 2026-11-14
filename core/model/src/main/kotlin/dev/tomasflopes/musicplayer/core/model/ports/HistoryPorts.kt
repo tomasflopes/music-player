@@ -1,6 +1,9 @@
 package dev.tomasflopes.musicplayer.core.model.ports
 
+import dev.tomasflopes.musicplayer.core.model.SongArtists
+import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.PlayEvent
+import dev.tomasflopes.musicplayer.core.model.log.PlaylistAddEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import kotlinx.coroutines.flow.Flow
 
@@ -27,4 +30,22 @@ interface PlayEventSource {
 
 interface SearchHistoryWriter {
     suspend fun append(event: SearchEvent)
+}
+
+/** Playlist additions as input for scoring (insert-only, like the listening log). */
+fun interface PlaylistAddSource {
+    /** Rows at or after [sinceEpochMs], oldest first. Emits again whenever a song is added to a playlist. */
+    fun observeSince(sinceEpochMs: Long): Flow<List<PlaylistAddEvent>>
+}
+
+/** Chosen search results as input for scoring. */
+fun interface SearchEventSource {
+    /** Rows at or after [sinceEpochMs], oldest first. Emits again whenever a result is chosen. */
+    fun observeSince(sinceEpochMs: Long): Flow<List<SearchEvent>>
+}
+
+/** Which artists a song belongs to, for rolling song signals up to artists. Implemented by `:data`. */
+fun interface SongArtistSource {
+    /** Songs the library does not know (never scanned) are left out of the result. */
+    suspend fun artistsOf(songs: Collection<SongId>): Map<SongId, SongArtists>
 }

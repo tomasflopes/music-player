@@ -52,3 +52,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0046](0046-one-undo-slot-shared-by-the-queue-and-playlists.md) | One `UndoSlot` in `:core:model` shared by the queue and playlists; one `SwipeToRemove` row; extends 0043 | accepted |
 | [0047](0047-queue-removal-history-and-jumps-work-on-the-play-queue.md) | Queue removal, played history and jumps work on the `PlayQueue` by place and song; the window swaps in place; extends 0020 | accepted |
 | [0048](0048-shuffle-is-the-primary-action-of-a-list-and-play-in-order-the-secondary.md) | Shuffle is the primary (filled, first) action of a list header and the search Top result; "Play in order" is secondary | accepted |
+| [0049](0049-artist-scores-playlist-adds-and-searches-feed-the-score-board.md) | Artist scores, playlist adds (new append-only `playlist_add_event`, schema v4) and searches feed the `ScoreBoard`; extends 0023, 0024 | accepted |

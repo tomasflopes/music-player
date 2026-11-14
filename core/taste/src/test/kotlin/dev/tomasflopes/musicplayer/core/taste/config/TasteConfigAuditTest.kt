@@ -49,6 +49,17 @@ class TasteConfigAuditTest {
     }
 
     @Test
+    fun `artist and search rules refuse nonsense`() {
+        refused { ArtistRule(featuredShare = -0.1) }
+        refused { ArtistRule(featuredShare = 1.1) }
+        refused { ArtistRule(shuffleStarted = Double.NaN) }
+        refused { ArtistRule(shuffleGapMs = -1) }
+        refused { SearchRule(song = Double.NaN) }
+        refused { SearchRule(artist = Double.POSITIVE_INFINITY) }
+        refused { SignalWeights(addedToPlaylist = Double.NaN) }
+    }
+
+    @Test
     fun `S11 the defaults are valid`() {
         TasteConfig()
     }

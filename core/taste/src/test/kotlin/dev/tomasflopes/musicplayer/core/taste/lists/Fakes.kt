@@ -10,6 +10,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ref
+import dev.tomasflopes.musicplayer.core.taste.score.ArtistScore
 import dev.tomasflopes.musicplayer.core.taste.score.ScoreBoard
 import dev.tomasflopes.musicplayer.core.taste.score.SongScore
 import kotlinx.coroutines.flow.Flow
@@ -87,8 +88,11 @@ internal class FakeSettings(
 /** A board that always answers with the same ranking. */
 internal class FakeScoreBoard(
     private val ranked: List<SongScore>,
+    private val artists: List<ArtistScore> = emptyList(),
 ) : ScoreBoard {
     override fun observeRanked(): Flow<List<SongScore>> = flowOf(ranked)
+
+    override fun observeArtistRanked(): Flow<List<ArtistScore>> = flowOf(artists)
 }
 
 /** A library that never changes after the first read. */

@@ -8,9 +8,11 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Folder
 import dev.tomasflopes.musicplayer.core.model.NaturalOrder
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.SongArtists
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.log.PlayEvent
+import dev.tomasflopes.musicplayer.core.model.log.PlaylistAddEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
@@ -19,7 +21,10 @@ import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.PlaylistAddSource
+import dev.tomasflopes.musicplayer.core.model.ports.SearchEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.SongArtistSource
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.data.db.MusicDatabase
 import dev.tomasflopes.musicplayer.data.db.dao.SongRow
@@ -119,6 +124,38 @@ class RoomPlayHistory(
 
 class RoomSearchHistory(
     private val db: MusicDatabase,
-) : SearchHistoryWriter {
+) : SearchHistoryWriter,
+    SearchEventSource {
     override suspend fun append(event: SearchEvent) = db.searchEventDao().insert(SearchEventEntity.from(event))
+
+    override fun observeSince(sinceEpochMs: Long): Flow<List<SearchEvent>> =
+        db.searchEventDao().observeSince(sinceEpochMs).map { rows -> rows.map { it.toDomain() } }
+}
+
+class RoomPlaylistAdds(
+    private val db: MusicDatabase,
+) : PlaylistAddSource {
+    override fun observeSince(sinceEpochMs: Long): Flow<List<PlaylistAddEvent>> =
+        db.playlistAddEventDao().observeSince(sinceEpochMs).map { rows -> rows.map { it.toDomain() } }
+}
+
+class RoomSongArtists(
+    private val db: MusicDatabase,
+) : SongArtistSource {
+    override suspend fun artistsOf(songs: Collection<SongId>): Map<SongId, SongArtists> {
+        val dao = db.songArtistDao()
+        val result = HashMap<SongId, SongArtists>()
+        songs.map { it.value }.distinct().chunked(CHUNK).forEach { ids ->
+            val featured = dao.featuredArtists(ids).groupBy({ it.songId }, { ArtistId(it.artistId) })
+            dao.mainArtists(ids).forEach { row ->
+                result[SongId(row.id)] = SongArtists(ArtistId(row.artistId), featured[row.id].orEmpty())
+            }
+        }
+        return result
+    }
+
+    private companion object {
+        /** Below SQLite's limit on bound parameters. */
+        const val CHUNK = 900
+    }
 }

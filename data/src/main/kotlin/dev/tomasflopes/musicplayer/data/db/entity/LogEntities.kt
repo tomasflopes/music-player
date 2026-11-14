@@ -8,6 +8,7 @@ import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.EndedBy
 import dev.tomasflopes.musicplayer.core.model.log.PlayEvent
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.log.PlaylistAddEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
 import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
@@ -69,6 +70,8 @@ data class SearchEventEntity(
     @ColumnInfo(name = "chosen_id") val chosenId: Long,
     val at: Long,
 ) {
+    fun toDomain() = SearchEvent(query, chosenType, chosenId, at)
+
     companion object {
         fun from(event: SearchEvent) =
             SearchEventEntity(
@@ -78,4 +81,18 @@ data class SearchEventEntity(
                 at = event.atEpochMs,
             )
     }
+}
+
+/**
+ * A song added to a playlist (ADR 0049). Insert-only, like [PlayEventEntity]; no foreign key, so deleting a playlist
+ * or removing the song does not take the signal back.
+ */
+@Entity(tableName = "playlist_add_event", indices = [Index("at")])
+data class PlaylistAddEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "song_id") val songId: Long,
+    @ColumnInfo(name = "playlist_id") val playlistId: Long,
+    val at: Long,
+) {
+    fun toDomain() = PlaylistAddEvent(SongId(songId), playlistId, at)
 }

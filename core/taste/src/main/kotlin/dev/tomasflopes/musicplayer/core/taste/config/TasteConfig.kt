@@ -9,6 +9,8 @@ data class TasteConfig(
     val burst: BurstRule = BurstRule(),
     val decay: DecayRule = DecayRule(),
     val top: TopListRule = TopListRule(),
+    val artist: ArtistRule = ArtistRule(),
+    val search: SearchRule = SearchRule(),
 )
 
 /** What one play is worth. Skips are negative; the fractions are of the song's duration. */
@@ -24,9 +26,11 @@ data class SignalWeights(
     val midSkipFraction: Double = 0.5,
     /** A play strictly past this fraction counts as completed, whatever ended it. */
     val completedFraction: Double = 0.8,
+    /** The owner put the song in a playlist (design §7.4). */
+    val addedToPlaylist: Double = 3.0,
 ) {
     init {
-        require(listOf(picked, completed, skipEarly, skipMid, skipLate).all { it.isFinite() }) {
+        require(listOf(picked, completed, skipEarly, skipMid, skipLate, addedToPlaylist).all { it.isFinite() }) {
             "signal weights must be finite"
         }
         require(earlySkipMs >= 0) { "earlySkipMs must not be negative: $earlySkipMs" }
@@ -76,5 +80,35 @@ data class TopListRule(
     init {
         require(size >= 1) { "size must be at least 1: $size" }
         require(minScore.isFinite()) { "minScore must be finite: $minScore" }
+    }
+}
+
+/** How song signals roll up to artists, and the signals that belong to an artist only (design §7.4, ADR 0049). */
+data class ArtistRule(
+    /** Featured artists get this share of what a song earns; the main artist gets all of it. */
+    val featuredShare: Double = 0.3,
+    /** The owner started an artist shuffle: this goes to the artist, on top of what the songs earn. */
+    val shuffleStarted: Double = 2.0,
+    /** Artist-shuffle rows whose starts are further apart than this are separate shuffles. */
+    val shuffleGapMs: Long = 30 * 60_000,
+) {
+    init {
+        require(featuredShare in 0.0..1.0) { "featuredShare must be in 0..1: $featuredShare" }
+        require(shuffleStarted.isFinite()) { "shuffleStarted must be finite: $shuffleStarted" }
+        require(shuffleGapMs >= 0) { "shuffleGapMs must not be negative: $shuffleGapMs" }
+    }
+}
+
+/**
+ * What choosing a search result earns on its own. The play a song result leads to is already a picked row (+3), so
+ * [song] stays 0 to avoid counting it twice; an artist result opens a page and may never play, so it counts for
+ * the artist. Album results carry no signal: what they play is logged as plays.
+ */
+data class SearchRule(
+    val song: Double = 0.0,
+    val artist: Double = 1.0,
+) {
+    init {
+        require(song.isFinite() && artist.isFinite()) { "search weights must be finite" }
     }
 }

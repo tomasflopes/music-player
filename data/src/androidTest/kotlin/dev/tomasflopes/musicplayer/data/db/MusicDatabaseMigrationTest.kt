@@ -96,6 +96,25 @@ class MusicDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration3To4KeepsPlaylistsAndAddsTheAppendOnlyAddLog() {
+        helper.createDatabase(db, 3).use { v3 ->
+            v3.execSQL(
+                "INSERT INTO playlist (id, name, created_at, updated_at, last_used_at) VALUES (1, 'Gym', 1, 1, 1)",
+            )
+            v3.execSQL("INSERT INTO playlist_song (playlist_id, song_id, position, added_at) VALUES (1, 42, 0, 1)")
+        }
+
+        helper.runMigrationsAndValidate(db, 4, true, Migrations.MIGRATION_3_4).use { v4 ->
+            v4.query("SELECT COUNT(*) FROM playlist_song").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(1, it.getInt(0))
+            }
+            v4.execSQL("INSERT INTO playlist_add_event (song_id, playlist_id, at) VALUES (42, 1, 5)")
+            assertEquals(setOf<String>(), foreignKeys(v4, "playlist_add_event"))
+        }
+    }
+
     private fun foreignKeys(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,
