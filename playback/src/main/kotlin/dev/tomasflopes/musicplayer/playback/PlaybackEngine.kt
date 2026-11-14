@@ -107,10 +107,16 @@ internal class PlaybackEngine(
 
     fun previous() =
         serial {
-            if (player.currentPosition > config.restartThresholdMs) return@serial player.seekTo(0)
-            queue.previous() ?: return@serial player.seekTo(0)
+            if (player.currentPosition > config.restartThresholdMs) return@serial restart()
+            queue.previous() ?: return@serial restart()
             moveTo(forward = false)
         }
+
+    /** Previous that stays on the song: the row so far ends as stopped and the replay is a new nav row (ADR 0033). */
+    private fun restart() {
+        player.seekTo(0)
+        log.restarted()
+    }
 
     fun setShuffle(on: Boolean) =
         serial {

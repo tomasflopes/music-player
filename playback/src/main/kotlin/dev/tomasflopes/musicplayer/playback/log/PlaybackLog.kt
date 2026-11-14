@@ -27,5 +27,11 @@ internal class PlaybackLog(
     /** Playback of the current song ended without a skip: the file would not open, or the service is closing. */
     fun stopped() = recorder.stopped()
 
+    /** Previous restarted the current song: the listening so far is a stopped row, the replay a new nav row. */
+    fun restarted() {
+        recorder.stopped()
+        started(StartedBy.NAV)
+    }
+
     fun playingChanged(playing: Boolean) = recorder.playingChanged(playing)
 }
