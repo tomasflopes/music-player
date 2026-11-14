@@ -16,16 +16,21 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.log.PendingPlayStore
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
+import dev.tomasflopes.musicplayer.playback.queue.FileQueueStore
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
+import dev.tomasflopes.musicplayer.playback.queue.QueueSaver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** The one place music plays: one ExoPlayer behind one session, so notification, car and headset all see it. */
@@ -50,6 +55,7 @@ class PlaybackService : MediaSessionService() {
     private val coverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var engine: PlaybackEngine? = null
     private var session: MediaSession? = null
+    private var restoring: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -67,15 +73,20 @@ class PlaybackService : MediaSessionService() {
                 .setWakeMode(C.WAKE_MODE_LOCAL)
                 .build()
         val recorder = PlayEventRecorder(history, scope, PendingPlayStore(filesDir.resolve("pending-play")))
-        val engine = PlaybackEngine(player, queue, songs, mapper, config, scope, recorder)
+        val store = FileQueueStore(filesDir.resolve("queue").resolve("queue.bin"))
+        // One write at a time, off the main thread; the queue itself is only read on the main thread (ADR 0036).
+        val queueIo = Dispatchers.IO.limitedParallelism(1)
+        val saver = QueueSaver(queue, store, player::getCurrentPosition, scope, queueIo, config.queueSaveDebounceMs)
+        val engine = PlaybackEngine(player, queue, songs, mapper, config, scope, recorder, store, saver)
         this.engine = engine
         session =
             MediaSession
                 .Builder(this, engine.exposed)
                 .setSessionActivity(openAppIntent())
                 .setBitmapLoader(coverLoader())
-                .setCallback(CommandCallback(engine))
+                .setCallback(CommandCallback(engine, scope) { restoring })
                 .build()
+        restoring = engine.restore()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
@@ -85,11 +96,12 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        // The engine first: it saves the queue with the position of a player that is still alive.
+        engine?.release()
         session?.run {
             player.release()
             release()
         }
-        engine?.release()
         scope.cancel()
         coverScope.cancel()
         super.onDestroy()
@@ -114,7 +126,38 @@ class PlaybackService : MediaSessionService() {
 
     private class CommandCallback(
         private val engine: PlaybackEngine,
+        private val scope: CoroutineScope,
+        private val restoring: () -> Job?,
     ) : MediaSession.Callback {
+        /**
+         * A headset, car or notification asked a session whose process had died to play (ADR 0036): wait for the
+         * restore, then hand Media3 the restored window so it carries on from there.
+         */
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            isForPlayback: Boolean,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            scope.launch {
+                restoring()?.join()
+                val player = mediaSession.player
+                if (player.mediaItemCount == 0) {
+                    future.setException(UnsupportedOperationException("No saved queue to resume"))
+                } else {
+                    val items = (0 until player.mediaItemCount).map(player::getMediaItemAt)
+                    future.set(
+                        MediaSession.MediaItemsWithStartPosition(
+                            items,
+                            player.currentMediaItemIndex,
+                            player.currentPosition,
+                        ),
+                    )
+                }
+            }
+            return future
+        }
+
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,

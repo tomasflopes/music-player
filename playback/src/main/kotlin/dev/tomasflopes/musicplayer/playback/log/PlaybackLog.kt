@@ -15,8 +15,12 @@ internal class PlaybackLog(
     private val durationOf: (SongId) -> Long,
     private val isPlaying: () -> Boolean,
 ) {
+    /** Set after a queue was restored: the first time the player plays, a row starts for its current song. */
+    private var awaitingFirstPlay = false
+
     /** The queue's current song has just become the one playing; the one before it is closed as skipped. */
     fun started(startedBy: StartedBy) {
+        awaitingFirstPlay = false
         val entry = queue.current ?: return
         recorder.started(entry, durationOf(entry.ref.songId), startedBy, queue.shuffled, isPlaying())
     }
@@ -33,5 +37,14 @@ internal class PlaybackLog(
         started(StartedBy.NAV)
     }
 
-    fun playingChanged(playing: Boolean) = recorder.playingChanged(playing)
+    /** A restored queue is parked, paused, with no row; the owner's first play begins it (ADR 0036). */
+    fun awaitFirstPlay() {
+        awaitingFirstPlay = true
+    }
+
+    fun playingChanged(playing: Boolean) {
+        // A resumed song is not a pick: it starts as auto, with the clock running from this play.
+        if (playing && awaitingFirstPlay) started(StartedBy.AUTO)
+        recorder.playingChanged(playing)
+    }
 }
