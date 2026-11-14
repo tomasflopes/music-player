@@ -7,8 +7,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.taste.config.SmartShuffleConfig
 import dev.tomasflopes.musicplayer.core.taste.shuffle.PlainShuffle
 import dev.tomasflopes.musicplayer.core.taste.shuffle.ShuffleStrategy
+import dev.tomasflopes.musicplayer.core.taste.shuffle.SmartShuffle
 import dev.tomasflopes.musicplayer.playback.MediaControllerPlaybackController
 import dev.tomasflopes.musicplayer.playback.MediaItemMapper
 import dev.tomasflopes.musicplayer.playback.PlaybackConfig
@@ -27,11 +29,11 @@ object PlaybackModule {
     fun config() = PlaybackConfig()
 
     @Provides
-    fun shuffleStrategy(): ShuffleStrategy = PlainShuffle()
+    fun shuffleStrategy(): ShuffleStrategy = SmartShuffle(SmartShuffleConfig())
 
     /** One queue for the whole process: the service plays it, the controller reads it. */
     @Provides @Singleton
-    fun queue(strategy: ShuffleStrategy) = PlayQueue(strategy, Random.Default)
+    fun queue(strategy: ShuffleStrategy) = PlayQueue(strategy, Random.Default, artistShuffle = PlainShuffle())
 
     @Provides
     fun mapper() = MediaItemMapper()
