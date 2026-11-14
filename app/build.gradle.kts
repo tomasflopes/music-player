@@ -31,6 +31,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     implementation(projects.core.tags)
+    testImplementation(testFixtures(projects.core.model))
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)

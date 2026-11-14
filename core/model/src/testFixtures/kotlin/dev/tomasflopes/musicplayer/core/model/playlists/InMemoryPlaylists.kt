@@ -62,8 +62,10 @@ class InMemoryPlaylists(
         combine(state, library) { current, songs ->
             current.lists
                 .map { (id, stored) -> id to toPlaylist(id, stored, songs) }
-                .sortedWith(compareByDescending<Pair<PlaylistId, Playlist>> { it.second.lastUsedAtEpochMs }.thenByDescending { it.first.value })
-                .map { it.second }
+                .sortedWith(
+                    compareByDescending<Pair<PlaylistId, Playlist>> { it.second.lastUsedAtEpochMs }
+                        .thenByDescending { it.first.value },
+                ).map { it.second }
         }
 
     override fun observePlaylist(id: PlaylistId): Flow<Playlist?> =
@@ -73,7 +75,9 @@ class InMemoryPlaylists(
         combine(state, library) { current, songs -> current.lists[id]?.let { visible(it, songs) }.orEmpty() }
 
     override suspend fun songRefs(id: PlaylistId): List<SongRef> =
-        state.value.lists[id]?.let { visible(it, library.value).map(Song::ref) }.orEmpty()
+        state.value.lists[id]
+            ?.let { visible(it, library.value).map(Song::ref) }
+            .orEmpty()
 
     private fun toPlaylist(
         id: PlaylistId,
@@ -134,7 +138,8 @@ class InMemoryPlaylists(
     ) = change(id) { stored ->
         val shown = visible(stored, library.value).map { it.id }.toSet()
         val current = stored.rows.sortedBy { it.position }.filter { it.songId in shown }
-        val moves = PlaylistOrder.reassign(current.map { it.songId to it.position }, order)?.toMap() ?: return@change stored
+        val moves =
+            PlaylistOrder.reassign(current.map { it.songId to it.position }, order)?.toMap() ?: return@change stored
         stored.copy(rows = stored.rows.map { row -> moves[row.songId]?.let { row.copy(position = it) } ?: row })
     }
 

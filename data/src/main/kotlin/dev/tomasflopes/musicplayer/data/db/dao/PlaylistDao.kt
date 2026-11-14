@@ -75,6 +75,13 @@ interface PlaylistDao {
     )
     suspend fun visibleSlots(id: Long): List<PlaylistSlot>
 
+    /** What a play request carries: visible songs in play order. */
+    @Query(
+        "SELECT song.id AS id, song.artist_id AS artist_id FROM playlist_song $VISIBLE " +
+            "WHERE playlist_song.playlist_id = :id ORDER BY playlist_song.position",
+    )
+    suspend fun visibleRefs(id: Long): List<SongRefRow>
+
     /** Every row, retired songs included: a new song goes after all of them. */
     @Query("SELECT COALESCE(MAX(position), -1) FROM playlist_song WHERE playlist_id = :id")
     suspend fun lastPosition(id: Long): Int

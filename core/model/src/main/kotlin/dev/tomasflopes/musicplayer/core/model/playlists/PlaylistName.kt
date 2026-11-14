@@ -5,5 +5,10 @@ object PlaylistName {
     const val MAX_LENGTH = 80
 
     /** [raw] trimmed and cut to [MAX_LENGTH], or `null` when nothing is left. */
-    fun clean(raw: String): String? = TODO("not yet")
+    fun clean(raw: String): String? =
+        raw
+            .trim()
+            .take(MAX_LENGTH)
+            .trimEnd()
+            .ifEmpty { null }
 }
