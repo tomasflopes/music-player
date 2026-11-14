@@ -1,9 +1,13 @@
 package dev.tomasflopes.musicplayer.ui.player
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -12,7 +16,6 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,12 +23,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import dev.tomasflopes.musicplayer.ui.components.AlbumArt
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
+
+private val ProgressHeight = 2.dp
 
 /** The bar above the tabs; draws nothing while no song is loaded. Tapping it, outside the buttons, calls [onOpen]. */
 @Composable
@@ -43,11 +49,8 @@ fun MiniPlayer(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column {
-            LinearProgressIndicator(
-                progress = {
-                    if (state.durationMs > 0) (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f
-                },
-                modifier = Modifier.fillMaxWidth(),
+            ProgressLine(
+                if (state.durationMs > 0) (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f,
             )
             Row(
                 modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
@@ -58,6 +61,24 @@ fun MiniPlayer(
                 Controls(state, onPrevious, onPlayPause, onNext)
             }
         }
+    }
+}
+
+/** A thin line along the top edge of the bar showing how far the song has played. */
+@Composable
+private fun ProgressLine(fraction: Float) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(ProgressHeight)
+            .background(MaterialTheme.colorScheme.outline),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(fraction)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.primary),
+        )
     }
 }
 

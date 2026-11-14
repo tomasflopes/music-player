@@ -21,11 +21,11 @@ sealed interface DynamicListUiState {
     /** The route named a list no provider is registered for. */
     data object NotFound : DynamicListUiState
 
-    /** [window] is null for lists that have no days window. */
+    /** [windowDays] is null for lists that have no days window; it is changed in Settings, not on the list. */
     data class Ready(
         val title: String,
         val songs: List<Song>,
         val playSource: PlaySource,
-        val window: DaysWindow?,
+        val windowDays: Int?,
     ) : DynamicListUiState
 }

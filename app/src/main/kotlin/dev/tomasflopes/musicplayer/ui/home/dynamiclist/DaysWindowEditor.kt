@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Edits the Recently added window (design 7.7) for one screen. The chip on the list and the Settings screen both
- * use it, so they check the same range and write the same Settings value. Each screen has its own editor, and so
- * its own [error]; [scope] is the screen's ViewModel scope, in which the write runs.
+ * Edits the Recently added window (design 7.7, ADR 0022) for the Settings screen: it checks the range and writes the
+ * Settings value the list reads. It has its own [error]; [scope] is the screen's ViewModel scope, in which the write
+ * runs.
  */
 class DaysWindowEditor(
     private val settings: SettingsRepository,

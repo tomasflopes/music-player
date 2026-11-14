@@ -17,8 +17,8 @@ import javax.inject.Inject
  *
  * Changing the folder is not done here: the picker belongs to `MainActivity`, and what it returns goes through
  * `ShellViewModel.folderPicked`, which saves the root and requests the scan. This ViewModel only shows the saved
- * root, so the path updates once that has happened. The window is edited through the same [DaysWindowEditor] as the
- * list's chip, so both check the same range and write the same value.
+ * root, so the path updates once that has happened. The window is edited through a [DaysWindowEditor], which checks the
+ * range and writes the value the Recently added list reads (ADR 0022).
  */
 @HiltViewModel
 class SettingsViewModel

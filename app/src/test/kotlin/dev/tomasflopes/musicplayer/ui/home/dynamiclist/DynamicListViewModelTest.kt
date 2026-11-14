@@ -1,6 +1,5 @@
 package dev.tomasflopes.musicplayer.ui.home.dynamiclist
 
-import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ref
@@ -34,7 +33,6 @@ import java.time.ZoneOffset
 class DynamicListViewModelTest {
     private val now = Instant.parse("2026-11-13T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
-    private val config = LibraryConfig()
     private val playback = FakePlaybackController()
     private val settings = FakeSettingsRepository()
 
@@ -58,7 +56,6 @@ class DynamicListViewModelTest {
             playback,
             setOf<DynamicListProvider>(RecentlyAddedProvider(library, settings, clock)) + extra,
             settings,
-            config,
         )
 
     /** Opens [id] and keeps its state subscribed, as the screen does, so `value` follows the list. */
@@ -81,84 +78,28 @@ class DynamicListViewModelTest {
             val ready = viewModel.ready()
             assertEquals("Recently added", ready.title)
             assertEquals(listOf(fiveDays, eighteenDays), ready.songs)
-            assertEquals(20, ready.window?.days)
-            assertEquals(config.recentlyAddedQuickOptions, ready.window?.quickOptions)
+            assertEquals(20, ready.windowDays)
         }
 
     @Test
-    fun `choosing 15 saves 15 at once and the list re-emits without the older song`() =
+    fun `a new window from Settings re-emits the list at once without the older song`() =
         runTest {
             val viewModel = open(viewModel())
 
-            assertTrue(viewModel.onQuickDays(15))
+            settings.days.value = 15
 
-            assertEquals(listOf(15), settings.savedDays)
-            assertEquals(15, viewModel.ready().window?.days)
+            assertEquals(15, viewModel.ready().windowDays)
             assertEquals(listOf(fiveDays), viewModel.ready().songs)
         }
 
     @Test
-    fun `a custom value inside the range is saved`() =
+    fun `a wider window brings the older songs back`() =
         runTest {
             val viewModel = open(viewModel())
 
-            assertTrue(viewModel.onCustomDays(" 30 "))
+            settings.days.value = 30
 
-            assertEquals(listOf(30), settings.savedDays)
             assertEquals(listOf(fiveDays, eighteenDays, twentyFiveDays), viewModel.ready().songs)
-            assertNull(viewModel.ready().window?.error)
-        }
-
-    @Test
-    fun `custom 0 and 5000 are rejected, nothing is saved and the error shows`() =
-        runTest {
-            val viewModel = open(viewModel())
-
-            assertFalse(viewModel.onCustomDays("0"))
-            assertEquals(DaysError.OUT_OF_RANGE, viewModel.ready().window?.error)
-            assertFalse(viewModel.onCustomDays("5000"))
-            assertEquals(DaysError.OUT_OF_RANGE, viewModel.ready().window?.error)
-
-            assertTrue(settings.savedDays.isEmpty())
-            assertEquals(20, viewModel.ready().window?.days)
-        }
-
-    @Test
-    fun `the ends of the range are accepted`() =
-        runTest {
-            val viewModel = open(viewModel())
-
-            assertTrue(viewModel.onCustomDays(config.recentlyAddedDaysRange.first.toString()))
-            assertTrue(viewModel.onCustomDays(config.recentlyAddedDaysRange.last.toString()))
-
-            assertEquals(listOf(1, 3650), settings.savedDays)
-        }
-
-    @Test
-    fun `text that is not a whole number is rejected with its own error`() =
-        runTest {
-            val viewModel = open(viewModel())
-
-            assertFalse(viewModel.onCustomDays("abc"))
-            assertEquals(DaysError.NOT_A_NUMBER, viewModel.ready().window?.error)
-            assertFalse(viewModel.onCustomDays(""))
-            assertFalse(viewModel.onCustomDays("1.5"))
-
-            assertTrue(settings.savedDays.isEmpty())
-        }
-
-    @Test
-    fun `a valid value clears an earlier error and closing the picker clears it too`() =
-        runTest {
-            val viewModel = open(viewModel())
-            viewModel.onCustomDays("0")
-
-            viewModel.onCustomDays("7")
-            assertNull(viewModel.ready().window?.error)
-
-            viewModel.onCustomDays("0")
-            viewModel.onPickerDismissed()
-            assertNull(viewModel.ready().window?.error)
         }
 
     @Test
@@ -226,7 +167,7 @@ class DynamicListViewModelTest {
             viewModel.onPlay()
 
             assertEquals("Discover", viewModel.ready().title)
-            assertNull(viewModel.ready().window)
+            assertNull(viewModel.ready().windowDays)
             assertEquals(PlaySource.DISCOVER, playback.requests.single().source)
         }
 

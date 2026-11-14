@@ -5,17 +5,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,24 +43,14 @@ private fun ReadyContent(
     ready: DynamicListUiState.Ready,
     viewModel: DynamicListViewModel,
 ) {
-    var pickerOpen by rememberSaveable { mutableStateOf(false) }
-    val window = ready.window
-
-    if (window != null) {
-        AssistChip(
-            onClick = { pickerOpen = true },
-            label = { Text(daysLabel(window.days)) },
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Change the window") },
-            modifier = Modifier.padding(horizontal = Spacing.s),
-        )
-    }
+    ready.windowDays?.let { WindowCaption(daysLabel(it)) }
     PlayShuffleButtons(
         onPlay = viewModel::onPlay,
         onShuffle = viewModel::onShuffle,
         enabled = ready.songs.isNotEmpty(),
     )
     if (ready.songs.isEmpty()) {
-        EmptyState(emptyText(window))
+        EmptyState(emptyText(ready.windowDays))
     } else {
         LazyColumn(Modifier.fillMaxSize()) {
             itemsIndexed(ready.songs, key = { _, song -> song.id.value }) { index, song ->
@@ -74,19 +58,18 @@ private fun ReadyContent(
             }
         }
     }
-
-    if (window != null && pickerOpen) {
-        DaysWindowSheet(
-            window = window,
-            onQuickOption = viewModel::onQuickDays,
-            onCustom = viewModel::onCustomDays,
-            onDismiss = {
-                pickerOpen = false
-                viewModel.onPickerDismissed()
-            },
-        )
-    }
 }
 
-private fun emptyText(window: DaysWindow?): String =
-    if (window == null) "This list is empty." else "No songs added in the ${daysLabel(window.days).lowercase()}."
+/** Which window the list shows. Read-only: the number is changed in Settings. */
+@Composable
+private fun WindowCaption(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxxs),
+    )
+}
+
+private fun emptyText(windowDays: Int?): String =
+    if (windowDays == null) "This list is empty." else "No songs added in the ${daysLabel(windowDays).lowercase()}."
