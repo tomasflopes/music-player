@@ -20,10 +20,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -94,9 +97,11 @@ private fun SearchContent(
     searching: Boolean,
     actions: SearchActions,
 ) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Search")
-        SearchField(query, actions.onQueryChange)
+        SearchField(query, actions.onQueryChange, Modifier.focusRequester(focus))
         SearchProgress(visible = searching || state == SearchUiState.Indexing)
         when (state) {
             SearchUiState.Idle -> EmptyState("Search your songs, artists and albums.")
@@ -172,6 +177,7 @@ private fun TopResult(
                 leading = { ArtistAvatar(ArtSize.card) },
                 onPlay = { actions.onPlayTop(item) },
                 onShuffle = { actions.onShuffleTop(item) },
+                onClick = { actions.onOpen(item) },
             )
         is AlbumItem ->
             TopResultCard(
@@ -180,6 +186,7 @@ private fun TopResult(
                 leading = { AlbumArt(item.cover, ArtSize.card) },
                 onPlay = { actions.onPlayTop(item) },
                 onShuffle = { actions.onShuffleTop(item) },
+                onClick = { actions.onOpen(item) },
             )
         is SongItem ->
             TopResultCard(
@@ -187,6 +194,7 @@ private fun TopResult(
                 subtitle = "Song · ${item.song.artistName}",
                 leading = { AlbumArt(item.song, ArtSize.card) },
                 onPlay = { actions.onPlayTop(item) },
+                onClick = { actions.onPlayTop(item) },
             )
     }
 }

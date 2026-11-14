@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.artistShuffleSongs
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
@@ -29,8 +30,8 @@ import javax.inject.Inject
  * The artist page (design 8.2, 7.11): albums, the artist's own songs, then "Featured on".
  *
  * A tap on one of the own songs, and Play, queue the own songs in their listed order ([PlaySource.ARTIST]); Shuffle
- * queues the same songs shuffled ([PlaySource.ARTIST_SHUFFLE]). Featured-on songs never join that queue: a tap on one
- * queues the Featured on list from it, as [PlaySource.ARTIST] too, because it is still a tap on this artist's page.
+ * queues them plus the Featured on songs, shuffled ([PlaySource.ARTIST_SHUFFLE], ADR 0027). A tap on a Featured on
+ * song queues the Featured on list from it, as [PlaySource.ARTIST] too, because it is still a tap on this page.
  * The artist is chosen by [open], called by the screen with its route argument.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -56,7 +57,11 @@ class ArtistViewModel
 
         fun onPlay() = playOwn(startIndex = 0, shuffle = false, picked = false)
 
-        fun onShuffle() = playOwn(startIndex = 0, shuffle = true, picked = false)
+        fun onShuffle() {
+            val ready = state.value as? ArtistUiState.Ready ?: return
+            val songs = artistShuffleSongs(ready.songs, ready.featuredOn)
+            send(songs, 0, shuffle = true, PlaySource.ARTIST_SHUFFLE, picked = false)
+        }
 
         /** Plays the artist's own songs in their listed order, starting at the tapped one. */
         fun onSongClick(index: Int) = playOwn(startIndex = index, shuffle = false, picked = true)

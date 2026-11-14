@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,14 +25,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlin.math.roundToInt
 
 /** The width a list leaves free on its right edge for the [AlphabetRail]. */
 val AlphabetRailWidth = 24.dp
 
-private val BubbleSize = 56.dp
-private val BubbleGap = 12.dp
+private val BubbleSize = 48.dp
+private val BubbleGap = 4.dp
 private const val NO_SLICE = -1
 
 /**
@@ -122,7 +121,7 @@ private fun LetterBubble(
                     val top = (centerY - size / 2).roundToInt().coerceIn(0, maxOf(railHeightPx - size, 0))
                     IntOffset(x = -(size + BubbleGap.roundToPx()), y = top)
                 },
-        shape = RoundedCornerShape(Spacing.s),
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.primary,
     ) {
         Box(contentAlignment = Alignment.Center) {

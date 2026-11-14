@@ -8,6 +8,7 @@ import dev.tomasflopes.musicplayer.core.model.Folder
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.search.DisplayArtist
 import dev.tomasflopes.musicplayer.data.db.dao.AlbumRow
 import dev.tomasflopes.musicplayer.data.db.dao.ArtistRow
 import dev.tomasflopes.musicplayer.data.db.dao.FolderRow
@@ -19,7 +20,7 @@ internal fun SongRow.toSong() =
         id = SongId(song.id),
         title = song.title,
         artistId = ArtistId(song.artistId),
-        artistName = artistName,
+        artistName = DisplayArtist.of(artistName, song.fileName),
         albumId = song.albumId?.let(::AlbumId),
         albumTitle = albumTitle,
         albumArtist = song.albumArtist,
@@ -33,6 +34,7 @@ internal fun SongRow.toSong() =
         dateAddedEpochSec = song.dateAdded,
         contentUri = song.contentUri(),
         hasCover = song.hasCover,
+        tagArtistName = artistName,
     )
 
 internal fun SongRefRow.toSongRef() = SongRef(SongId(id), ArtistId(artistId))

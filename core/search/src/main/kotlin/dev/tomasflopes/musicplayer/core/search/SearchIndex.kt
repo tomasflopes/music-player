@@ -91,7 +91,7 @@ class SearchIndex(
         val fields =
             buildMap {
                 put(SearchField.TITLE, listOf(song.title))
-                put(SearchField.ARTIST, listOf(song.artistName))
+                put(SearchField.ARTIST, listOf(song.artistName, song.tagArtistName).distinct())
                 song.albumTitle?.let { put(SearchField.ALBUM, listOf(it)) }
                 song.albumArtist?.let { put(SearchField.ALBUM_ARTIST, listOf(it)) }
                 song.folderPath.substringAfterLast('/').takeIf { it.isNotEmpty() }?.let {

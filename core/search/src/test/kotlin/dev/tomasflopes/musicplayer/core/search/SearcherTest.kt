@@ -121,6 +121,20 @@ class SearcherTest {
     }
 
     @Test
+    fun `a song is found by its displayed artist and by its tag artist`() {
+        val guitarra = artist(9, "Guitarra")
+        val anel = song(108, "Anel de Rubi", guitarra).copy(artistName = "Rui Veloso")
+        val index = SearchIndex(FieldMatcher.defaults())
+        index.rebuild(listOf(guitarra), emptyList(), listOf(anel), emptyMap())
+        val searcher = Searcher(index, SearchConfig())
+
+        fun found(query: String) = searcher.searchAll(query, SearchItemType.SONG).map { (it as SongHit).song.title }
+
+        assertEquals(listOf("Anel de Rubi"), found("rui veloso"))
+        assertEquals(listOf("Anel de Rubi"), found("guitarra"))
+    }
+
+    @Test
     fun `case, spaces and accents do not matter`() =
         assertEquals(searcher().search("ed"), searcher().search("  ÉD ").copy(query = "ed"))
 

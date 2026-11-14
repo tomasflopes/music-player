@@ -138,7 +138,7 @@ class ArtistViewModelTest {
         }
 
     @Test
-    fun `Shuffle starts the own songs shuffled, without the featured ones`() =
+    fun `Shuffle queues the own songs then the featured ones, shuffled, as artist_shuffle`() =
         runTest {
             val viewModel = open()
 
@@ -146,10 +146,16 @@ class ArtistViewModelTest {
 
             val sent = playback.requests.single()
             assertEquals(
-                request(ownSongs, startIndex = 0, shuffle = true, PlaySource.ARTIST_SHUFFLE, picked = false),
+                request(
+                    ownSongs + listOf(featA, featB),
+                    startIndex = 0,
+                    shuffle = true,
+                    PlaySource.ARTIST_SHUFFLE,
+                    picked = false,
+                ),
                 sent,
             )
-            assertTrue(sent.songs.none { it == featA.ref || it == featB.ref })
+            assertTrue(sent.songs.containsAll(listOf(featA.ref, featB.ref)))
         }
 
     @Test
