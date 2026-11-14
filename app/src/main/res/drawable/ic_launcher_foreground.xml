@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An orange record with a play triangle on its label. The disc stays inside the 66 dp safe zone of the 108 dp icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFF8A00"
+        android:pathData="M26,54a28,28 0 1,0 56,0a28,28 0 1,0 -56,0z" />
+    <path
+        android:strokeWidth="1"
+        android:strokeColor="#591A0F00"
+        android:pathData="M33,54a21,21 0 1,0 42,0a21,21 0 1,0 -42,0z" />
+    <path
+        android:strokeWidth="1"
+        android:strokeColor="#591A0F00"
+        android:pathData="M37.5,54a16.5,16.5 0 1,0 33,0a16.5,16.5 0 1,0 -33,0z" />
+    <path
+        android:fillColor="#FF1A0F00"
+        android:pathData="M42,54a12,12 0 1,0 24,0a12,12 0 1,0 -24,0z" />
+    <path
+        android:fillColor="#FFFF8A00"
+        android:pathData="M51,48L51,60L60.5,54z" />
+</vector>
