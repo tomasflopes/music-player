@@ -3,6 +3,7 @@ package dev.tomasflopes.musicplayer.architecture
 import com.tngtech.archunit.core.domain.JavaClasses
 import com.tngtech.archunit.core.importer.ClassFileImporter
 import com.tngtech.archunit.core.importer.ImportOption
+import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 
 /**
@@ -12,12 +13,15 @@ import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
  * - `:core:model` is the centre: it depends on no other core module. Every other core module may use `:core:model`
  *   and nothing else from core.
  * - `:data` and `:playback` depend inward only: never on each other, on `:app` code, or on a sibling outer layer.
+ * - `:tools:*` (JVM command-line tools, ADR 0053) depend on `:core:*` only; nothing depends on a tool.
  */
 object OnionRules {
     private const val ROOT = "dev.tomasflopes.musicplayer"
     private const val MODEL = "model"
+    private const val TOOLS = "tools"
     private val coreModules = listOf(MODEL, "tags", "search", "taste", "analysis", "artistimage")
-    private val outerLayers = listOf("data", "playback", "ui", "di")
+    private val libraryPackages = listOf("java..", "javax..", "kotlin..", "kotlinx..", "org.jetbrains..")
+    private val outerLayers = listOf("data", "playback", "ui", "di", TOOLS)
 
     /** Checks one `:core:<module>`; call it from that module's tests. */
     fun checkCore(module: String) {
@@ -57,6 +61,24 @@ object OnionRules {
             .resideInAnyPackage(*packages(outerLayers.filter { it != layer }.map { "$ROOT.$it.." }))
             .because(":$layer depends inward on :core:* only, never on a sibling or on :app")
             .check(classes)
+    }
+
+    /**
+     * Checks one `:tools:<tool>`: its own package, `:core:*` and the JDK and Kotlin libraries are all it may use.
+     * No Android, no outer layer, no other tool. The core and outer rules above keep every other layer off tools.
+     */
+    fun checkTool(tool: String) {
+        val toolPackage = "$ROOT.$TOOLS.$tool"
+        val imported = import(toolPackage)
+        val allowed = listOf("$toolPackage..", "$ROOT.core..") + libraryPackages
+        classes()
+            .that()
+            .resideInAPackage("$toolPackage..")
+            .should()
+            .onlyDependOnClassesThat()
+            .resideInAnyPackage(*packages(allowed))
+            .because(":tools:$tool depends on :core:* only: no Android, no outer layer, no other tool")
+            .check(imported)
     }
 
     private fun import(modulePackage: String): JavaClasses =

@@ -18,8 +18,11 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import dagger.hilt.android.AndroidEntryPoint
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngineFactory
 import dev.tomasflopes.musicplayer.playback.log.PendingPlayStore
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.queue.FileQueueStore
@@ -49,6 +52,10 @@ class PlaybackService : MediaSessionService() {
 
     @Inject lateinit var covers: CoverBitmapSource
 
+    @Inject lateinit var settings: SettingsRepository
+
+    @Inject lateinit var crossfadeFactory: CrossfadeEngineFactory
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Cover reads never touch the main thread: the session's bitmap loader launches them here.
@@ -76,9 +83,32 @@ class PlaybackService : MediaSessionService() {
         val store = FileQueueStore(filesDir.resolve("queue").resolve("queue.bin"))
         // One write at a time, off the main thread; the queue itself is only read on the main thread (ADR 0036).
         val queueIo = Dispatchers.IO.limitedParallelism(1)
-        val saver = QueueSaver(queue, store, player::getCurrentPosition, scope, queueIo, config.queueSaveDebounceMs)
-        val engine = PlaybackEngine(player, queue, songs, mapper, config, scope, recorder, store, saver)
+        // With crossfade the playing player changes at every fade: ask the engine for the current one.
+        val position = { this.engine?.activePlayer?.currentPosition ?: player.currentPosition }
+        val saver = QueueSaver(queue, store, position, scope, queueIo, config.queueSaveDebounceMs)
+        var crossfade = CrossfadeSettings()
+        val engine =
+            PlaybackEngine(
+                player,
+                queue,
+                songs,
+                mapper,
+                config,
+                scope,
+                recorder,
+                store,
+                saver,
+                crossfadeFactory.create(this, scope),
+                { crossfade },
+                { session?.player = it },
+            )
         this.engine = engine
+        scope.launch {
+            settings.crossfade.collect {
+                crossfade = it
+                engine.crossfadeSettingsChanged()
+            }
+        }
         session =
             MediaSession
                 .Builder(this, engine.exposed)

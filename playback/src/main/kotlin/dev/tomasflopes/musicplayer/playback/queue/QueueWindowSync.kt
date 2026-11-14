@@ -48,6 +48,16 @@ class QueueWindowSync(
         player.setAll(window, currentPosition(window.size))
     }
 
+    /**
+     * The player took over from another one and holds only [current], which is already playing: grow the window around
+     * it without restarting it (crossfade, ADR 0061).
+     */
+    fun adopt(current: SongRef) {
+        held.clear()
+        held += current
+        onQueueEdited()
+    }
+
     /** A new play request: everything is replaced. */
     fun onQueueReplaced() = fill()
 

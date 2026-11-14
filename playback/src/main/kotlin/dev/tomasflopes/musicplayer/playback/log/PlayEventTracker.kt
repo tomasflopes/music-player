@@ -27,6 +27,8 @@ class PlayEventTracker(
     /**
      * Starts [entry], returning the interrupted item as a skip when there was one. Pass [playing] when the player is
      * already playing: gapless and queue moves fire no "is playing" change, so the clock has to start here.
+     * With [holdClock] the clock stays stopped, whatever the player does, until [releaseHold]: the incoming song of a
+     * crossfade is audible from the start of the fade, but the overlap is booked to the outgoing row (ADR 0062).
      */
     fun onStarted(
         entry: QueueEntry,
@@ -34,8 +36,10 @@ class PlayEventTracker(
         startedBy: StartedBy,
         shuffle: Boolean,
         playing: Boolean = false,
+        holdClock: Boolean = false,
     ): PlayEvent? {
         val finished = finish(EndedBy.SKIPPED)
+        val running = playing && !holdClock
         val now = monoMs()
         val wallNow = wallMs()
         active =
@@ -45,8 +49,9 @@ class PlayEventTracker(
                 durationMs = durationMs.coerceAtLeast(0),
                 startedBy = startedBy,
                 shuffle = shuffle,
-                playingSinceMs = if (playing) now else null,
-                playingSinceWallMs = if (playing) wallNow else null,
+                playingSinceMs = if (running) now else null,
+                playingSinceWallMs = if (running) wallNow else null,
+                held = holdClock,
             )
         return finished
     }
@@ -54,11 +59,21 @@ class PlayEventTracker(
     fun onPlayingChanged(isPlaying: Boolean) {
         val current = active ?: return
         val now = monoMs()
-        if (isPlaying && current.playingSinceMs == null) {
+        if (isPlaying && current.playingSinceMs == null && !current.held) {
             current.playingSinceMs = now
             current.playingSinceWallMs = wallMs()
         }
         if (!isPlaying) current.stopListening(now)
+    }
+
+    /** The crossfade is over: the clock of the held row starts now if the player is playing. */
+    fun releaseHold(playing: Boolean) {
+        val current = active ?: return
+        current.held = false
+        if (playing && current.playingSinceMs == null) {
+            current.playingSinceMs = monoMs()
+            current.playingSinceWallMs = wallMs()
+        }
     }
 
     fun onEndedNaturally(): PlayEvent? = finish(EndedBy.COMPLETED, completed = true)
@@ -90,6 +105,7 @@ class PlayEventTracker(
         var listenedMs: Long = 0,
         var playingSinceMs: Long? = null,
         var playingSinceWallMs: Long? = null,
+        var held: Boolean = false,
     ) {
         fun stopListening(now: Long) {
             val since = playingSinceMs ?: return

@@ -24,8 +24,15 @@ class PlayEventRecorder(
         startedBy: StartedBy,
         shuffle: Boolean,
         playing: Boolean = false,
+        holdClock: Boolean = false,
     ) {
-        append(tracker.onStarted(entry, durationMs, startedBy, shuffle, playing))
+        append(tracker.onStarted(entry, durationMs, startedBy, shuffle, playing, holdClock))
+        pending?.save(tracker.pending())
+    }
+
+    /** A crossfade ended: the row started with its clock held starts counting (ADR 0062). */
+    fun releaseHold(playing: Boolean) {
+        tracker.releaseHold(playing)
         pending?.save(tracker.pending())
     }
 

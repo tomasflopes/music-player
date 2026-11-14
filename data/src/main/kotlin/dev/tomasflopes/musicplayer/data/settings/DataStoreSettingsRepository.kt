@@ -2,17 +2,22 @@ package dev.tomasflopes.musicplayer.data.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-/** The two phase 1 settings, in Preferences DataStore. Days are coerced into [LibraryConfig.recentlyAddedDaysRange]. */
+/**
+ * The settings, in Preferences DataStore. Days are coerced into [LibraryConfig.recentlyAddedDaysRange] and the
+ * crossfade length into [CrossfadeSettings.DURATION_RANGE_MS].
+ */
 class DataStoreSettingsRepository(
     private val store: DataStore<Preferences>,
     private val config: LibraryConfig,
@@ -35,6 +40,15 @@ class DataStoreSettingsRepository(
             .map { it[RECENTLY_ADDED_DAYS] ?: config.recentlyAddedDefaultDays }
             .distinctUntilChanged()
 
+    override val crossfade: Flow<CrossfadeSettings> =
+        store.data
+            .map { preferences ->
+                CrossfadeSettings(
+                    enabled = preferences[CROSSFADE_ENABLED] ?: false,
+                    durationMs = preferences[CROSSFADE_DURATION_MS]?.toLong() ?: CrossfadeSettings.DEFAULT_DURATION_MS,
+                ).coerced()
+            }.distinctUntilChanged()
+
     override suspend fun setMusicRoot(root: MusicRoot) {
         store.edit { preferences ->
             preferences[MUSIC_ROOT_TREE_URI] = root.treeUri
@@ -47,10 +61,20 @@ class DataStoreSettingsRepository(
         store.edit { it[RECENTLY_ADDED_DAYS] = days.coerceIn(config.recentlyAddedDaysRange) }
     }
 
+    override suspend fun setCrossfade(settings: CrossfadeSettings) {
+        val saved = settings.coerced()
+        store.edit {
+            it[CROSSFADE_ENABLED] = saved.enabled
+            it[CROSSFADE_DURATION_MS] = saved.durationMs.toInt()
+        }
+    }
+
     private companion object {
         val MUSIC_ROOT_TREE_URI = stringPreferencesKey("music_root_tree_uri")
         val MUSIC_ROOT_VOLUME = stringPreferencesKey("music_root_volume")
         val MUSIC_ROOT_RELATIVE_PATH = stringPreferencesKey("music_root_relative_path")
         val RECENTLY_ADDED_DAYS = intPreferencesKey("recently_added_days")
+        val CROSSFADE_ENABLED = booleanPreferencesKey("crossfade_enabled")
+        val CROSSFADE_DURATION_MS = intPreferencesKey("crossfade_duration_ms")
     }
 }

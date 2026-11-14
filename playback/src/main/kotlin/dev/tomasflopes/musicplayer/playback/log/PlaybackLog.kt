@@ -25,6 +25,21 @@ internal class PlaybackLog(
         recorder.started(entry, durationOf(entry.ref.songId), startedBy, queue.shuffled, isPlaying())
     }
 
+    /**
+     * The queue's current song is the incoming one of a crossfade that has just begun: its row starts now, but its
+     * listening clock waits for [fadeEnded], because the overlap is booked to the outgoing row, which [completed]
+     * closes with its full duration (ADR 0062).
+     */
+    fun startedDuringFade(startedBy: StartedBy) {
+        awaitingFirstPlay = false
+        val entry = queue.current ?: return
+        val duration = durationOf(entry.ref.songId)
+        recorder.started(entry, duration, startedBy, queue.shuffled, playing = false, holdClock = true)
+    }
+
+    /** The crossfade is over: the incoming row's clock starts if the player is playing. */
+    fun fadeEnded() = recorder.releaseHold(isPlaying())
+
     /** The current song played to its end. */
     fun completed() = recorder.endedNaturally()
 

@@ -11,6 +11,7 @@ import dev.tomasflopes.musicplayer.core.model.Folder
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.SearchEvent
@@ -248,6 +249,14 @@ class FakeSettingsRepository : SettingsRepository {
     override suspend fun setRecentlyAddedDays(days: Int) {
         savedDays += days
         this.days.value = days
+    }
+
+    /** The saved crossfade choice; [setCrossfade] coerces the length, as the real store does. */
+    val crossfadeSettings = MutableStateFlow(CrossfadeSettings())
+    override val crossfade: Flow<CrossfadeSettings> = crossfadeSettings
+
+    override suspend fun setCrossfade(settings: CrossfadeSettings) {
+        crossfadeSettings.value = settings.coerced()
     }
 }
 

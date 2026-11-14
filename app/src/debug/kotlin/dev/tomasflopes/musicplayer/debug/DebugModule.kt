@@ -7,11 +7,15 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 
-/** Debug builds only: puts [DebugSettingsEntry] in the set Settings draws (ADR 0019). Release has no such module. */
+/** Debug builds only: puts the debug entries in the set Settings draws (ADR 0019). Release has no such module. */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DebugModule {
     @Binds
     @IntoSet
     abstract fun debugSettingsEntry(entry: DebugSettingsEntry): SettingsEntry
+
+    @Binds
+    @IntoSet
+    abstract fun analysisBenchmarkEntry(entry: AnalysisBenchmarkSettingsEntry): SettingsEntry
 }

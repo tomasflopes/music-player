@@ -6,8 +6,16 @@ import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadePolicy
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
+import dev.tomasflopes.musicplayer.core.model.crossfade.Transition
+import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionCause
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngine
+import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeHost
+import dev.tomasflopes.musicplayer.playback.crossfade.PlannedTransition
+import dev.tomasflopes.musicplayer.playback.crossfade.SinglePlayerEngine
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.log.PlaybackLog
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
@@ -27,9 +35,13 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Everything the service does with the queue and the player, on the main thread, one command at a time.
  * The queue decides what plays; the player is kept equal to a window of it by [QueueWindowSync].
+ *
+ * It is also the [CrossfadeHost]: with crossfade on, the player that plays changes at every fade (ADR 0061), so
+ * [player], the window sync and the session's view of it are swapped at that moment, and nothing else knows.
  */
+@Suppress("TooManyFunctions")
 internal class PlaybackEngine(
-    private val player: ExoPlayer,
+    initialPlayer: ExoPlayer,
     private val queue: PlayQueue,
     private val songs: SongReader,
     private val mapper: MediaItemMapper,
@@ -38,10 +50,18 @@ internal class PlaybackEngine(
     recorder: PlayEventRecorder,
     private val store: QueueStore,
     private val saving: QueueSaving,
-) {
+    private val crossfade: CrossfadeEngine = SinglePlayerEngine,
+    private val crossfadeSettings: () -> CrossfadeSettings = { CrossfadeSettings() },
+    /** The session's player changed: the service hands the new one to the session. */
+    private val onPlayerChanged: (QueueAwarePlayer) -> Unit = {},
+) : CrossfadeHost {
+    private var player: ExoPlayer = initialPlayer
     private val cache = HashMap<SongId, Song>()
     private val mutex = Mutex()
-    private val sync = QueueWindowSync(queue, ExoPlayerItems(player, cache, mapper), config)
+    private var sync = QueueWindowSync(queue, ExoPlayerItems(initialPlayer, cache, mapper), config)
+
+    /** The owner moved the position inside the current song: its end is a hard cut (crossfade policy). */
+    private var seeked = false
     private val log = PlaybackLog(recorder, queue, { cache[it]?.durationMs ?: 0L }, { player.isPlaying })
     private val playerEvents =
         PlaybackPlayerListener(
@@ -51,12 +71,12 @@ internal class PlaybackEngine(
                 queue.advanceOnTrackEnd()
                 prepareWindow()
                 sync.onPlayerAdvanced()
-                log.started(StartedBy.AUTO)
-                saving.changed()
+                trackStarted(StartedBy.AUTO)
+                queueChanged()
             },
             onRepeat = {
                 log.completed()
-                log.started(StartedBy.AUTO)
+                trackStarted(StartedBy.AUTO)
             },
             onEnded = {
                 log.completed()
@@ -65,8 +85,8 @@ internal class PlaybackEngine(
                     prepareWindow()
                     sync.fill()
                     player.play()
-                    log.started(StartedBy.AUTO)
-                    saving.changed()
+                    trackStarted(StartedBy.AUTO)
+                    queueChanged()
                 }
             },
             onError = {
@@ -78,13 +98,14 @@ internal class PlaybackEngine(
                     } else {
                         player.prepare()
                         player.play()
-                        log.started(StartedBy.AUTO)
-                        saving.changed()
+                        trackStarted(StartedBy.AUTO)
+                        queueChanged()
                     }
                 }
             },
             onPlayingChanged = {
                 log.playingChanged(it)
+                crossfade.onPlayingChanged(it)
                 ticker?.cancel()
                 if (it) {
                     ticker =
@@ -102,11 +123,85 @@ internal class PlaybackEngine(
 
     private var ticker: Job? = null
 
-    /** What the session offers to controllers. */
-    val exposed = QueueAwarePlayer(player, queue, this)
+    private val exposedPlayers = HashMap<ExoPlayer, QueueAwarePlayer>()
+
+    /** What the session offers to controllers: a view of whichever player is playing now. */
+    val exposed: QueueAwarePlayer get() = exposedPlayers.getOrPut(player) { QueueAwarePlayer(player, queue, this) }
+
+    override val activePlayer: ExoPlayer get() = player
 
     init {
         player.addListener(playerEvents)
+        crossfade.attach(this)
+    }
+
+    override suspend fun planNext(): PlannedTransition? =
+        mutex.withLock {
+            prepareWindow()
+            val outgoing =
+                queue.current
+                    ?.ref
+                    ?.songId
+                    ?.let(cache::get) ?: return@withLock null
+            val next = queue.peekAdvance() ?: return@withLock null
+            val incoming = cache[next.ref.songId] ?: return@withLock null
+            val transition =
+                Transition(
+                    outgoing = outgoing,
+                    incoming = incoming,
+                    cause = if (seeked) TransitionCause.MANUAL_SEEK else TransitionCause.END_OF_SONG,
+                    shuffled = queue.shuffled,
+                    repeatOne = queue.repeatMode == RepeatMode.ONE,
+                )
+            PlannedTransition(
+                incoming = mapper.toMediaItem(next, incoming),
+                decision = CrossfadePolicy.decide(crossfadeSettings(), transition),
+                outgoingDurationMs = outgoing.durationMs,
+            )
+        }
+
+    /**
+     * The fade begins (ADR 0062). The outgoing row ends as completed, with its full duration, which is where the
+     * overlap is booked; the queue moves on as it does for an automatic advance; the incoming row starts with its
+     * clock held until [fadeFinished]. The session shows the incoming song from here, with its own position and length.
+     */
+    override suspend fun fadeStarted(incoming: ExoPlayer) =
+        mutex.withLock {
+            log.completed()
+            queue.advanceOnTrackEnd()
+            prepareWindow()
+            player.removeListener(playerEvents)
+            player = incoming
+            incoming.addListener(playerEvents)
+            sync = QueueWindowSync(queue, ExoPlayerItems(incoming, cache, mapper), config)
+            queue.current?.ref?.let(sync::adopt)
+            seeked = false
+            log.startedDuringFade(StartedBy.AUTO)
+            onPlayerChanged(exposed)
+            saving.changed()
+        }
+
+    override suspend fun fadeFinished() = mutex.withLock { log.fadeEnded() }
+
+    /** The owner dragged or tapped the seek bar, or fast-forwarded: the end of this song is a hard cut. */
+    fun userSeeked() {
+        seeked = true
+        crossfade.invalidate()
+    }
+
+    /** New crossfade settings arrived: the plan for the next transition is made again. */
+    fun crossfadeSettingsChanged() = crossfade.invalidate()
+
+    /** Every path that ends a song and starts another goes through here, so the seek flag always starts clean. */
+    private fun trackStarted(startedBy: StartedBy) {
+        seeked = false
+        log.started(startedBy)
+    }
+
+    /** The queue or the current song changed: save it, and plan the next transition again. */
+    private fun queueChanged() {
+        saving.changed()
+        crossfade.invalidate()
     }
 
     fun play(request: PlayRequest) =
@@ -125,9 +220,9 @@ internal class PlaybackEngine(
             sync.onQueueReplaced()
             player.prepare()
             player.play()
-            log.started(if (request.picked) StartedBy.PICKED else StartedBy.AUTO)
+            trackStarted(if (request.picked) StartedBy.PICKED else StartedBy.AUTO)
             exposed.notifyModes()
-            saving.changed()
+            queueChanged()
         }
 
     /**
@@ -149,7 +244,7 @@ internal class PlaybackEngine(
                     player.pause()
                     log.awaitFirstPlay()
                     exposed.notifyModes()
-                    saving.changed()
+                    queueChanged()
                 }
             }
         }
@@ -164,8 +259,8 @@ internal class PlaybackEngine(
             prepareWindow()
             sync.fill()
             player.play()
-            log.started(StartedBy.PICKED)
-            saving.changed()
+            trackStarted(StartedBy.PICKED)
+            queueChanged()
         }
 
     /** Jumps to any entry of the queue, played or upcoming; the queue itself is not changed (ADR 0047). */
@@ -179,9 +274,9 @@ internal class PlaybackEngine(
         sync.fill()
         player.prepare()
         player.play()
-        log.started(StartedBy.PICKED)
+        trackStarted(StartedBy.PICKED)
         exposed.notifyModes()
-        saving.changed()
+        queueChanged()
     }
 
     /**
@@ -208,14 +303,14 @@ internal class PlaybackEngine(
             if (playing && hasNext) {
                 player.prepare()
                 player.play()
-                log.started(StartedBy.NAV)
+                trackStarted(StartedBy.NAV)
             } else {
                 player.pause()
                 log.awaitFirstPlay()
             }
         }
         exposed.notifyModes()
-        saving.changed()
+        queueChanged()
     }
 
     /** Puts a removed entry back (undo). A removed current song becomes current again, at its position. */
@@ -230,7 +325,7 @@ internal class PlaybackEngine(
                 player.seekTo(removed.positionMs)
                 if (removed.wasPlaying) {
                     player.play()
-                    log.started(StartedBy.NAV)
+                    trackStarted(StartedBy.NAV)
                 } else {
                     player.pause()
                     log.awaitFirstPlay()
@@ -239,7 +334,7 @@ internal class PlaybackEngine(
                 sync.onQueueEdited()
             }
             exposed.notifyModes()
-            saving.changed()
+            queueChanged()
         }
 
     /**
@@ -253,6 +348,7 @@ internal class PlaybackEngine(
     ) = serial {
         val delta = windowIndex - player.currentMediaItemIndex
         if (delta == 0) {
+            userSeeked()
             if (positionMs == C.TIME_UNSET) {
                 player.seekToDefaultPosition(windowIndex)
             } else {
@@ -264,8 +360,8 @@ internal class PlaybackEngine(
         prepareWindow()
         sync.fill()
         if (positionMs > 0 && positionMs != C.TIME_UNSET) player.seekTo(positionMs)
-        log.started(StartedBy.PICKED)
-        saving.changed()
+        trackStarted(StartedBy.PICKED)
+        queueChanged()
     }
 
     fun next() =
@@ -309,6 +405,7 @@ internal class PlaybackEngine(
 
     fun release() {
         ticker?.cancel()
+        crossfade.release()
         log.stopped()
         saving.saveBlocking()
         player.removeListener(playerEvents)
@@ -319,7 +416,7 @@ internal class PlaybackEngine(
         change()
         prepareWindow()
         sync.onQueueReordered()
-        saving.changed()
+        queueChanged()
     }
 
     /** The queue already moved by one; slide the player along, or reload when the window does not line up. */
@@ -339,8 +436,8 @@ internal class PlaybackEngine(
             sync.fill()
         }
         player.play()
-        log.started(StartedBy.NAV)
-        saving.changed()
+        trackStarted(StartedBy.NAV)
+        queueChanged()
     }
 
     /**

@@ -7,5 +7,9 @@
             android:name=".debug.DebugActivity"
             android:exported="false"
             android:label="Music Player debug" />
+        <activity
+            android:name=".debug.AnalysisBenchmarkActivity"
+            android:exported="false"
+            android:label="Analysis benchmark" />
     </application>
 </manifest>

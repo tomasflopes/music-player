@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -93,5 +94,42 @@ class DataStoreSettingsRepositoryTest {
             newInstance().setMusicRoot(root)
 
             assertEquals(root, newInstance().musicRoot.first())
+        }
+
+    @Test
+    fun crossfadeIsOffAtFourSecondsUntilSet() =
+        runTest {
+            assertEquals(CrossfadeSettings(enabled = false, durationMs = 4_000), newInstance().crossfade.first())
+        }
+
+    @Test
+    fun crossfadeSurvivesANewInstance() =
+        runTest {
+            newInstance().setCrossfade(CrossfadeSettings(enabled = true, durationMs = 9_000))
+
+            assertEquals(CrossfadeSettings(enabled = true, durationMs = 9_000), newInstance().crossfade.first())
+        }
+
+    @Test
+    fun crossfadeLengthIsKeptWhileItIsOff() =
+        runTest {
+            val settings = newInstance()
+            settings.setCrossfade(CrossfadeSettings(enabled = true, durationMs = 7_000))
+
+            settings.setCrossfade(CrossfadeSettings(enabled = false, durationMs = 7_000))
+
+            assertEquals(CrossfadeSettings(enabled = false, durationMs = 7_000), newInstance().crossfade.first())
+        }
+
+    @Test
+    fun crossfadeLengthOutsideTheRangeIsCoerced() =
+        runTest {
+            val settings = newInstance()
+
+            settings.setCrossfade(CrossfadeSettings(enabled = true, durationMs = 100))
+            assertEquals(1_000L, settings.crossfade.first().durationMs)
+
+            settings.setCrossfade(CrossfadeSettings(enabled = true, durationMs = 90_000))
+            assertEquals(12_000L, settings.crossfade.first().durationMs)
         }
 }

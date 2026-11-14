@@ -5,6 +5,7 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
@@ -76,6 +77,8 @@ internal class FakeSettings(
     override val musicRoot: Flow<MusicRoot?> = root
     override val recentlyAddedDays: Flow<Int> = this.days.map { it }
 
+    override val crossfade: Flow<CrossfadeSettings> = MutableStateFlow(CrossfadeSettings())
+
     override suspend fun setMusicRoot(root: MusicRoot) {
         this.root.value = root
     }
@@ -83,6 +86,8 @@ internal class FakeSettings(
     override suspend fun setRecentlyAddedDays(days: Int) {
         this.days.value = days
     }
+
+    override suspend fun setCrossfade(settings: CrossfadeSettings) = Unit
 }
 
 /** A board that always answers with the same ranking. */

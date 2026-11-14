@@ -8,6 +8,8 @@ android {
     namespace = "dev.tomasflopes.musicplayer.data"
     // Room's exported schemas, read by MigrationTestHelper in the instrumented tests.
     sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    // Generated MP3s and their reference, shared with :tools:analyser's ffmpeg test (ADR 0053).
+    sourceSets.getByName("androidTest").assets.srcDir(rootProject.file("testdata/analysis"))
 }
 
 ksp {
@@ -17,6 +19,7 @@ ksp {
 dependencies {
     testImplementation(testFixtures(projects.core.model))
     implementation(projects.core.model)
+    implementation(projects.core.analysis)
     implementation(projects.core.tags)
     implementation(projects.core.search)
     implementation(projects.core.artistimage)
@@ -38,4 +41,5 @@ dependencies {
     androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(testFixtures(projects.core.tags))
+    androidTestImplementation(testFixtures(projects.core.analysis))
 }

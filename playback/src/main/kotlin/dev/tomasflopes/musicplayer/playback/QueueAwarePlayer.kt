@@ -59,6 +59,22 @@ internal class QueueAwarePlayer(
             },
         )
 
+    // A seek the owner makes inside a song hard-cuts its end (crossfade policy, ADR 0062).
+    override fun seekTo(positionMs: Long) {
+        engine.userSeeked()
+        super.seekTo(positionMs)
+    }
+
+    override fun seekForward() {
+        engine.userSeeked()
+        super.seekForward()
+    }
+
+    override fun seekBack() {
+        engine.userSeeked()
+        super.seekBack()
+    }
+
     override fun seekToNext() = engine.next()
 
     override fun seekToNextMediaItem() = engine.next()

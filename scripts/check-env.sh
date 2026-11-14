@@ -10,6 +10,8 @@ if /usr/libexec/java_home -v 21 >/dev/null 2>&1 || [ -n "$(ls -d "$HOME"/.sdkman
   ok "JDK 21 (used by Gradle; .java-version pins it for jenv)"
 else miss "JDK 21  ->  brew install openjdk@21"; fi
 command -v git >/dev/null && ok "git" || miss "git"
+if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then ok "ffmpeg and ffprobe (analyser decoder and its tests, ADR 0053)"
+else miss "ffmpeg (with ffprobe)  ->  brew install ffmpeg"; fi
 
 echo "Android"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"

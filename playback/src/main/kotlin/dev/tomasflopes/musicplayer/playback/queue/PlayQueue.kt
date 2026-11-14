@@ -113,6 +113,19 @@ class PlayQueue(
     fun advanceOnTrackEnd(): QueueEntry? =
         if (repeatMode == RepeatMode.ONE) current else step(forward = true, wraps = repeatMode == RepeatMode.ALL)
 
+    /**
+     * The entry [advanceOnTrackEnd] would move to, without moving. Null at the end of the queue, and when repeat ALL
+     * wraps a shuffled queue, because the wrap reshuffles and the next song is not known yet.
+     */
+    fun peekAdvance(): QueueEntry? =
+        when {
+            entries.isEmpty() -> null
+            repeatMode == RepeatMode.ONE -> current
+            currentIndex + 1 in entries.indices -> entries[currentIndex + 1]
+            repeatMode == RepeatMode.ALL && !shuffled -> entries.first()
+            else -> null
+        }
+
     fun previous(): QueueEntry? = step(forward = false, wraps = repeatMode != RepeatMode.OFF)
 
     fun jumpTo(index: Int): QueueEntry? {

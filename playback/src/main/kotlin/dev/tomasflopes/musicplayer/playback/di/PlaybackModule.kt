@@ -19,6 +19,8 @@ import dev.tomasflopes.musicplayer.playback.MediaControllerPlaybackController
 import dev.tomasflopes.musicplayer.playback.MediaItemMapper
 import dev.tomasflopes.musicplayer.playback.PlaybackConfig
 import dev.tomasflopes.musicplayer.playback.PlaybackController
+import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngineFactory
+import dev.tomasflopes.musicplayer.playback.crossfade.TwoPlayerCrossfadeEngine
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +56,13 @@ object PlaybackModule {
 
     @Provides
     fun mapper() = MediaItemMapper()
+
+    /**
+     * The decision point for how songs are joined (ADR 0061): the two-player blend, or `SinglePlayerEngine.factory`
+     * for the plain Media3 path. Change this one line to compare them.
+     */
+    @Provides
+    fun crossfadeEngineFactory(): CrossfadeEngineFactory = TwoPlayerCrossfadeEngine.factory
 
     @Provides @Singleton
     fun controller(

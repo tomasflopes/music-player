@@ -8,8 +8,11 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngine
+import dev.tomasflopes.musicplayer.playback.crossfade.SinglePlayerEngine
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.log.PlayEventTracker
 import dev.tomasflopes.musicplayer.playback.log.RecordingHistory
@@ -59,9 +62,19 @@ internal class EngineHarness(
     saving: QueueSaving = NoQueueSaving,
     private val inLibrary: (SongId) -> Boolean = { true },
     config: PlaybackConfig = PlaybackConfig(),
+    crossfade: CrossfadeEngine = SinglePlayerEngine,
+    crossfadeSettings: () -> CrossfadeSettings = { CrossfadeSettings() },
+    private val songOf: (Long) -> Song = { song(it) },
 ) {
     var time = 1_000L
     val state = FakePlayerState()
+
+    /** The second ExoPlayer of a crossfade: it keeps its item count and index in step with the window's edits. */
+    val secondState = FakePlayerState()
+    val secondPlayer: ExoPlayer = trackingExoPlayer(secondState)
+
+    /** Every player the session was handed, in order (the engine reports each swap). */
+    val sessionPlayers = mutableListOf<QueueAwarePlayer>()
     val history = RecordingHistory()
     val queue = PlayQueue(ReverseShuffle, Random(1))
     private val recorder =
@@ -81,6 +94,9 @@ internal class EngineHarness(
             recorder,
             store,
             saving,
+            crossfade,
+            crossfadeSettings,
+            { sessionPlayers += it },
         )
 
     init {
@@ -109,7 +125,7 @@ internal class EngineHarness(
 
             override fun observeFolderSongs(folderPath: String): Flow<List<Song>> = emptyFlow()
 
-            override suspend fun songsByIds(ids: List<SongId>) = ids.filter(inLibrary).map { song(it.value) }
+            override suspend fun songsByIds(ids: List<SongId>) = ids.filter(inLibrary).map { songOf(it.value) }
 
             override suspend fun allSongRefs(): List<SongRef> = emptyList()
         }
@@ -137,6 +153,7 @@ private class FakePlayerHandler(
             "getPlayWhenReady" -> state.playing
             "getCurrentMediaItemIndex" -> state.itemIndex
             "getMediaItemCount" -> state.itemCount
+            "getMediaItemAt" -> MediaItem.EMPTY
             "hashCode" -> System.identityHashCode(proxy)
             "equals" -> proxy === args?.get(0)
             "toString" -> "FakeExoPlayer"
@@ -157,6 +174,54 @@ private class FakePlayerHandler(
             Float::class.javaPrimitiveType -> 0f
             else -> null
         }
+    }
+}
+
+private fun trackingExoPlayer(state: FakePlayerState): ExoPlayer =
+    Proxy.newProxyInstance(
+        ExoPlayer::class.java.classLoader,
+        arrayOf(ExoPlayer::class.java),
+        ItemTrackingHandler(state),
+    ) as ExoPlayer
+
+/**
+ * [FakePlayerHandler] that also follows the item list: what the window sync adds and removes moves the count and the
+ * current index the way ExoPlayer would, so a window grown around a playing song stays in line.
+ */
+private class ItemTrackingHandler(
+    private val state: FakePlayerState,
+) : InvocationHandler {
+    private val base = FakePlayerHandler(state)
+
+    override fun invoke(
+        proxy: Any,
+        method: Method,
+        args: Array<Any?>?,
+    ): Any? {
+        val list = args?.toList().orEmpty()
+        when (method.name) {
+            "setMediaItem" -> {
+                state.itemCount = 1
+                state.itemIndex = 0
+            }
+            "setMediaItems" -> {
+                state.itemCount = (list[0] as List<*>).size
+                state.itemIndex = list[1] as Int
+            }
+            "addMediaItems" -> {
+                val at = if (list.size == 2) list[0] as Int else state.itemCount
+                val size = (list.last() as List<*>).size
+                if (at <= state.itemIndex) state.itemIndex += size
+                state.itemCount += size
+            }
+            "removeMediaItems" -> {
+                val from = list[0] as Int
+                val to = list[1] as Int
+                if (from < state.itemIndex) state.itemIndex -= minOf(to, state.itemIndex) - from
+                state.itemCount -= to - from
+            }
+        }
+        return base.invoke(proxy, method, args)
     }
 }
 
