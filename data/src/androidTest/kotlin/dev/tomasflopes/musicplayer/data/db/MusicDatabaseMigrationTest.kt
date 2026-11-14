@@ -77,6 +77,25 @@ class MusicDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration2To3KeepsTheLibraryAndAddsThePlaylistTables() {
+        helper.createDatabase(db, 2).use { v2 ->
+            v2.execSQL("INSERT INTO artist (id, name, sort_name) VALUES (7, 'Rui Veloso', 'rui veloso')")
+        }
+
+        helper.runMigrationsAndValidate(db, 3, true, Migrations.MIGRATION_2_3).use { v3 ->
+            v3.query("SELECT name FROM artist WHERE id = 7").use {
+                assertTrue(it.moveToFirst())
+                assertEquals("Rui Veloso", it.getString(0))
+            }
+            v3.execSQL(
+                "INSERT INTO playlist (id, name, created_at, updated_at, last_used_at) VALUES (1, 'Gym', 1, 1, 1)",
+            )
+            v3.execSQL("INSERT INTO playlist_song (playlist_id, song_id, position, added_at) VALUES (1, 42, 0, 1)")
+            assertEquals(setOf("playlist"), foreignKeys(v3, "playlist_song"))
+        }
+    }
+
     private fun foreignKeys(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,
