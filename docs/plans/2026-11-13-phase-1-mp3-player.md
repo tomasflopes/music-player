@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** decisions approved by the owner on 2026-11-13, with three additions (section 0.0). Waiting for the go-ahead to start building.
+**Status:** phase 1 is built and accepted (2026-11-14), tagged `phase-1`. Task 31's phone measurements and `deviceCheck` run are not recorded. Decisions were approved by the owner on 2026-11-13, with three additions (section 0.0).
 
 **Goal:** A polished, fully offline Android MP3 player the owner can use daily instead of Vinyl: folder-scoped library read from ID3 tags, albums in exact disc/track order, Folders/Artists/Albums/Songs, Recently added, better search with featured artists, plain shuffle with Play next / Add to queue, notification and car Bluetooth controls, and a listening log recorded from day one.
 
@@ -918,7 +918,7 @@ Each task follows the same shape: `XUiState.kt`, `XViewModel.kt` (one `StateFlow
 | Task | Feature (package under `app/{m}/`) | Behaviour to build | ViewModel tests (assertions) |
 |---|---|---|---|
 | 23 | `onboarding/` | Welcome → `READ_MEDIA_AUDIO` → folder picker → first scan with progress → Home. Permission denied: explain and offer Settings. Unsupported folder (not internal storage or SD card): say so, pick again. Zero MP3s found: say so, offer to pick again. | state walks `Welcome → NeedsFolder → Scanning(done, total) → Done`; denied permission → `PermissionDenied`; unmapped tree id → `UnsupportedFolder`; `total = 0` → `EmptyFolder`; root saved exactly once |
-| 24 | `home/`, `home/sections/{ShuffleAllSection,DynamicListsSection}`, `home/dynamiclist/` | Home renders the `HomeSection` set in `order`. Shuffle all → `PlayRequest(allSongRefs(), 0, shuffle = true, SHUFFLE_ALL, picked = false)`. One card per `DynamicListProvider`. Recently added screen: chip "Last 20 days" → options 7 / 15 / 20 / 30 / 60 / 90 + custom; applies at once; Play and Shuffle with source `RECENTLY_ADDED`. | shuffle-all sends every song exactly once with `shuffle = true` and `SHUFFLE_ALL`; choosing 15 calls `setRecentlyAddedDays(15)` and the list re-emits; custom `0` and `5000` are rejected; a second fake provider appears on Home with no Home code change |
+| 24 | `home/`, `home/sections/{ShuffleAllSection,DynamicListsSection}`, `home/dynamiclist/` | Home renders the `HomeSection` set in `order`. Shuffle all → `PlayRequest(allSongRefs(), 0, shuffle = true, SHUFFLE_ALL, picked = false)`. One card per `DynamicListProvider`. Recently added screen: caption "Last 20 days" (the chip with options 7 / 15 / 20 / 30 / 60 / 90 + custom was dropped, ADR 0022); the value applies at once; Play and Shuffle with source `RECENTLY_ADDED`. | shuffle-all sends every song exactly once with `shuffle = true` and `SHUFFLE_ALL`; choosing 15 calls `setRecentlyAddedDays(15)` and the list re-emits; custom `0` and `5000` are rejected; a second fake provider appears on Home with no Home code change |
 | 25 | `library/` (`songs/`, `artists/`, `albums/`) | Tabs Artists · Albums · Folders · Songs; lazy lists with stable keys; A–Z rail from `SectionIndexer`; song tap plays from that song in list order (source `SONGS`, shuffle off, `picked = true`); song menu → Play next / Add to queue. | sections match sort keys; tapping the 3rd song sends `startIndex = 2`, `shuffle = false`, `picked = true`, `SONGS`; menu actions call `playNext` / `addToQueue` with that id |
 | 26 | `library/album/`, `library/artist/` | Album: cover, album artist, tracks in disc → track order with numbers shown, disc headers when more than one disc, Play / Shuffle (source `ALBUM`; Play is never shuffled). Artist: albums, own songs, "Featured on"; tapping a song plays the artist's own songs in the listed order from that song (source `ARTIST`, shuffle off); the Shuffle button starts them shuffled (source `ARTIST_SHUFFLE`). | album Play sends ids in `AlbumOrder`; disc headers only when discs > 1; tapping an artist's 2nd song sends the listed order with `startIndex = 1`, `ARTIST`, `shuffle = false`; artist shuffle sends `shuffle = true`, `ARTIST_SHUFFLE`, own songs only; Featured on lists `observeFeaturedOn`, after own songs |
 | 27 | `library/folders/` | Tree from the music root; folders first, then songs in natural file-name order; Play / Shuffle a folder (direct songs, source `FOLDER`); system back goes up one level. | root shows `observeChildren(null)`; entering and backing restores the parent; play sends the folder's songs in display order |
@@ -938,28 +938,30 @@ Per task: - [ ] write the ViewModel test (fails) · - [ ] implement state, ViewM
 
 - [ ] `OnboardingFlowTest`: fresh install, permission granted, sample root pre-set through a test hook → scan finishes → Home shows Shuffle all and Recently added. `ShuffleAllFlowTest`: tap Shuffle all → mini-player shows a title from the sample set and the pause icon within 5 s.
 - [ ] **Owner + phone:** measure against the budget (cold start < 1.5 s, search < 100 ms per keystroke, Shuffle all < 500 ms, no dropped frames fast-scrolling Songs). If Songs or Artists stutter, switch those two lists to Paging 3 (guidelines §3.3; one more dependency, asked first).
-- [ ] `CONTRIBUTING.md` recipes, each naming the interface, the one binding line, and the contract test to extend: add a dynamic list · add a search field or tier · add a Home section · swap the shuffle strategy · change the schema. `README.md`: status, sample set commands, `deviceCheck`.
-- [ ] `docs/adr/INDEX.md` lists every ADR written during phase 1, one line each.
+- [x] `CONTRIBUTING.md` recipes, each naming the interface, the one binding line, and the contract test to extend: add a dynamic list · add a search field or tier · add a Home section · swap the shuffle strategy · change the schema. `README.md`: status, sample set commands, `deviceCheck`.
+- [x] `docs/adr/INDEX.md` lists every ADR written during phase 1, one line each.
 - [ ] `./gradlew check deviceCheck` green. Commit.
+
+Not recorded as done: the two UI flow tests have not been run on the emulator, the phone measurements and the Paging 3 decision are the owner's, and `deviceCheck` has not been run.
 
 ### Task 32: Acceptance: can Vinyl go?
 
 Owner runs both apps side by side for a few days, then ticks:
 
-- [ ] Onboarding picked the music folder; no WhatsApp audio, recordings or ringtones in any list.
-- [ ] Song, artist, album and album-artist text match your tags exactly on five songs you choose.
-- [ ] Five albums you play often list and play in the tagged order, across discs.
-- [ ] Folders, Artists, Albums, Songs all there; A–Z rail jumps correctly.
-- [ ] Recently added shows the same songs as Vinyl at 20 days; changing to 15 takes one tap and applies at once.
-- [ ] Searching "Ed" shows the artist Ed first; "Faded" / "Ended" only under See all.
-- [ ] An artist page shows "Featured on" with songs where they are credited in the title.
-- [ ] Shuffle all, artist shuffle, Play next, Add to queue behave as expected.
-- [ ] Tapping a song on an artist page plays the songs in order; the shuffle button then shuffles the rest without interrupting the song; pressing it again restores the order.
-- [ ] Repeat all and repeat one work, also after the screen has been off.
-- [ ] Search finds names with symbols whether or not you type them (`jayz` / `jay-z`, `asap`, `maad city`), and shows them exactly as tagged.
-- [ ] Notification and lock-screen controls; car display and steering-wheel controls; resume from the car.
-- [ ] The debug screen shows a growing listening log with sensible `source` and `ended_by` values.
-- [ ] Nothing you used daily in Vinyl is missing. → Uninstall Vinyl. Phase 1 done; merge, tag `phase-1`.
+- [x] Onboarding picked the music folder; no WhatsApp audio, recordings or ringtones in any list.
+- [x] Song, artist, album and album-artist text match your tags exactly on five songs you choose.
+- [x] Five albums you play often list and play in the tagged order, across discs.
+- [x] Folders, Artists, Albums, Songs all there; A–Z rail jumps correctly.
+- [x] Recently added shows the same songs as Vinyl at 20 days; changing it to 15 applies at once (edited in Settings only, ADR 0022).
+- [x] Searching "Ed" shows the artist Ed first; "Faded" / "Ended" only under See all.
+- [x] An artist page shows "Featured on" with songs where they are credited in the title.
+- [x] Shuffle all, artist shuffle, Play next, Add to queue behave as expected.
+- [x] Tapping a song on an artist page plays the songs in order; the shuffle button then shuffles the rest without interrupting the song; pressing it again restores the order.
+- [x] Repeat all and repeat one work, also after the screen has been off.
+- [x] Search finds names with symbols whether or not you type them (`jayz` / `jay-z`, `asap`, `maad city`), and shows them exactly as tagged.
+- [x] Notification and lock-screen controls; car display and steering-wheel controls; resume from the car.
+- [x] The debug screen shows a growing listening log with sensible `source` and `ended_by` values.
+- [x] Nothing you used daily in Vinyl is missing. → Uninstall Vinyl. Phase 1 done; merge, tag `phase-1`.
 
 ---
 
