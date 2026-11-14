@@ -198,4 +198,42 @@ class PlayQueueTest {
         assertEquals('B', restored.current?.name)
         assertEquals("ABYCDE", restored.names())
     }
+
+    @Test
+    fun `songs played from a playlist carry its id and queued songs never do`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+        queue.replace(refs("ABC"), 0, PlaySource.PLAYLIST, false, playlistId = 5L)
+        queue.playNext(refs("Z"))
+
+        assertEquals(listOf(5L, null, 5L, 5L), queue.snapshot().entries.map { it.playlistId })
+    }
+
+    @Test
+    fun `turning shuffle on and off keeps the playlist id`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+        queue.replace(refs("ABCD"), 0, PlaySource.PLAYLIST, false, playlistId = 5L)
+
+        queue.setShuffled(true)
+        assertEquals(
+            setOf(5L),
+            queue
+                .snapshot()
+                .entries
+                .map { it.playlistId }
+                .toSet(),
+        )
+
+        queue.setShuffled(false)
+        assertEquals(listOf(5L, 5L, 5L, 5L), queue.snapshot().entries.map { it.playlistId })
+    }
+
+    @Test
+    fun `a new play without a playlist forgets the old one`() {
+        val queue = PlayQueue(ReverseShuffle, Random(1))
+        queue.replace(refs("AB"), 0, PlaySource.PLAYLIST, false, playlistId = 5L)
+
+        queue.replace(refs("CD"), 0, PlaySource.ALBUM, false)
+
+        assertEquals(listOf(null, null), queue.snapshot().entries.map { it.playlistId })
+    }
 }

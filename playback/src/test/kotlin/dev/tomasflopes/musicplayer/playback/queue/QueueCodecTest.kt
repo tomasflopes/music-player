@@ -39,6 +39,29 @@ class QueueCodecTest {
     }
 
     @Test
+    fun `the playlist an entry came from survives the round trip`() {
+        val list = (1L..4L).map(::ref)
+        val entries =
+            listOf(
+                QueueEntry(list[0], PlaySource.PLAYLIST, manual = false, playlistId = 7L),
+                QueueEntry(list[1], PlaySource.PLAYLIST, manual = false, playlistId = 7L),
+                QueueEntry(list[2], PlaySource.QUEUE, manual = true),
+                QueueEntry(list[3], PlaySource.ALBUM, manual = false, playlistId = 1_000_000_000_000L),
+            )
+        val original = SavedQueue(QueueSnapshot(entries, list, 1, shuffled = false, repeatMode = RepeatMode.OFF), 5L)
+
+        val decoded = QueueCodec.decode(QueueCodec.encode(original))
+
+        assertEquals(original, decoded)
+        assertEquals(listOf(7L, 7L, null, 1_000_000_000_000L), decoded?.snapshot?.entries?.map { it.playlistId })
+    }
+
+    @Test
+    fun `a queue saved before playlists were logged is ignored`() {
+        assertEquals(2, QueueCodec.VERSION)
+    }
+
+    @Test
     fun `every repeat mode and the unshuffled state round trip`() {
         RepeatMode.entries.forEach { mode ->
             val snapshot = saved().snapshot.copy(shuffled = false, repeatMode = mode)

@@ -42,6 +42,7 @@ class PlayQueue(
         source: PlaySource,
         shuffled: Boolean,
         randomStart: Boolean = false,
+        playlistId: Long? = null,
     ) {
         val pendingManual = upcomingManual()
         this.shuffled = shuffled
@@ -50,7 +51,7 @@ class PlayQueue(
         entries.clear()
         val manualAhead = pendingManual.map { it.ref }
         val order = ordering.initial(songs, startIndex, source, shuffled, randomStart, manualAhead)
-        entries += order.map { QueueEntry(it, label, manual = false) }
+        entries += order.map { QueueEntry(it, label, manual = false, playlistId = playlistId) }
         currentIndex =
             when {
                 entries.isEmpty() -> -1

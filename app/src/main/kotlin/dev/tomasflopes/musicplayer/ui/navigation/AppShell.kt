@@ -151,6 +151,7 @@ private fun NavGraphBuilder.playlistDestinations(navController: NavHostControlle
         PlaylistScreen(
             playlistId = id,
             onBack = { navController.popBackStack() },
+            onDeleted = { navController.popBackStack() },
             onAddSongs = { navController.navigate(PlaylistPickerRoute.create(id)) },
         )
     }

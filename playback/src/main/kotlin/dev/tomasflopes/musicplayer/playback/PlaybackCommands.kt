@@ -21,6 +21,7 @@ internal object PlaybackCommands {
     private const val SHUFFLE = "shuffle"
     private const val SOURCE = "source"
     private const val PICKED = "picked"
+    private const val PLAYLIST_ID = "playlistId"
     private const val INDEX = "index"
 
     fun bundleOf(refs: List<SongRef>) =
@@ -42,6 +43,7 @@ internal object PlaybackCommands {
             putBoolean(SHUFFLE, request.shuffle)
             putString(SOURCE, request.source.wire)
             putBoolean(PICKED, request.picked)
+            request.playlistId?.let { putLong(PLAYLIST_ID, it) }
         }
 
     fun requestOf(bundle: Bundle) =
@@ -51,6 +53,7 @@ internal object PlaybackCommands {
             shuffle = bundle.getBoolean(SHUFFLE),
             source = PlaySource.fromWire(bundle.getString(SOURCE) ?: PlaySource.SONGS.wire),
             picked = bundle.getBoolean(PICKED),
+            playlistId = if (bundle.containsKey(PLAYLIST_ID)) bundle.getLong(PLAYLIST_ID) else null,
         )
 
     fun bundleOf(index: Int) = Bundle().apply { putInt(INDEX, index) }

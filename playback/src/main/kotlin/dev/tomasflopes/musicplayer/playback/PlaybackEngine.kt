@@ -61,7 +61,14 @@ internal class PlaybackEngine(
         serial {
             // A shuffle nobody picked a song for starts on a random song, not on the first of the list.
             val randomStart = request.shuffle && !request.picked
-            queue.replace(request.songs, request.startIndex, request.source, request.shuffle, randomStart)
+            queue.replace(
+                request.songs,
+                request.startIndex,
+                request.source,
+                request.shuffle,
+                randomStart,
+                request.playlistId,
+            )
             prepareWindow()
             sync.onQueueReplaced()
             player.prepare()

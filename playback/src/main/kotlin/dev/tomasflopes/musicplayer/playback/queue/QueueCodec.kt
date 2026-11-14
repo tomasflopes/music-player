@@ -14,17 +14,20 @@ import java.util.zip.CRC32
  * Layout, big-endian: magic, version, refs (count, then song id and artist id each), the source names used (count,
  * then length-prefixed UTF-8; permanent `wire` values, so enum order may change), entries (count, then ref number,
  * source number and manual flag each), original order (count, then ref numbers), current index, shuffled flag,
- * repeat mode, position, and a CRC-32 of everything before it. Anything that does not match decodes to `null`:
- * a state from another [VERSION] is ignored, never guessed at.
+ * repeat mode, position, and a CRC-32 of everything before it. Version 2 (ADR 0042) adds the playlist table (count,
+ * then the ids) and a playlist number on each entry (-1 for none); version 1 files are ignored.
+ * Anything that does not match decodes to `null`: a state from another [VERSION] is ignored, never guessed at.
  */
 object QueueCodec {
-    const val VERSION = 1
+    const val VERSION = 2
 
     private const val MAGIC = 0x4D505153
     private const val CHECKSUM_BYTES = 4
     private const val HEADER_BYTES = 8
     private const val REF_BYTES = 16
-    private const val ENTRY_BYTES = 6
+    private const val ENTRY_BYTES = 8
+    private const val NO_PLAYLIST: Short = -1
+    private const val PLAYLIST_BYTES = 8
     private const val ORIGINAL_BYTES = 4
     private const val TAIL_BYTES = 4 + 1 + 1 + 8
 
@@ -34,9 +37,12 @@ object QueueCodec {
         (snapshot.entries.map { it.ref } + snapshot.originalOrder).forEach { refs.getOrPut(it) { refs.size } }
         val sources = LinkedHashMap<PlaySource, Int>()
         snapshot.entries.forEach { sources.getOrPut(it.source) { sources.size } }
+        val playlists = LinkedHashMap<Long, Int>()
+        snapshot.entries.forEach { entry -> entry.playlistId?.let { playlists.getOrPut(it) { playlists.size } } }
         val names = sources.keys.map { it.wire.toByteArray() }
         val size =
-            HEADER_BYTES + 4 + refs.size * REF_BYTES + 4 + names.sumOf { 1 + it.size } + 4 +
+            HEADER_BYTES + 4 + refs.size * REF_BYTES + 4 + names.sumOf { 1 + it.size } +
+                4 + playlists.size * PLAYLIST_BYTES + 4 +
                 snapshot.entries.size * ENTRY_BYTES + 4 + snapshot.originalOrder.size * ORIGINAL_BYTES +
                 TAIL_BYTES + CHECKSUM_BYTES
         val buffer = ByteBuffer.allocate(size)
@@ -44,9 +50,12 @@ object QueueCodec {
         refs.keys.forEach { buffer.putLong(it.songId.value).putLong(it.mainArtistId.value) }
         buffer.putInt(names.size)
         names.forEach { buffer.put(it.size.toByte()).put(it) }
+        buffer.putInt(playlists.size)
+        playlists.keys.forEach { buffer.putLong(it) }
         buffer.putInt(snapshot.entries.size)
         snapshot.entries.forEach {
             buffer.putInt(refs.getValue(it.ref)).put(sources.getValue(it.source).toByte()).put(flag(it.manual))
+            buffer.putShort(it.playlistId?.let { id -> playlists.getValue(id).toShort() } ?: NO_PLAYLIST)
         }
         buffer.putInt(snapshot.originalOrder.size)
         snapshot.originalOrder.forEach { buffer.putInt(refs.getValue(it)) }
@@ -68,7 +77,8 @@ object QueueCodec {
         require(buffer.int == MAGIC && buffer.int == VERSION) { "magic or version" }
         val refs = readRefs(buffer)
         val sources = readSources(buffer)
-        val entries = readEntries(buffer, refs, sources)
+        val playlists = List(count(buffer, PLAYLIST_BYTES)) { buffer.long }
+        val entries = readEntries(buffer, refs, sources, playlists)
         val original = List(count(buffer, ORIGINAL_BYTES)) { refs[buffer.int] }
         val index = buffer.int
         require(index in -1..entries.lastIndex) { "index" }
@@ -92,9 +102,14 @@ object QueueCodec {
         buffer: ByteBuffer,
         refs: List<SongRef>,
         sources: List<PlaySource>,
+        playlists: List<Long>,
     ): List<QueueEntry> =
         List(count(buffer, ENTRY_BYTES)) {
-            QueueEntry(refs[buffer.int], sources[buffer.get().toInt()], readFlag(buffer.get()))
+            val ref = refs[buffer.int]
+            val source = sources[buffer.get().toInt()]
+            val manual = readFlag(buffer.get())
+            val playlist = buffer.short
+            QueueEntry(ref, source, manual, if (playlist == NO_PLAYLIST) null else playlists[playlist.toInt()])
         }
 
     /** A count that the bytes left could hold; a damaged count cannot make a huge list. */
