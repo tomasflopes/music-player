@@ -18,6 +18,7 @@ import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
@@ -52,6 +53,9 @@ private fun ReadyContent(
         onShuffle = viewModel::onShuffle,
         enabled = ready.songs.isNotEmpty(),
     )
+    SaveAsPlaylistButton(ready.title, enabled = ready.songs.isNotEmpty()) {
+        saveList(it, ready.songs.map { song -> song.id }, ready.playSource)
+    }
     val selection = remember { SelectionState() }
     SelectionBar(selection, ready.songs)
     if (ready.songs.isEmpty()) {

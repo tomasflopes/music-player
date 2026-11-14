@@ -3,6 +3,7 @@ package dev.tomasflopes.musicplayer.playback.queue
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.taste.shuffle.ShuffleStrategy
+import dev.tomasflopes.musicplayer.playback.QueueContent
 import kotlin.random.Random
 
 /**
@@ -141,6 +142,12 @@ class PlayQueue(
         if (index !in entries.indices || index == currentIndex) return
         entries.removeAt(index)
         if (index < currentIndex) currentIndex--
+    }
+
+    /** The current song and everything after it; see [QueueContent]. */
+    fun content(): QueueContent {
+        val tail = entries.drop(maxOf(currentIndex, 0))
+        return QueueContent(tail.map { it.ref.songId }, tail.filter { !it.manual }.map { it.source }.toSet())
     }
 
     fun snapshot() = QueueSnapshot(entries.toList(), originalOrder, currentIndex, shuffled, repeatMode)

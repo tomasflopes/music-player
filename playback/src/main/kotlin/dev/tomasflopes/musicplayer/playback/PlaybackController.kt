@@ -9,6 +9,9 @@ interface PlaybackController {
 
     fun play(request: PlayRequest)
 
+    /** The queue from the current song on, as it is now. */
+    fun queueContent(): QueueContent
+
     fun playNext(songs: List<SongRef>)
 
     fun addToQueue(songs: List<SongRef>)

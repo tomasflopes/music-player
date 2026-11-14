@@ -47,3 +47,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0041](0041-playlists-on-home-in-library-and-a-plain-song-picker.md) | Playlists on Home and in Library; a new playlist gets its first songs from a plain song picker | accepted |
 | [0042](0042-play-events-log-the-playlist-through-a-playlist-id-on-each-queue-entry.md) | Play events log the playlist via a playlist id on each queue entry; `PendingPlayStore` field 9; `QueueCodec` v2 | accepted |
 | [0043](0043-the-playlist-page-edits-in-place-with-a-drag-handle-swipe-and-a-menu.md) | The playlist page edits in place: drag handle (`reorderable`), swipe to remove, menu for rename and delete | accepted |
+| [0044](0044-save-as-playlist-is-one-use-case-refusing-shuffle-all-and-more-than-500-songs.md) | Save as playlist is one use case; refuses Shuffle all and more than 500 songs; the queue is read through `queueContent()` | accepted |

@@ -10,6 +10,7 @@ import dev.tomasflopes.musicplayer.core.model.playlists.AddSongsToPlaylist
 import dev.tomasflopes.musicplayer.core.model.playlists.CreatePlaylist
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistStore
 import dev.tomasflopes.musicplayer.core.model.playlists.RenamePlaylist
+import dev.tomasflopes.musicplayer.core.model.playlists.SaveAsPlaylist
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import java.time.Clock
 
@@ -41,4 +42,6 @@ object PlaylistModule {
         songs: SongReader,
         add: AddSongsToPlaylist,
     ) = AddArtistToPlaylist(songs, add)
+
+    @Provides fun saveAsPlaylist(create: CreatePlaylist) = SaveAsPlaylist(create)
 }
