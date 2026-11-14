@@ -19,8 +19,10 @@ class PlayQueue(
     random: Random,
     /** Orders artist shuffles, which are exempt from smart shuffle's artist spacing (design 7.8, ADR 0035). */
     artistShuffle: ShuffleStrategy = strategy,
+    /** Orders shuffles of the Recently added list, which play songs the owner keeps skipping later (ADR 0050). */
+    recentlyAdded: ShuffleStrategy = strategy,
 ) {
-    private val ordering = QueueOrdering(strategy, random, artistShuffle)
+    private val ordering = QueueOrdering(strategy, random, artistShuffle, recentlyAdded)
     private val entries = mutableListOf<QueueEntry>()
     private var originalOrder: List<SongRef> = emptyList()
     private var currentIndex = -1

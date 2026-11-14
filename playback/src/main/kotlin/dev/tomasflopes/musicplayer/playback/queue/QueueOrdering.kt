@@ -10,10 +10,18 @@ internal class QueueOrdering(
     private val strategy: ShuffleStrategy,
     private val random: Random,
     private val artistShuffle: ShuffleStrategy = strategy,
+    private val recentlyAdded: ShuffleStrategy = strategy,
 ) {
-    /** Artist shuffle is the one shuffle without artist spacing (design 7.8), so it gets [artistShuffle]. */
+    /**
+     * Artist shuffle is the one shuffle without artist spacing (design 7.8), so it gets [artistShuffle]; the Recently
+     * added list gets the skip-aware [recentlyAdded] (design 7.7, ADR 0050).
+     */
     private fun strategyFor(source: PlaySource?): ShuffleStrategy =
-        if (source?.withShuffle(true) == PlaySource.ARTIST_SHUFFLE) artistShuffle else strategy
+        when {
+            source?.withShuffle(true) == PlaySource.ARTIST_SHUFFLE -> artistShuffle
+            source == PlaySource.RECENTLY_ADDED -> recentlyAdded
+            else -> strategy
+        }
 
     /**
      * The strategy's order of [automatic]'s songs, as the same entries, for songs that play right after
