@@ -5,8 +5,11 @@ import android.content.Context
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.model.queue.QueueSlot
+import dev.tomasflopes.musicplayer.core.model.queue.queueLayoutOf
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -63,6 +66,34 @@ internal class MediaControllerPlaybackController(
 
     override fun jumpToUpcoming(index: Int) = send(PlaybackCommands.jumpToUpcoming, PlaybackCommands.bundleOf(index))
 
+    override fun jumpToQueueIndex(
+        index: Int,
+        songId: SongId,
+    ) = send(PlaybackCommands.jumpToQueueIndex, PlaybackCommands.bundleOf(index, songId))
+
+    override fun removeFromQueue(
+        index: Int,
+        songId: SongId,
+    ): RemovedQueueEntry? {
+        val entry = queue.entryAt(index)?.takeIf { it.ref.songId == songId } ?: return null
+        val removed =
+            RemovedQueueEntry(
+                index = index,
+                ref = entry.ref,
+                source = entry.source,
+                manual = entry.manual,
+                playlistId = entry.playlistId,
+                wasCurrent = index == queue.index,
+                positionMs = controller?.currentPosition ?: 0,
+                wasPlaying = controller?.playWhenReady == true,
+            )
+        send(PlaybackCommands.removeFromQueue, PlaybackCommands.bundleOf(index, songId))
+        return removed
+    }
+
+    override fun restoreToQueue(entry: RemovedQueueEntry) =
+        send(PlaybackCommands.restoreToQueue, PlaybackCommands.bundleOf(entry))
+
     override fun togglePlayPause() = withController { if (it.isPlaying) it.pause() else it.play() }
 
     override fun next() = withController { it.seekToNext() }
@@ -112,17 +143,26 @@ internal class MediaControllerPlaybackController(
 
     private suspend fun publish() {
         val player = controller
-        val window = queue.window(behind = 0, ahead = config.windowAhead)
-        val loaded = songs.songsByIds(window.map { it.ref.songId }.distinct()).associateBy { it.id }
-        val upcoming = upcomingOf(window.drop(1), loaded)
+        val currentIndex = queue.index
+        val window = queue.indexedWindow(behind = config.historyShown, ahead = config.windowAhead)
+        val loaded = songs.songsByIds(window.map { it.second.ref.songId }.distinct()).associateBy { it.id }
+        val layout =
+            queueLayoutOf(
+                window.map { (index, entry) -> QueueSlot(index, entry.ref.songId, entry.manual) },
+                currentIndex,
+            ) { it in loaded }
         _state.value =
             PlaybackState(
-                current = window.firstOrNull()?.let { loaded[it.ref.songId] },
+                current = layout.current?.let { loaded[it.songId] },
                 isPlaying = player?.isPlaying == true,
                 positionMs = player?.currentPosition ?: 0,
                 durationMs = (player?.duration ?: 0).coerceAtLeast(0),
-                upcoming = upcoming.songs,
-                manualUpcoming = upcoming.manualCount,
+                upcoming = layout.upcoming.mapNotNull { loaded[it.songId] },
+                manualUpcoming = layout.manualUpcoming,
+                played = layout.played.mapNotNull { loaded[it.songId] },
+                playedIndices = layout.played.map { it.index },
+                currentIndex = layout.current?.index ?: currentIndex,
+                upcomingIndices = layout.upcoming.map { it.index },
                 hasPrevious = queue.index > 0 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0),
                 hasNext = queue.index < queue.size - 1 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0),
                 shuffle = queue.shuffled,

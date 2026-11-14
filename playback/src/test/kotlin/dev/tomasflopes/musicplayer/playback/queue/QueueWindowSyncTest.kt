@@ -45,6 +45,12 @@ class QueueWindowSyncTest {
             currentIndex -= count
             log += "removeFirst($count)"
         }
+
+        override fun prepend(refs: List<SongRef>) {
+            items.addAll(0, refs)
+            currentIndex += refs.size
+            log += "prepend(${refs.size})"
+        }
     }
 
     private val config = PlaybackConfig(windowAhead = 3, windowBehind = 2)
@@ -65,6 +71,61 @@ class QueueWindowSyncTest {
         val queue = queue(('A'..'Z').take(size).joinToString(""))
         val player = FakePlayerItems()
         return Rig(queue, player, QueueWindowSync(queue, player, config))
+    }
+
+    private fun advanceTo(
+        rig: Rig,
+        steps: Int,
+    ) = repeat(steps) {
+        rig.queue.next()
+        rig.player.currentIndex++
+        rig.sync.onPlayerAdvanced()
+    }
+
+    @Test
+    fun `removing a played song swaps the songs before the current one and never refills`() {
+        val rig = setUp()
+        rig.sync.fill()
+        advanceTo(rig, 3)
+        rig.player.log.clear()
+
+        rig.queue.remove(1)
+        rig.sync.onQueueEdited()
+
+        assertEquals(rig.queue.current?.ref, rig.player.items[rig.player.currentIndex])
+        assertEquals(rig.queue.window(2, 3).map { it.ref }, rig.player.items)
+        assertTrue(rig.player.log.none { it.startsWith("setAll") }, rig.player.log.toString())
+    }
+
+    @Test
+    fun `removing an upcoming song replaces only the tail`() {
+        val rig = setUp()
+        rig.sync.fill()
+        advanceTo(rig, 2)
+        rig.player.log.clear()
+
+        rig.queue.remove(rig.queue.index + 1)
+        rig.sync.onQueueEdited()
+
+        assertEquals(rig.queue.window(2, 3).map { it.ref }, rig.player.items)
+        assertTrue(rig.player.log.none { it.startsWith("setAll") || it.startsWith("prepend") }, rig.player.log.toString())
+    }
+
+    @Test
+    fun `putting a played song back restores the window without a refill`() {
+        val rig = setUp()
+        rig.sync.fill()
+        advanceTo(rig, 3)
+        val entry = rig.queue.remove(1)!!
+        rig.sync.onQueueEdited()
+        rig.player.log.clear()
+
+        rig.queue.insertAt(1, entry)
+        rig.sync.onQueueEdited()
+
+        assertEquals(rig.queue.window(2, 3).map { it.ref }, rig.player.items)
+        assertEquals(rig.queue.current?.ref, rig.player.items[rig.player.currentIndex])
+        assertTrue(rig.player.log.none { it.startsWith("setAll") }, rig.player.log.toString())
     }
 
     @Test

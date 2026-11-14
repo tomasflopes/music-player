@@ -16,11 +16,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +35,7 @@ import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.components.SwipeToRemove
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -167,14 +165,7 @@ private fun SongList(
         items(shown.size, key = { shown[it].id.value }) { index ->
             val song = shown[index]
             ReorderableItem(reorder, key = song.id.value) {
-                val swipe =
-                    rememberSwipeToDismissBoxState(
-                        confirmValueChange = {
-                            if (it != SwipeToDismissBoxValue.Settled) viewModel.remove(song.id)
-                            it != SwipeToDismissBoxValue.Settled
-                        },
-                    )
-                SwipeToDismissBox(state = swipe, backgroundContent = {}) {
+                SwipeToRemove(onRemove = { viewModel.remove(song.id) }, resetKey = song.id) {
                     SongRow(
                         song,
                         onClick = { viewModel.onSongClick(songs.indexOfFirst { it.id == song.id }) },

@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.ui.nowplaying
 
+import dev.tomasflopes.musicplayer.core.model.undo.SingleUndoSlot
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.testSong
 import dev.tomasflopes.musicplayer.playback.PlaybackState
@@ -11,7 +12,8 @@ import org.junit.jupiter.api.Test
 
 class NowPlayingViewModelTest {
     private val playback = FakePlaybackController()
-    private val viewModel = NowPlayingViewModel(playback)
+    private val undo = SingleUndoSlot()
+    private val viewModel = NowPlayingViewModel(playback, undo)
 
     @Test
     fun `the state is what the player reports`() {
@@ -105,4 +107,44 @@ class NowPlayingViewModelTest {
         assertEquals(inOrder.reversed(), viewModel.state.value.upcoming)
         assertTrue(viewModel.state.value.shuffle)
     }
+
+    @Test
+    fun `jumping sends the place and the song, and does not change the queue`() {
+        viewModel.jumpTo(4, testSong(7))
+
+        assertEquals(listOf(4 to testSong(7).id), playback.queueJumps)
+        assertTrue(playback.removals.isEmpty())
+    }
+
+    @Test
+    fun `removing a song asks for that place and offers an undo`() {
+        viewModel.remove(3, testSong(7))
+
+        assertEquals(listOf(3 to testSong(7).id), playback.removals)
+        assertEquals("Removed \"${testSong(7).title}\" from the queue", undo.pending.value?.message)
+    }
+
+    @Test
+    fun `undo puts the removed entry back where it was`() =
+        kotlinx.coroutines.runBlocking {
+            viewModel.remove(3, testSong(7))
+
+            undo.undo(undo.pending.value!!.id)
+
+            assertEquals(listOf(3), playback.restored.map { it.index })
+            assertEquals(testSong(7).id, playback.restored.single().ref.songId)
+        }
+
+    @Test
+    fun `a new removal replaces the pending undo, so only the last one comes back`() =
+        kotlinx.coroutines.runBlocking {
+            viewModel.remove(3, testSong(7))
+            val first = undo.pending.value!!
+            viewModel.remove(5, testSong(8))
+
+            assertEquals(false, undo.undo(first.id))
+            undo.undo(undo.pending.value!!.id)
+
+            assertEquals(listOf(5), playback.restored.map { it.index })
+        }
 }

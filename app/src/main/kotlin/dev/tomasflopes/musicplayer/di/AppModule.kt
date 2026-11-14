@@ -7,6 +7,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
+import dev.tomasflopes.musicplayer.core.model.undo.SingleUndoSlot
+import dev.tomasflopes.musicplayer.core.model.undo.UndoSlot
 import dev.tomasflopes.musicplayer.core.taste.config.TasteConfig
 import dev.tomasflopes.musicplayer.playback.CoverBitmapSource
 import dev.tomasflopes.musicplayer.ui.art.CoverArtBitmapSource
@@ -35,6 +37,11 @@ object AppModule {
     @Provides
     @Singleton
     fun clock(): Clock = Clock.systemUTC()
+
+    /** The one pending undo of the app, shared by the queue and playlists (ADR 0046). */
+    @Provides
+    @Singleton
+    fun undoSlot(): UndoSlot = SingleUndoSlot()
 
     @Provides
     @Singleton

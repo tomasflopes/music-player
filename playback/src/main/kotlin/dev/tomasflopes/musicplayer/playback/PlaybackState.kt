@@ -11,6 +11,12 @@ data class PlaybackState(
     val upcoming: List<Song> = emptyList(),
     /** How many of the first [upcoming] songs came from Play next / Add to queue (ADR 0010: they come first). */
     val manualUpcoming: Int = 0,
+    /** The songs already played in this queue, oldest first, and each one's place in the whole queue. */
+    val played: List<Song> = emptyList(),
+    val playedIndices: List<Int> = emptyList(),
+    /** The current song's place in the whole queue (-1 when nothing is queued), and that of each of [upcoming]. */
+    val currentIndex: Int = -1,
+    val upcomingIndices: List<Int> = emptyList(),
     val hasPrevious: Boolean = false,
     val hasNext: Boolean = false,
     val shuffle: Boolean = false,

@@ -12,6 +12,8 @@ data class PlaybackConfig(
     val positionSaveIntervalMs: Long = 15_000,
     /** Previous restarts the song when it has played longer than this, and goes back only before it. */
     val restartThresholdMs: Long = 3_000,
+    /** How many played songs the queue screen shows above the current one; older ones are still in the queue. */
+    val historyShown: Int = 200,
     /** How often the position shown on screen refreshes while playing. */
     val positionTickMs: Long = 500,
     /** The side of the cover the media session asks for: big enough for the lock screen and a car's display. */

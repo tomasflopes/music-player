@@ -33,6 +33,7 @@ import androidx.navigation.navArgument
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
+import dev.tomasflopes.musicplayer.ui.components.UndoSnackbarHost
 import dev.tomasflopes.musicplayer.ui.home.HomeScreen
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListRoute
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListScreen
@@ -83,8 +84,18 @@ private fun Tabs(onPickFolder: () -> Unit) {
         navController.navigateToTopLevel(destination)
     }
 
+    // Hoisted so the shell's undo snackbar steps aside while the sheet, which covers it, shows its own.
+    var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
     Scaffold(
-        bottomBar = { BottomChrome(onSelectTab, backStackEntry?.destination) },
+        snackbarHost = { UndoSnackbarHost(enabled = !nowPlayingOpen) },
+        bottomBar = {
+            BottomChrome(
+                onSelectTab,
+                backStackEntry?.destination,
+                nowPlayingOpen,
+                onNowPlayingChange = { nowPlayingOpen = it },
+            )
+        },
     ) { padding ->
         NavHost(
             navController = navController,
@@ -199,13 +210,14 @@ private fun NavGraphBuilder.settingsDestination(
 private fun BottomChrome(
     onSelectTab: (TopLevelDestination) -> Unit,
     current: NavDestination?,
+    nowPlayingOpen: Boolean,
+    onNowPlayingChange: (Boolean) -> Unit,
 ) {
-    var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
     if (nowPlayingOpen) {
-        NowPlayingSheet(onDismiss = { nowPlayingOpen = false })
+        NowPlayingSheet(onDismiss = { onNowPlayingChange(false) })
     }
     Column {
-        MiniPlayerHost(onOpen = { nowPlayingOpen = true })
+        MiniPlayerHost(onOpen = { onNowPlayingChange(true) })
         NavigationBar {
             TopLevelDestination.entries.forEach { destination ->
                 NavigationBarItem(

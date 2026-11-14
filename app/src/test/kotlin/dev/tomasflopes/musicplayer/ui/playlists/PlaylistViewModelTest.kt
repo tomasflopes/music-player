@@ -8,6 +8,7 @@ import dev.tomasflopes.musicplayer.core.model.playlists.InMemoryPlaylists
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
 import dev.tomasflopes.musicplayer.core.model.playlists.RenamePlaylist
 import dev.tomasflopes.musicplayer.core.model.ref
+import dev.tomasflopes.musicplayer.core.model.undo.SingleUndoSlot
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.testSong
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,9 @@ class PlaylistViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = PlaylistViewModel(store, store, RenamePlaylist(store, clock), playback)
+    private val undo = SingleUndoSlot()
+
+    private fun viewModel() = PlaylistViewModel(store, store, RenamePlaylist(store, clock), playback, undo, clock)
 
     private suspend fun opened(): Pair<PlaylistViewModel, PlaylistId> {
         val created = CreatePlaylist(store, clock)("Gym", listOf(SongId(3), SongId(1))) as CreatePlaylist.Result.Created
@@ -164,6 +167,49 @@ class PlaylistViewModelTest {
             viewModel.remove(songs[2].id)
 
             assertEquals(listOf(songs[0]), viewModel.ready().songs)
+        }
+
+    @Test
+    fun `remove offers an undo that puts the song back at its place`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            viewModel.remove(songs[2].id)
+            viewModel.ready()
+            val offer = undo.pending.value
+
+            assertEquals("Removed \"${songs[2].title}\" from Gym", offer?.message)
+            undo.undo(offer!!.id)
+
+            val restored = viewModel.state.first { (it as? PlaylistUiState.Ready)?.songs?.size == 2 } as PlaylistUiState.Ready
+            assertEquals(listOf(songs[2], songs[0]), restored.songs)
+        }
+
+    @Test
+    fun `a second removal replaces the pending undo, and only the last one can be undone`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            viewModel.remove(songs[2].id)
+            val first = undo.pending.value!!
+            viewModel.remove(songs[0].id)
+            val second = undo.pending.value!!
+
+            assertEquals(false, undo.undo(first.id))
+            assertEquals(second, undo.pending.value)
+        }
+
+    @Test
+    fun `removing a song that is not there offers no undo`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            viewModel.remove(songs[1].id)
+
+            assertEquals(null, undo.pending.value)
         }
 
     @Test
