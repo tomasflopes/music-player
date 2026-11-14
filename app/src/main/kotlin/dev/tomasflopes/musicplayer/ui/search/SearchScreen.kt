@@ -48,8 +48,9 @@ import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.ScreenTitle
 import dev.tomasflopes.musicplayer.ui.components.SearchField
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
-import dev.tomasflopes.musicplayer.ui.components.SongRow
 import dev.tomasflopes.musicplayer.ui.components.TopResultCard
+import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
+import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlinx.coroutines.flow.first
@@ -117,16 +118,19 @@ private fun SearchContent(
 ) {
     val focus = remember { FocusRequester() }
     AutofocusOnceSettled(focusRequest, transition, focus)
+    val selection = remember { SelectionState() }
+    LaunchedEffect(query) { selection.clear() }
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Search")
         SearchField(query, actions.onQueryChange, Modifier.focusRequester(focus))
+        SelectionBar(selection, state.shownSongs())
         SearchProgress(visible = searching || state == SearchUiState.Indexing)
         when (state) {
             SearchUiState.Idle -> EmptyState("Search your songs, artists and albums.")
             SearchUiState.Indexing -> EmptyState("Getting your library ready...")
             is SearchUiState.NoResults -> EmptyState("No matches for \"${state.query.trim()}\".")
-            is SearchUiState.Results -> ResultsList(state.sections, actions)
-            is SearchUiState.SeeAll -> SeeAllList(state, actions)
+            is SearchUiState.Results -> ResultsList(state.sections, actions, selection)
+            is SearchUiState.SeeAll -> SeeAllList(state, actions, selection)
         }
     }
 }
@@ -170,6 +174,7 @@ private fun SearchProgress(visible: Boolean) {
 private fun ResultsList(
     sections: SearchSections,
     actions: SearchActions,
+    selection: SelectionState,
 ) {
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "top") { TopResult(sections.top, actions) }
@@ -184,7 +189,7 @@ private fun ResultsList(
                 SectionHeader("Songs", onSeeAll = seeAll(sections.moreSongs, SearchItemType.SONG, actions))
             }
             itemsIndexed(sections.songs, key = { _, item -> item.key }) { index, item ->
-                SongRow(item.song, onClick = { actions.onSong(index) })
+                SelectableSongRow(item.song, selection) { actions.onSong(index) }
             }
         }
     }
@@ -248,6 +253,7 @@ private fun TopResult(
 private fun SeeAllList(
     state: SearchUiState.SeeAll,
     actions: SearchActions,
+    selection: SelectionState,
 ) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = Spacing.xxs), verticalAlignment = Alignment.CenterVertically) {
@@ -261,7 +267,7 @@ private fun SeeAllList(
                 when (item) {
                     is ArtistItem -> ArtistRow(item.artist, onClick = { actions.onOpen(item) })
                     is AlbumItem -> AlbumRow(item.album, item.cover, onClick = { actions.onOpen(item) })
-                    is SongItem -> SongRow(item.song, onClick = { actions.onSong(index) })
+                    is SongItem -> SelectableSongRow(item.song, selection) { actions.onSong(index) }
                 }
             }
         }

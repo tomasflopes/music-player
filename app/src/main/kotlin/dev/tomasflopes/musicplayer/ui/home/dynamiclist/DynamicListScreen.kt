@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -17,6 +18,8 @@ import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
+import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /** One dynamic list: [listId] is the route argument; [onBack] pops it. */
@@ -49,12 +52,19 @@ private fun ReadyContent(
         onShuffle = viewModel::onShuffle,
         enabled = ready.songs.isNotEmpty(),
     )
+    val selection = remember { SelectionState() }
+    SelectionBar(selection, ready.songs)
     if (ready.songs.isEmpty()) {
         EmptyState(emptyText(ready.windowDays))
     } else {
         LazyColumn(Modifier.fillMaxSize()) {
             itemsIndexed(ready.songs, key = { _, song -> song.id.value }) { index, song ->
-                SongRow(song, onClick = { viewModel.onSongClick(index) })
+                SongRow(
+                    song = song,
+                    onClick = { selection.onTap(song.id) { viewModel.onSongClick(index) } },
+                    onLongClick = { selection.onLongPress(song.id) },
+                    selected = selection.isSelected(song.id),
+                )
             }
         }
     }

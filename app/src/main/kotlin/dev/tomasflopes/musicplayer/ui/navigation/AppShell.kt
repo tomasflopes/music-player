@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.ArtistId
+import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
 import dev.tomasflopes.musicplayer.ui.home.HomeScreen
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListRoute
 import dev.tomasflopes.musicplayer.ui.home.dynamiclist.DynamicListScreen
@@ -43,6 +44,10 @@ import dev.tomasflopes.musicplayer.ui.library.artist.ArtistScreen
 import dev.tomasflopes.musicplayer.ui.nowplaying.NowPlayingSheet
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
+import dev.tomasflopes.musicplayer.ui.playlists.PlaylistPickerRoute
+import dev.tomasflopes.musicplayer.ui.playlists.PlaylistRoute
+import dev.tomasflopes.musicplayer.ui.playlists.PlaylistScreen
+import dev.tomasflopes.musicplayer.ui.playlists.SongPickerScreen
 import dev.tomasflopes.musicplayer.ui.search.SearchScreen
 import dev.tomasflopes.musicplayer.ui.settings.SettingsRoute
 import dev.tomasflopes.musicplayer.ui.settings.SettingsScreen
@@ -89,21 +94,15 @@ private fun Tabs(onPickFolder: () -> Unit) {
             composable(TopLevelDestination.HOME.route) {
                 HomeScreen(onNavigate = { route -> navController.navigate(route) })
             }
-            composable(
-                route = DynamicListRoute.PATTERN,
-                arguments = listOf(navArgument(DynamicListRoute.ARG_ID) { type = NavType.StringType }),
-            ) { entry ->
-                DynamicListScreen(
-                    listId = entry.arguments?.getString(DynamicListRoute.ARG_ID).orEmpty(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
+            dynamicListDestination(navController)
             composable(TopLevelDestination.LIBRARY.route) {
                 LibraryScreen(
                     onOpenArtist = { navController.navigate(ArtistRoute.create(it)) },
                     onOpenAlbum = { navController.navigate(AlbumRoute.create(it)) },
+                    onNavigate = { route -> navController.navigate(route) },
                 )
             }
+            playlistDestinations(navController)
             searchDestination(navController, searchFocusRequest)
             composable(
                 route = AlbumRoute.PATTERN,
@@ -126,6 +125,43 @@ private fun Tabs(onPickFolder: () -> Unit) {
             }
             settingsDestination(navController, onPickFolder)
         }
+    }
+}
+
+/** The screen of one dynamic list, opened from a Home card. */
+private fun NavGraphBuilder.dynamicListDestination(navController: NavHostController) {
+    composable(
+        route = DynamicListRoute.PATTERN,
+        arguments = listOf(navArgument(DynamicListRoute.ARG_ID) { type = NavType.StringType }),
+    ) { entry ->
+        DynamicListScreen(
+            listId = entry.arguments?.getString(DynamicListRoute.ARG_ID).orEmpty(),
+            onBack = { navController.popBackStack() },
+        )
+    }
+}
+
+/** The playlist page and its song picker, both opened from Home, Library or a new playlist. */
+private fun NavGraphBuilder.playlistDestinations(navController: NavHostController) {
+    composable(
+        route = PlaylistRoute.PATTERN,
+        arguments = listOf(navArgument(PlaylistRoute.ARG_ID) { type = NavType.LongType }),
+    ) { entry ->
+        val id = PlaylistId(entry.arguments?.getLong(PlaylistRoute.ARG_ID) ?: 0L)
+        PlaylistScreen(
+            playlistId = id,
+            onBack = { navController.popBackStack() },
+            onAddSongs = { navController.navigate(PlaylistPickerRoute.create(id)) },
+        )
+    }
+    composable(
+        route = PlaylistPickerRoute.PATTERN,
+        arguments = listOf(navArgument(PlaylistPickerRoute.ARG_ID) { type = NavType.LongType }),
+    ) { entry ->
+        SongPickerScreen(
+            playlistId = PlaylistId(entry.arguments?.getLong(PlaylistPickerRoute.ARG_ID) ?: 0L),
+            onBack = { navController.popBackStack() },
+        )
     }
 }
 
