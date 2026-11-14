@@ -13,9 +13,13 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
 import dev.tomasflopes.musicplayer.playback.log.PlayEventTracker
 import dev.tomasflopes.musicplayer.playback.log.RecordingHistory
+import dev.tomasflopes.musicplayer.playback.queue.NoQueueSaving
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import dev.tomasflopes.musicplayer.playback.queue.QueueEntry
+import dev.tomasflopes.musicplayer.playback.queue.QueueSaving
+import dev.tomasflopes.musicplayer.playback.queue.QueueStore
 import dev.tomasflopes.musicplayer.playback.queue.ReverseShuffle
+import dev.tomasflopes.musicplayer.playback.queue.SavedQueue
 import dev.tomasflopes.musicplayer.playback.queue.refs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +55,10 @@ internal class FakePlayerState {
 internal class EngineHarness(
     queueNames: String,
     mapper: MediaItemMapper = FakeMapper(),
+    store: QueueStore = FixedQueueStore(null),
+    saving: QueueSaving = NoQueueSaving,
+    private val inLibrary: (SongId) -> Boolean = { true },
+    config: PlaybackConfig = PlaybackConfig(),
 ) {
     var time = 1_000L
     val state = FakePlayerState()
@@ -68,9 +76,11 @@ internal class EngineHarness(
             queue,
             songs(),
             mapper,
-            PlaybackConfig(),
+            config,
             CoroutineScope(Dispatchers.Unconfined),
             recorder,
+            store,
+            saving,
         )
 
     init {
@@ -99,7 +109,7 @@ internal class EngineHarness(
 
             override fun observeFolderSongs(folderPath: String): Flow<List<Song>> = emptyFlow()
 
-            override suspend fun songsByIds(ids: List<SongId>) = ids.map { song(it.value) }
+            override suspend fun songsByIds(ids: List<SongId>) = ids.filter(inLibrary).map { song(it.value) }
 
             override suspend fun allSongRefs(): List<SongRef> = emptyList()
         }
@@ -146,5 +156,36 @@ private class FakePlayerHandler(
             Float::class.javaPrimitiveType -> 0f
             else -> null
         }
+    }
+}
+
+/** A store that holds one fixed state, or throws when asked to load it (a store must never take the service down). */
+internal class FixedQueueStore(
+    private val saved: SavedQueue?,
+    private val failing: Boolean = false,
+) : QueueStore {
+    override fun load(): SavedQueue? = if (failing) error("disk on fire") else saved
+
+    override fun save(saved: SavedQueue?) = Unit
+}
+
+/** Counts what the engine asks the saver for. */
+internal class RecordingSaving : QueueSaving {
+    @Volatile var changed = 0
+
+    @Volatile var now = 0
+
+    @Volatile var blocking = 0
+
+    override fun changed() {
+        changed++
+    }
+
+    override fun saveNow() {
+        now++
+    }
+
+    override fun saveBlocking() {
+        blocking++
     }
 }
