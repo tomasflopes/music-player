@@ -36,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import okio.Path.Companion.toOkioPath
 import java.time.Clock
 import javax.inject.Singleton
 
@@ -127,7 +128,7 @@ object ArtistImageModule {
             .diskCache {
                 DiskCache
                     .Builder()
-                    .directory(context.cacheDir.resolve("artist_photos"))
+                    .directory(context.cacheDir.resolve("artist_photos").toOkioPath())
                     .maxSizeBytes(PHOTO_CACHE_BYTES)
                     .build()
             }.crossfade(true)
