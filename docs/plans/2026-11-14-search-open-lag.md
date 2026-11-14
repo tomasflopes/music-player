@@ -8,7 +8,8 @@ Branch `fix/search-open-lag` from `main`. No ADR: ADR 0017 (index per snapshot, 
 - The JVM test proves where the flow body is collected (the work dispatcher, not Main). It cannot prove the Room row mapping itself is off the main thread; that depends on the DAO flow collecting on the dispatcher it is given.
 - Fix 2: "tab restored with its state" is read as a configuration change or process restore. Opening Search from another tab, including re-selecting it with the saved tab state, still opens the keyboard; returning from an artist or album page does not.
 - The keyboard opens once per tap on the Search tab made from elsewhere. The shell raises a counter (`searchFocusRequest`, saved); the screen remembers the last value it served (saved), so a return from an artist or album page, or a restore, serves nothing, and one value is never served twice.
-- "Settled" is the destination's enter transition reaching `EnterExitState.Visible`, plus one frame. There is no fixed delay, so no timing constant.
+- "Settled" is the destination's enter transition reaching `EnterExitState.Visible`, plus one frame. If it never reports settled the keyboard still opens after `SETTLE_TIMEOUT_MS` (1 s), so a bad signal delays it and never removes it.
+- The request counter is passed to the NavHost graph as state (`IntState`) and read inside the screen: the graph builder runs once and is remembered, so passing a plain `Int` froze it at 0 and the keyboard never opened (found on the phone, fixed in the third fix commit).
 - Tapping Search while on an artist or album page counts as opening it from another page.
 - No UI test covers fix 2 (the project has JVM tests only); it is checked on the phone below.
 - Not touched: building the index before the tab opens (needs its own ADR against 0017), the engine and ranking, other screens.
