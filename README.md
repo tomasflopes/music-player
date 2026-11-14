@@ -7,11 +7,17 @@ adds taste-aware mixes, Wrapped-style stats and better search over time.
 - How the code is built: the **Engineering Guidelines** doc in the same project; `CONTRIBUTING.md` summarises it.
 - Why things are the way they are: [`docs/adr/`](docs/adr).
 
-Status: **phase 1 (an MP3 player that replaces Vinyl) is mostly built**: Home with Shuffle all and Recently added,
-Library (Artists, Albums, Songs), album and artist pages, search, Now Playing with the queue, notification and car
-controls, Settings, and the listening log in the background. Onboarding is still the one-screen folder prompt.
-Not done: measuring speed on a real phone against the budget in `docs/plans/2026-11-13-phase-1-mp3-player.md`
-(Task 31), and the acceptance check (can Vinyl be uninstalled?). Nothing outside phase 1 exists yet (no mixes, playlists, analysis or Wrapped).
+Status: **phase 1 (an MP3 player that replaces Vinyl) is done** and tagged `phase-1`. It has Home with Shuffle all and
+Recently added, Library (Folders, Artists, Albums, Songs with an A-Z rail), album and artist pages (with "Featured on"),
+search, Now Playing with the queue, notification and car controls, Settings (music folder and the Recently added
+window), and the listening log in the background. The owner ran the acceptance list of Task 32 on a phone next to
+Vinyl and it passed. Nothing outside phase 1 exists yet (no mixes, playlists, analysis or Wrapped).
+
+Not recorded: the speed measurements against the budget and a `deviceCheck` run (Task 31 in
+`docs/plans/2026-11-13-phase-1-mp3-player.md`). Known gaps, found by reading the code and not yet confirmed on the
+phone: after the app process is gone, headset and car buttons do not resume playback because the queue is not
+persisted (ADR 0015), and the listening log starts a row only for the song a play request starts, not for songs
+reached by next, previous or auto-advance.
 
 ## Setup (macOS)
 

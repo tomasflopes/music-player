@@ -33,8 +33,8 @@ nothing else changes. A decision behind a new extension point still gets an ADR 
   no annotations, so its construction is one `@Provides` in `RepositoryModule` (`:data`), beside
   `recentlyAddedProvider`.
 - **Test:** a class extending `DynamicListProviderContract` (`core/taste/src/test/.../lists/`) that implements
-  `provider()`; see `RecentlyAddedProviderTest`. The "Last N days" chip appears only for the list whose id is
-  `RecentlyAddedProvider.ID`.
+  `provider()`; see `RecentlyAddedProviderTest`. The "Last N days" caption appears only for the list whose id is
+  `RecentlyAddedProvider.ID`; the number itself is edited in Settings.
 
 ### Add a search field or tier
 

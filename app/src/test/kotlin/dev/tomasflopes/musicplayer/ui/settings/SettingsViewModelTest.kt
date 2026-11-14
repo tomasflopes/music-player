@@ -132,25 +132,22 @@ class SettingsViewModelTest {
         }
 
     @Test
-    fun `the days edited in Settings are the days the Recently added chip reads, and the other way round`() =
+    fun `the days edited in Settings are the days the Recently added list shows`() =
         runTest {
             val settingsScreen = subscribed(viewModel())
-            val chipScreen =
+            val listScreen =
                 DynamicListViewModel(
                     FakePlaybackController(),
                     setOf<DynamicListProvider>(RecentlyAddedProvider(FakeSongReader(), settings, Clock.systemUTC())),
                     settings,
-                    config,
                 )
-            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { chipScreen.state.collect {} }
-            chipScreen.open(RecentlyAddedProvider.ID)
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { listScreen.state.collect {} }
+            listScreen.open(RecentlyAddedProvider.ID)
 
             settingsScreen.onQuickDays(30)
-            assertEquals(30, (chipScreen.state.value as DynamicListUiState.Ready).window?.days)
 
-            chipScreen.onQuickDays(7)
-            assertEquals(7, settingsScreen.state.value.recentlyAdded.days)
-            assertEquals(listOf(30, 7), settings.savedDays)
+            assertEquals(30, (listScreen.state.value as DynamicListUiState.Ready).windowDays)
+            assertEquals(listOf(30), settings.savedDays)
         }
 
     @Test

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -17,24 +18,23 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import dev.tomasflopes.musicplayer.ui.components.AlbumArt
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
+
+private val PlayButtonSize = 72.dp
+private val PlayIconSize = 40.dp
 
 /** The large cover, the song's tags, the seek bar and the transport row. */
 @Composable
@@ -49,7 +49,7 @@ internal fun NowPlayingHeader(
     ) {
         AlbumArt(song, ArtSize.hero)
         SongText(song, Modifier.padding(top = Spacing.l))
-        SeekBar(state.positionMs, state.durationMs, actions.onSeek)
+        SeekBar(state.positionMs, state.durationMs, actions.onSeek, Modifier.padding(top = Spacing.s))
         TransportRow(state, actions)
     }
 }
@@ -86,39 +86,6 @@ private fun SongText(
     }
 }
 
-/** While the thumb is dragged the bar follows the finger, not the player; the seek happens when it is let go. */
-@Composable
-private fun SeekBar(
-    positionMs: Long,
-    durationMs: Long,
-    onSeek: (Long) -> Unit,
-) {
-    var dragFraction by remember { mutableStateOf<Float?>(null) }
-    val playedFraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-    val shownMs = dragFraction?.let { (it * durationMs).toLong() } ?: positionMs
-
-    Column(Modifier.fillMaxWidth().padding(top = Spacing.s)) {
-        Slider(
-            value = dragFraction ?: playedFraction,
-            onValueChange = { dragFraction = it },
-            onValueChangeFinished = {
-                dragFraction?.let { onSeek((it * durationMs).toLong()) }
-                dragFraction = null
-            },
-            enabled = durationMs > 0,
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TimeLabel(formatPlaybackTime(shownMs))
-            TimeLabel(formatPlaybackTime(durationMs))
-        }
-    }
-}
-
-@Composable
-private fun TimeLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
 /** Shuffle, previous, play / pause, next, repeat. Shuffle and repeat light up in the accent colour while on. */
 @Composable
 private fun TransportRow(
@@ -142,17 +109,22 @@ private fun TransportRow(
         IconButton(actions.onPrevious, enabled = state.hasPrevious) {
             Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
         }
-        FilledIconButton(actions.onPlayPause) {
-            if (state.isPlaying) {
-                Icon(Icons.Default.Pause, contentDescription = "Pause")
-            } else {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play")
-            }
-        }
+        PlayPauseButton(state.isPlaying, actions.onPlayPause)
         IconButton(actions.onNext, enabled = state.hasNext || state.repeatMode != RepeatMode.OFF) {
             Icon(Icons.Default.SkipNext, contentDescription = "Next")
         }
         IconButton(actions.onCycleRepeat) { RepeatIcon(state.repeatMode, active, idle) }
+    }
+}
+
+@Composable
+private fun PlayPauseButton(
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+) {
+    val (icon, description) = if (isPlaying) Icons.Default.Pause to "Pause" else Icons.Default.PlayArrow to "Play"
+    FilledIconButton(onClick, modifier = Modifier.size(PlayButtonSize)) {
+        Icon(icon, contentDescription = description, modifier = Modifier.size(PlayIconSize))
     }
 }
 

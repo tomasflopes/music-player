@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
-/** What the chip says: "Last 20 days". */
+/** How the window is named, in Settings and on the list: "Last 20 days". */
 internal fun daysLabel(days: Int): String = if (days == 1) "Last day" else "Last $days days"
 
 /**

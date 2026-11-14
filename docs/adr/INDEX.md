@@ -25,3 +25,4 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0019](0019-settings-entries-and-the-debug-link-through-the-debug-source-set.md) | Settings entries are a Hilt set; the debug link is added from the debug source set, not a runtime flag | accepted |
 | [0020](0020-windowed-queue-between-play-queue-and-player.md) | The player holds a window of the queue (20 each side), kept in line by `QueueWindowSync`; the queue owns the order | accepted |
 | [0021](0021-song-identity-and-retired-songs.md) | A song keeps its id for life, matched by volume and path then MediaStore id; missing files are retired, never deleted | accepted |
+| [0022](0022-recently-added-window-is-edited-in-settings-only.md) | The Recently added window is edited in Settings only; the list shows it as a read-only caption | accepted |

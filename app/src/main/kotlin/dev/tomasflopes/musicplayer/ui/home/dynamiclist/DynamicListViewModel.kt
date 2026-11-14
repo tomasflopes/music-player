@@ -3,7 +3,6 @@ package dev.tomasflopes.musicplayer.ui.home.dynamiclist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ref
@@ -23,11 +22,10 @@ import javax.inject.Inject
 
 /**
  * The screen of one dynamic list (design 7.7): its songs, Play and Shuffle logged with the list's own
- * [DynamicListProvider.playSource], and, for Recently added, the "Last N days" window.
+ * [DynamicListProvider.playSource], and, for Recently added, the "Last N days" window it shows as a caption.
  *
- * The window is a Settings value shared with the Settings screen; changing it re-emits the list at once because
- * the provider reads the same value. Values outside [LibraryConfig.recentlyAddedDaysRange] never reach Settings.
- * The list is chosen by [open], called by the screen with its route argument.
+ * The window is a Settings value and is edited only there (ADR 0022); changing it re-emits the list at once because
+ * the provider reads the same value. The list is chosen by [open], called by the screen with its route argument.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -37,11 +35,9 @@ class DynamicListViewModel
         private val playback: PlaybackController,
         providers: Set<@JvmSuppressWildcards DynamicListProvider>,
         private val settings: SettingsRepository,
-        config: LibraryConfig,
     ) : ViewModel() {
         private val providersById = providers.associateBy { it.id }
         private val listId = MutableStateFlow<String?>(null)
-        private val daysEditor = DaysWindowEditor(settings, config, viewModelScope)
 
         val state: StateFlow<DynamicListUiState> =
             listId
@@ -49,17 +45,8 @@ class DynamicListViewModel
                 .stateIn(viewModelScope, WhileSubscribed, DynamicListUiState.Loading)
 
         fun open(id: String) {
-            daysEditor.clearError()
             listId.value = id
         }
-
-        /** A quick option or any in-range number; returns whether it was applied, so the picker can close. */
-        fun onQuickDays(days: Int): Boolean = daysEditor.applyDays(days)
-
-        /** The custom field's text; returns whether it was applied. */
-        fun onCustomDays(text: String): Boolean = daysEditor.applyText(text)
-
-        fun onPickerDismissed() = daysEditor.clearError()
 
         fun onPlay() = start(startIndex = 0, shuffle = false, picked = false)
 
@@ -88,9 +75,8 @@ class DynamicListViewModel
         }
 
         private fun ready(provider: DynamicListProvider): Flow<DynamicListUiState> =
-            combine(provider.songs(), windowDays(provider), daysEditor.error) { songs, days, error ->
-                val window = days?.let { daysEditor.window(it, error) }
-                DynamicListUiState.Ready(provider.title, songs, provider.playSource, window)
+            combine(provider.songs(), windowDays(provider)) { songs, days ->
+                DynamicListUiState.Ready(provider.title, songs, provider.playSource, days)
             }
 
         // Only Recently added has a days window today. A second windowed list would need the provider to say so
