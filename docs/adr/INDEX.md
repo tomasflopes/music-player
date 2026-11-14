@@ -45,3 +45,5 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0039](0039-a-song-is-in-a-playlist-once-and-adding-reports-what-it-did.md) | A song is in a playlist once; adding skips repeats, reports "Added N, M already there", and always marks the playlist as used | accepted |
 | [0040](0040-fast-add-is-one-sheet-one-target-type-and-a-per-screen-selection.md) | Fast add is one bottom sheet over an `AddTarget`, opened from the song menu, Now Playing "+" and a per-screen `SelectionState` | accepted |
 | [0041](0041-playlists-on-home-in-library-and-a-plain-song-picker.md) | Playlists on Home and in Library; a new playlist gets its first songs from a plain song picker | accepted |
+| [0042](0042-play-events-log-the-playlist-through-a-playlist-id-on-each-queue-entry.md) | Play events log the playlist via a playlist id on each queue entry; `PendingPlayStore` field 9; `QueueCodec` v2 | accepted |
+| [0043](0043-the-playlist-page-edits-in-place-with-a-drag-handle-swipe-and-a-menu.md) | The playlist page edits in place: drag handle (`reorderable`), swipe to remove, menu for rename and delete | accepted |

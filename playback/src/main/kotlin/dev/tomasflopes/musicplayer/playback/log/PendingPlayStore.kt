@@ -42,6 +42,7 @@ class PendingPlayStore(
                     event.startedBy.wire,
                     event.shuffle,
                     pending.playingSinceWallMs ?: "",
+                    event.playlistId ?: "",
                 ).joinToString("\t"),
             )
             renameTo(file)
@@ -51,7 +52,7 @@ class PendingPlayStore(
     fun takeLeftover(): PlayEvent? {
         val fields = runCatching { file.readText().split('\t') }.getOrNull()
         file.delete()
-        return fields?.takeIf { it.size == FIELD_COUNT || it.size == OLD_FIELD_COUNT }?.let(::eventFrom)
+        return fields?.takeIf { it.size in OLD_FIELD_COUNT..FIELD_COUNT }?.let(::eventFrom)
     }
 
     private fun eventFrom(fields: List<String>): PlayEvent? =
@@ -68,11 +69,12 @@ class PendingPlayStore(
                 PlaySource.fromWire(fields[SOURCE]),
                 StartedBy.fromWire(fields[STARTED_BY]),
                 fields[SHUFFLE].toBooleanStrict(),
+                playlistId = fields.getOrNull(PLAYLIST_ID)?.toLongOrNull(),
             )
         }.getOrNull()
 
     private companion object {
-        const val FIELD_COUNT = 8
+        const val FIELD_COUNT = 9
         const val OLD_FIELD_COUNT = 7
         const val SONG_ID = 0
         const val STARTED_AT = 1
@@ -82,5 +84,6 @@ class PendingPlayStore(
         const val STARTED_BY = 5
         const val SHUFFLE = 6
         const val PLAYING_SINCE = 7
+        const val PLAYLIST_ID = 8
     }
 }

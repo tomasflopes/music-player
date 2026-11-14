@@ -2,9 +2,11 @@ package dev.tomasflopes.musicplayer.ui.playlists
 
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.playlists.AddSongsToPlaylist
 import dev.tomasflopes.musicplayer.core.model.playlists.CreatePlaylist
 import dev.tomasflopes.musicplayer.core.model.playlists.InMemoryPlaylists
 import dev.tomasflopes.musicplayer.core.model.playlists.PlaylistId
+import dev.tomasflopes.musicplayer.core.model.playlists.RenamePlaylist
 import dev.tomasflopes.musicplayer.core.model.ref
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.testSong
@@ -36,9 +38,11 @@ class PlaylistViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
+    private fun viewModel() = PlaylistViewModel(store, store, RenamePlaylist(store, clock), playback)
+
     private suspend fun opened(): Pair<PlaylistViewModel, PlaylistId> {
         val created = CreatePlaylist(store, clock)("Gym", listOf(SongId(3), SongId(1))) as CreatePlaylist.Result.Created
-        val viewModel = PlaylistViewModel(store, playback)
+        val viewModel = viewModel()
         viewModel.open(created.id)
         return viewModel to created.id
     }
@@ -46,13 +50,13 @@ class PlaylistViewModelTest {
     @Test
     fun `before it is opened the screen is loading`() =
         runTest {
-            assertEquals(PlaylistUiState.Loading, PlaylistViewModel(store, playback).state.value)
+            assertEquals(PlaylistUiState.Loading, viewModel().state.value)
         }
 
     @Test
     fun `an unknown playlist is not found`() =
         runTest {
-            val viewModel = PlaylistViewModel(store, playback)
+            val viewModel = viewModel()
             viewModel.open(PlaylistId(99))
 
             assertEquals(PlaylistUiState.NotFound, viewModel.state.first { it != PlaylistUiState.Loading })
@@ -84,4 +88,109 @@ class PlaylistViewModelTest {
             assertEquals(false, request.shuffle)
             assertEquals(true, request.picked)
         }
+
+    private suspend fun PlaylistViewModel.ready() = state.first { it is PlaylistUiState.Ready } as PlaylistUiState.Ready
+
+    @Test
+    fun `play starts the playlist in order and logs its id`() =
+        runTest {
+            val (viewModel, id) = opened()
+            viewModel.ready()
+
+            viewModel.onPlay()
+
+            val request = playback.requests.single()
+            assertEquals(false, request.shuffle)
+            assertEquals(false, request.picked)
+            assertEquals(0, request.startIndex)
+            assertEquals(PlaySource.PLAYLIST, request.source)
+            assertEquals(id.value, request.playlistId)
+        }
+
+    @Test
+    fun `shuffle asks for the shuffle strategy and logs the playlist id`() =
+        runTest {
+            val (viewModel, id) = opened()
+            viewModel.ready()
+
+            viewModel.onShuffle()
+
+            val request = playback.requests.single()
+            assertEquals(true, request.shuffle)
+            assertEquals(false, request.picked)
+            assertEquals(id.value, request.playlistId)
+        }
+
+    @Test
+    fun `tapping a song logs the playlist id too`() =
+        runTest {
+            val (viewModel, id) = opened()
+            viewModel.ready()
+
+            viewModel.onSongClick(0)
+
+            assertEquals(id.value, playback.requests.single().playlistId)
+        }
+
+    @Test
+    fun `rename changes the title and a blank name is refused`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            assertEquals(true, viewModel.rename("  Run  "))
+            assertEquals("Run", viewModel.ready().name)
+            assertEquals(false, viewModel.rename("   "))
+            assertEquals("Run", viewModel.ready().name)
+        }
+
+    @Test
+    fun `delete makes the playlist not found`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            viewModel.delete()
+
+            assertEquals(PlaylistUiState.NotFound, viewModel.state.first { it == PlaylistUiState.NotFound })
+        }
+
+    @Test
+    fun `remove takes one song out and keeps the rest in order`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            viewModel.remove(songs[2].id)
+
+            assertEquals(listOf(songs[0]), viewModel.ready().songs)
+        }
+
+    @Test
+    fun `move puts a song at its new place`() =
+        runTest {
+            val (viewModel, id) = opened()
+            addSecond(id)
+            viewModel.ready()
+
+            viewModel.move(from = 0, to = 2)
+
+            assertEquals(listOf(songs[0], songs[1], songs[2]), viewModel.ready().songs)
+        }
+
+    @Test
+    fun `a move outside the list changes nothing`() =
+        runTest {
+            val (viewModel, _) = opened()
+            viewModel.ready()
+
+            viewModel.move(from = 0, to = 5)
+            viewModel.move(from = -1, to = 0)
+
+            assertEquals(listOf(songs[2], songs[0]), viewModel.ready().songs)
+        }
+
+    private suspend fun addSecond(id: PlaylistId) {
+        AddSongsToPlaylist(store, clock)(id, listOf(SongId(2)))
+    }
 }

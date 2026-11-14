@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     // Artist photos, the one network use (ADR 0028): Coil with its OkHttp fetcher, allowed in :app only.
     implementation(libs.coil.compose)
+    implementation(libs.reorderable)
     implementation(libs.coil.network.okhttp)
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
