@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SkipNext
@@ -27,27 +28,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
+import dev.tomasflopes.musicplayer.ui.playlists.AddToPlaylistSheet
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
-private val ActionHeight = 64.dp
+internal val ActionHeight = 64.dp
 
 /**
- * The "more" button of a song row. It opens a bottom sheet with Play next and Add to queue as large rows, easy to hit
- * with a thumb. Stateless about songs; the caller binds the actions.
+ * The "more" button of a song row. It opens a bottom sheet with Play next, Add to queue and Add to playlist as large
+ * rows, easy to hit with a thumb. The caller binds the queue actions; adding to a playlist is the same sheet
+ * everywhere, so the button opens it for [songId] itself.
  */
 @Composable
 fun SongMenuButton(
+    songId: SongId,
     onPlayNext: () -> Unit,
     onAddToQueue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
+    var addingToPlaylist by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }, modifier = modifier) {
         Icon(Icons.Default.MoreVert, contentDescription = "Song actions")
     }
     if (open) {
-        SongActionsSheet(onPlayNext = onPlayNext, onAddToQueue = onAddToQueue, onDismiss = { open = false })
+        SongActionsSheet(
+            onPlayNext = onPlayNext,
+            onAddToQueue = onAddToQueue,
+            onAddToPlaylist = { addingToPlaylist = true },
+            onDismiss = { open = false },
+        )
+    }
+    if (addingToPlaylist) {
+        AddToPlaylistSheet(AddTarget.Songs(listOf(songId)), onDismiss = { addingToPlaylist = false })
     }
 }
 
@@ -56,6 +71,7 @@ fun SongMenuButton(
 private fun SongActionsSheet(
     onPlayNext: () -> Unit,
     onAddToQueue: () -> Unit,
+    onAddToPlaylist: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -71,12 +87,13 @@ private fun SongActionsSheet(
         Column(Modifier.padding(bottom = Spacing.s)) {
             ActionRow(Icons.Default.SkipNext, "Play next") { choose(onPlayNext) }
             ActionRow(Icons.Default.Add, "Add to queue") { choose(onAddToQueue) }
+            ActionRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist") { choose(onAddToPlaylist) }
         }
     }
 }
 
 @Composable
-private fun ActionRow(
+internal fun ActionRow(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,

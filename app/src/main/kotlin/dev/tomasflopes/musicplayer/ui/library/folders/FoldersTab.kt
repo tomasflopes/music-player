@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -17,6 +18,8 @@ import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
+import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 
 /** The Folders sub-tab. System back goes up one level while a folder is open; at the music folder it is not taken. */
 @Composable
@@ -43,6 +46,19 @@ private fun FolderContent(
     shown: FoldersUiState,
     viewModel: FoldersViewModel,
 ) {
+    val selection = remember { SelectionState() }
+    Column(Modifier.fillMaxSize()) {
+        SelectionBar(selection, shown.songs)
+        FolderList(shown, viewModel, selection)
+    }
+}
+
+@Composable
+private fun FolderList(
+    shown: FoldersUiState,
+    viewModel: FoldersViewModel,
+    selection: SelectionState,
+) {
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "buttons") {
             PlayShuffleButtons(
@@ -63,9 +79,12 @@ private fun FolderContent(
                 val song = shown.songs[index]
                 SongRow(
                     song = song,
-                    onClick = { viewModel.onSongClick(index) },
+                    onClick = { selection.onTap(song.id) { viewModel.onSongClick(index) } },
+                    onLongClick = { selection.onLongPress(song.id) },
+                    selected = selection.isSelected(song.id),
                     trailing = {
                         SongMenuButton(
+                            songId = song.id,
                             onPlayNext = { viewModel.onPlayNext(song) },
                             onAddToQueue = { viewModel.onAddToQueue(song) },
                         )

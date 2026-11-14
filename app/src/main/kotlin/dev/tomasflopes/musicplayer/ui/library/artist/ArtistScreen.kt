@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -25,6 +26,10 @@ import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
 import dev.tomasflopes.musicplayer.ui.library.artist.photo.ArtistPhotoHeader
 import dev.tomasflopes.musicplayer.ui.library.artist.photo.ChangePhotoSheet
+import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
+import dev.tomasflopes.musicplayer.ui.playlists.AddWholeButton
+import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
+import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 
 /** One artist: [artistId] is the route argument; [onBack] pops it and [onOpenAlbum] opens one of the albums. */
 @Composable
@@ -54,12 +59,21 @@ private fun ReadyContent(
 ) {
     var changingPhoto by rememberSaveable { mutableStateOf(false) }
     if (changingPhoto) ChangePhotoSheet(ready.artist, onDismiss = { changingPhoto = false })
+    val selection = remember { SelectionState() }
+    SelectionBar(selection, ready.songs + ready.featuredOn)
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "photo") { ArtistPhotoHeader(ready.artist, onChangePhoto = { changingPhoto = true }) }
         item(key = "buttons") {
             PlayShuffleButtons(
                 onPlay = viewModel::onPlay,
                 onShuffle = viewModel::onShuffle,
+                enabled = ready.songs.isNotEmpty(),
+            )
+        }
+        item(key = "add-artist") {
+            AddWholeButton(
+                "Add whole artist to playlist",
+                AddTarget.Artist(ready.artist.id),
                 enabled = ready.songs.isNotEmpty(),
             )
         }
@@ -70,9 +84,10 @@ private fun ReadyContent(
                     val item = entry.item
                     AlbumRow(item.album, item.cover, onClick = { onOpenAlbum(item.album.id) })
                 }
-                is ArtistEntry.Track -> SongEntryRow(entry.song, viewModel) { viewModel.onSongClick(entry.index) }
+                is ArtistEntry.Track ->
+                    SongEntryRow(entry.song, viewModel, selection) { viewModel.onSongClick(entry.index) }
                 is ArtistEntry.Featured ->
-                    SongEntryRow(entry.song, viewModel) { viewModel.onFeaturedClick(entry.index) }
+                    SongEntryRow(entry.song, viewModel, selection) { viewModel.onFeaturedClick(entry.index) }
             }
         }
     }
@@ -82,13 +97,20 @@ private fun ReadyContent(
 private fun SongEntryRow(
     song: Song,
     viewModel: ArtistViewModel,
+    selection: SelectionState,
     onClick: () -> Unit,
 ) {
     SongRow(
         song = song,
-        onClick = onClick,
+        onClick = { selection.onTap(song.id, onClick) },
+        onLongClick = { selection.onLongPress(song.id) },
+        selected = selection.isSelected(song.id),
         trailing = {
-            SongMenuButton(onPlayNext = { viewModel.onPlayNext(song) }, onAddToQueue = { viewModel.onAddToQueue(song) })
+            SongMenuButton(
+                songId = song.id,
+                onPlayNext = { viewModel.onPlayNext(song) },
+                onAddToQueue = { viewModel.onAddToQueue(song) },
+            )
         },
     )
 }

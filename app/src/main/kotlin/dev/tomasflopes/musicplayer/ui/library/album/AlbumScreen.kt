@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -24,6 +25,10 @@ import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
+import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
+import dev.tomasflopes.musicplayer.ui.playlists.AddWholeButton
+import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
+import dev.tomasflopes.musicplayer.ui.selection.SelectionState
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 
 /** One album: [albumId] is the route argument; [onBack] pops it. */
@@ -50,6 +55,8 @@ private fun ReadyContent(
     ready: AlbumUiState.Ready,
     viewModel: AlbumViewModel,
 ) {
+    val selection = remember { SelectionState() }
+    SelectionBar(selection, ready.songs)
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "header") { AlbumHeader(ready.album, ready.cover) }
         item(key = "buttons") {
@@ -59,10 +66,18 @@ private fun ReadyContent(
                 enabled = ready.songs.isNotEmpty(),
             )
         }
+        item(key = "add-album") {
+            AddWholeButton(
+                "Add whole album to playlist",
+                AddTarget.Album(ready.album.id),
+                enabled = ready.songs.isNotEmpty(),
+            )
+        }
         items(ready.entries, key = { it.key }, contentType = { it::class }) { entry ->
             when (entry) {
                 is AlbumEntry.DiscHeader -> SectionHeader("Disc ${entry.disc}")
-                is AlbumEntry.Track -> TrackRow(entry.song, viewModel) { viewModel.onTrackClick(entry.index) }
+                is AlbumEntry.Track ->
+                    TrackRow(entry.song, viewModel, selection) { viewModel.onTrackClick(entry.index) }
             }
         }
     }
@@ -72,13 +87,20 @@ private fun ReadyContent(
 private fun TrackRow(
     song: Song,
     viewModel: AlbumViewModel,
+    selection: SelectionState,
     onClick: () -> Unit,
 ) {
     SongRow(
         song = song,
-        onClick = onClick,
+        onClick = { selection.onTap(song.id, onClick) },
+        onLongClick = { selection.onLongPress(song.id) },
+        selected = selection.isSelected(song.id),
         trailing = {
-            SongMenuButton(onPlayNext = { viewModel.onPlayNext(song) }, onAddToQueue = { viewModel.onAddToQueue(song) })
+            SongMenuButton(
+                songId = song.id,
+                onPlayNext = { viewModel.onPlayNext(song) },
+                onAddToQueue = { viewModel.onAddToQueue(song) },
+            )
         },
         leading = { TrackNumber(song.trackNumber) },
         subtitle = song.artistName,

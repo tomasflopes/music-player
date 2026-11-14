@@ -19,12 +19,14 @@ import dev.tomasflopes.musicplayer.ui.components.ScreenTitle
 import dev.tomasflopes.musicplayer.ui.library.albums.AlbumsTab
 import dev.tomasflopes.musicplayer.ui.library.artists.ArtistsTab
 import dev.tomasflopes.musicplayer.ui.library.folders.FoldersTab
+import dev.tomasflopes.musicplayer.ui.library.playlists.PlaylistsTab
 import dev.tomasflopes.musicplayer.ui.library.songs.SongsTab
 
 /** Where Library rows lead: the artist and album pages (plan Task 26). */
 private class LibraryActions(
     val onOpenArtist: (ArtistId) -> Unit,
     val onOpenAlbum: (AlbumId) -> Unit,
+    val onNavigate: (String) -> Unit,
 )
 
 /** One sub-tab of Library. State inside the Library route, not a destination of its own (ADR 0016). */
@@ -40,14 +42,17 @@ private val pages =
         LibraryPage("Albums") { AlbumsTab(it.onOpenAlbum) },
         LibraryPage("Folders") { FoldersTab() },
         LibraryPage("Songs") { SongsTab() },
+        LibraryPage("Playlists") { PlaylistsTab(it.onNavigate) },
     )
 
 @Composable
 fun LibraryScreen(
     onOpenArtist: (ArtistId) -> Unit,
     onOpenAlbum: (AlbumId) -> Unit,
+    onNavigate: (String) -> Unit,
 ) {
-    val actions = remember(onOpenArtist, onOpenAlbum) { LibraryActions(onOpenArtist, onOpenAlbum) }
+    val actions =
+        remember(onOpenArtist, onOpenAlbum, onNavigate) { LibraryActions(onOpenArtist, onOpenAlbum, onNavigate) }
     var selected by rememberSaveable { mutableIntStateOf(0) }
     // Each sub-tab keeps its scroll position while another one is showing.
     val stateHolder = rememberSaveableStateHolder()

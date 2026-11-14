@@ -11,6 +11,7 @@ import dev.tomasflopes.musicplayer.core.taste.lists.RecentlyAddedProvider
 import dev.tomasflopes.musicplayer.core.taste.lists.TopHundredProvider
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.home.sections.DynamicListsSection
+import dev.tomasflopes.musicplayer.ui.home.sections.PlaylistsSection
 import dev.tomasflopes.musicplayer.ui.home.sections.ShuffleAllSection
 import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 
@@ -28,6 +29,10 @@ abstract class ExtensionPointsModule {
     @Binds
     @IntoSet
     abstract fun dynamicListsSection(section: DynamicListsSection): HomeSection
+
+    @Binds
+    @IntoSet
+    abstract fun playlistsSection(section: PlaylistsSection): HomeSection
 
     /** Empty in release; the debug source set adds its link with an `@IntoSet` binding (ADR 0019). */
     @Multibinds
