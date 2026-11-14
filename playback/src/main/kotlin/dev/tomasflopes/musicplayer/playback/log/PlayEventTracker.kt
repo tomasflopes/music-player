@@ -37,14 +37,16 @@ class PlayEventTracker(
     ): PlayEvent? {
         val finished = finish(EndedBy.SKIPPED)
         val now = monoMs()
+        val wallNow = wallMs()
         active =
             Active(
                 entry = entry,
-                startedAtMs = wallMs(),
+                startedAtMs = wallNow,
                 durationMs = durationMs.coerceAtLeast(0),
                 startedBy = startedBy,
                 shuffle = shuffle,
                 playingSinceMs = if (playing) now else null,
+                playingSinceWallMs = if (playing) wallNow else null,
             )
         return finished
     }
@@ -52,7 +54,10 @@ class PlayEventTracker(
     fun onPlayingChanged(isPlaying: Boolean) {
         val current = active ?: return
         val now = monoMs()
-        if (isPlaying && current.playingSinceMs == null) current.playingSinceMs = now
+        if (isPlaying && current.playingSinceMs == null) {
+            current.playingSinceMs = now
+            current.playingSinceWallMs = wallMs()
+        }
         if (!isPlaying) current.stopListening(now)
     }
 
@@ -60,8 +65,12 @@ class PlayEventTracker(
 
     fun onStopped(): PlayEvent? = finish(EndedBy.STOPPED)
 
-    /** The event to append as stopped after an unexpected process death. */
-    fun pending(): PlayEvent? = active?.event(EndedBy.STOPPED, monoMs())
+    /**
+     * What a checkpoint needs to rebuild the row after an unexpected process death (ADR 0025): the time listened
+     * before the current stretch, and when that stretch began on the wall clock. The stretch itself is left out, so
+     * a checkpoint written at the start of a song still knows how long it played if nothing else is ever written.
+     */
+    fun pending(): PendingPlay? = active?.pending()
 
     private fun finish(
         endedBy: EndedBy,
@@ -80,11 +89,13 @@ class PlayEventTracker(
         val shuffle: Boolean,
         var listenedMs: Long = 0,
         var playingSinceMs: Long? = null,
+        var playingSinceWallMs: Long? = null,
     ) {
         fun stopListening(now: Long) {
             val since = playingSinceMs ?: return
             listenedMs += (now - since).coerceAtLeast(0)
             playingSinceMs = null
+            playingSinceWallMs = null
         }
 
         /** Time listened up to [now], without touching the clock: a checkpoint must not stop it. */
@@ -93,20 +104,26 @@ class PlayEventTracker(
             return listenedMs + running
         }
 
+        fun pending() = PendingPlay(row(EndedBy.STOPPED, listenedMs), playingSinceWallMs)
+
         fun event(
             endedBy: EndedBy,
             now: Long,
             completed: Boolean = false,
-        ): PlayEvent =
-            PlayEvent(
-                songId = entry.ref.songId,
-                startedAtEpochMs = startedAtMs,
-                listenedMs = if (completed) durationMs else listenedAt(now),
-                songDurationMs = durationMs,
-                endedBy = endedBy,
-                source = if (entry.manual) PlaySource.QUEUE else entry.source,
-                startedBy = startedBy,
-                shuffle = shuffle,
-            )
+        ) = row(endedBy, if (completed) durationMs else listenedAt(now))
+
+        private fun row(
+            endedBy: EndedBy,
+            listened: Long,
+        ) = PlayEvent(
+            songId = entry.ref.songId,
+            startedAtEpochMs = startedAtMs,
+            listenedMs = listened,
+            songDurationMs = durationMs,
+            endedBy = endedBy,
+            source = if (entry.manual) PlaySource.QUEUE else entry.source,
+            startedBy = startedBy,
+            shuffle = shuffle,
+        )
     }
 }

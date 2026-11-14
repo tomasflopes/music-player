@@ -15,7 +15,7 @@ class PendingPlayStoreTest {
     fun `leftover checkpoint is appended once as stopped`() {
         val file = Files.createTempDirectory("pending-play").resolve("event").toFile()
         val event = PlayEvent(SongId(7), 1, 2, 3, EndedBy.SKIPPED, PlaySource.SONGS, StartedBy.PICKED, false)
-        PendingPlayStore(file).save(event)
+        PendingPlayStore(file).save(PendingPlay(event, null))
 
         assertEquals(event.copy(endedBy = EndedBy.STOPPED), PendingPlayStore(file).takeLeftover())
         assertNull(PendingPlayStore(file).takeLeftover())

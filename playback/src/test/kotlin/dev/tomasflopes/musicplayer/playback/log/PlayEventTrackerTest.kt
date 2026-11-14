@@ -69,10 +69,11 @@ class PlayEventTrackerTest {
         tracker.onStarted(entry(7), 200_000, StartedBy.PICKED, shuffle = false)
         tracker.onPlayingChanged(true)
         time += 5_000
-        assertEquals(5_000L, tracker.pending()?.listenedMs)
+        val pending = tracker.pending()
         time += 5_000
 
-        assertEquals(10_000L, tracker.pending()?.listenedMs)
+        assertEquals(0L, pending?.event?.listenedMs)
+        assertEquals(1_000L, pending?.playingSinceWallMs)
         assertEquals(10_000L, tracker.onStarted(entry(8), 200_000, StartedBy.NAV, shuffle = false)?.listenedMs)
     }
 
