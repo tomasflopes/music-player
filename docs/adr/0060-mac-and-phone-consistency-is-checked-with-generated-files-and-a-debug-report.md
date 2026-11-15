@@ -1,6 +1,6 @@
 # 0060: Mac/phone consistency: generated test files, a golden file and a debug report
 
-Date: 2026-11-14 · Status: proposed · Extends 0003
+Date: 2026-11-14 · Status: accepted · Extends 0003
 
 **Context.** ADR 0003 requires the two decoders to agree within a tolerance. The owner's music cannot go into git.
 

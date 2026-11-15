@@ -25,6 +25,15 @@ class BenchRunnerTest {
             windowRequests += startMs to lengthMs
             return PcmBuffer(sampleRate, 1, startMs, FloatArray((sampleRate * lengthMs / 1_000L).toInt()))
         }
+
+        override fun decodeStream(
+            location: String,
+            sink: PcmChunkSink,
+        ) {
+            val pcm = decodeAll(location)
+            sink.begin(pcm.sampleRate, pcm.channels)
+            sink.accept(pcm.samples, pcm.samples.size)
+        }
     }
 
     private var now = 0L

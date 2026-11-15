@@ -1,6 +1,6 @@
 # 0059: Phone analysis is one unique batch worker, no foreground service
 
-Date: 2026-11-14 · Status: proposed
+Date: 2026-11-14 · Status: accepted
 
 **Context.** Few songs are new at a time, but with no import the whole library falls to the phone. Background jobs have time limits.
 

@@ -21,8 +21,8 @@ import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import javax.inject.Inject
 
 /**
- * Analysis in Settings (phase 3, ADR 0019): the import from the computer and its summary, "N matched, M queued".
- * The phone analyses the queued songs itself in slice 4.
+ * Analysis in Settings (phase 3): the import from the computer and the progress, "Analysed N / M, K on phone queue".
+ * The phone analyses the queue by itself in a background job (ADR 0059).
  */
 class AnalysisImportSettingsEntry
     @Inject
@@ -33,7 +33,7 @@ class AnalysisImportSettingsEntry
         @Composable
         override fun Content() {
             val viewModel: AnalysisImportViewModel = hiltViewModel()
-            val summary by viewModel.summary.collectAsStateWithLifecycle()
+            val progress by viewModel.progress.collectAsStateWithLifecycle()
             val state by viewModel.state.collectAsStateWithLifecycle()
             val picker =
                 rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -45,7 +45,7 @@ class AnalysisImportSettingsEntry
             ) {
                 Text("Analysis", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "${summary.profiled} matched, ${summary.queued} queued",
+                    AnalysisProgressText.format(progress),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

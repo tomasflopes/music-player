@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import dev.tomasflopes.musicplayer.data.db.entity.AnalysisFailureEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SoundProfileEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -21,6 +22,38 @@ data class AnalysisSummaryRow(
     val profiled: Int,
     val queued: Int,
 )
+
+/** A song the phone still has to analyse (ADR 0058, 0059). [fileSize] is the song row's. */
+data class QueuedSongRow(
+    val id: Long,
+    @ColumnInfo(name = "media_store_id") val mediaStoreId: Long,
+    @ColumnInfo(name = "volume_name") val volumeName: String,
+    @ColumnInfo(name = "file_size") val fileSize: Long,
+    val attempts: Int,
+)
+
+/** Settings progress: analysed songs, songs the phone will still try, and songs it gave up on. */
+data class AnalysisProgressRow(
+    val profiled: Int,
+    val waiting: Int,
+    @ColumnInfo(name = "gave_up") val gaveUp: Int,
+)
+
+/** An imported (Mac) profile and where to find the song again, for the debug consistency report (ADR 0060). */
+class ImportedProfileRow(
+    @ColumnInfo(name = "song_id") val songId: Long,
+    @ColumnInfo(name = "media_store_id") val mediaStoreId: Long,
+    @ColumnInfo(name = "volume_name") val volumeName: String,
+    val features: ByteArray,
+)
+
+/** The "no profile for this file and version" join shared by the queue queries (ADR 0058). */
+private const val QUEUE_FROM =
+    "FROM song " +
+        "LEFT JOIN sound_profile ON sound_profile.song_id = song.id " +
+        "AND sound_profile.profiler_version = :profilerVersion AND sound_profile.file_size = song.file_size " +
+        "LEFT JOIN analysis_failure ON analysis_failure.song_id = song.id " +
+        "AND analysis_failure.profiler_version = :profilerVersion "
 
 @Dao
 interface SoundProfileDao {
@@ -42,4 +75,71 @@ interface SoundProfileDao {
             "WHERE song.in_library = 1",
     )
     fun observeSummary(profilerVersion: Int): Flow<AnalysisSummaryRow>
+
+    /**
+     * The phone queue (ADR 0058): in-library songs with no profile for the current version and file, and fewer than
+     * [maxAttempts] failures, newest first, leaving out the ids in [skip].
+     */
+    @Query(
+        "SELECT song.id, song.media_store_id, song.volume_name, song.file_size, " +
+            "COALESCE(analysis_failure.attempts, 0) AS attempts " + QUEUE_FROM +
+            "WHERE song.in_library = 1 AND sound_profile.song_id IS NULL " +
+            "AND COALESCE(analysis_failure.attempts, 0) < :maxAttempts AND song.id NOT IN (:skip) " +
+            "ORDER BY song.date_added DESC, song.id LIMIT :limit",
+    )
+    suspend fun nextQueued(
+        profilerVersion: Int,
+        maxAttempts: Int,
+        skip: List<Long>,
+        limit: Int,
+    ): List<QueuedSongRow>
+
+    @Query(
+        "SELECT COUNT(*) " + QUEUE_FROM +
+            "WHERE song.in_library = 1 AND sound_profile.song_id IS NULL " +
+            "AND COALESCE(analysis_failure.attempts, 0) < :maxAttempts",
+    )
+    suspend fun countWaiting(
+        profilerVersion: Int,
+        maxAttempts: Int,
+    ): Int
+
+    @Query(
+        "SELECT " +
+            "COALESCE(SUM(CASE WHEN sound_profile.song_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS profiled, " +
+            "COALESCE(SUM(CASE WHEN sound_profile.song_id IS NULL " +
+            "AND COALESCE(analysis_failure.attempts, 0) < :maxAttempts THEN 1 ELSE 0 END), 0) AS waiting, " +
+            "COALESCE(SUM(CASE WHEN sound_profile.song_id IS NULL " +
+            "AND COALESCE(analysis_failure.attempts, 0) >= :maxAttempts THEN 1 ELSE 0 END), 0) AS gave_up " +
+            QUEUE_FROM + "WHERE song.in_library = 1",
+    )
+    fun observeProgress(
+        profilerVersion: Int,
+        maxAttempts: Int,
+    ): Flow<AnalysisProgressRow>
+
+    @Query("SELECT attempts FROM analysis_failure WHERE song_id = :songId AND profiler_version = :profilerVersion")
+    suspend fun failedAttempts(
+        songId: Long,
+        profilerVersion: Int,
+    ): Int?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFailure(failure: AnalysisFailureEntity)
+
+    @Query("DELETE FROM analysis_failure WHERE song_id = :songId")
+    suspend fun deleteFailures(songId: Long)
+
+    /** Up to [limit] in-library songs whose current profile came from the Mac import, picked at random. */
+    @Query(
+        "SELECT sound_profile.song_id, song.media_store_id, song.volume_name, sound_profile.features " +
+            "FROM sound_profile JOIN song ON song.id = sound_profile.song_id " +
+            "WHERE song.in_library = 1 AND sound_profile.source = 'mac' " +
+            "AND sound_profile.profiler_version = :profilerVersion AND sound_profile.file_size = song.file_size " +
+            "ORDER BY RANDOM() LIMIT :limit",
+    )
+    suspend fun importedSample(
+        profilerVersion: Int,
+        limit: Int,
+    ): List<ImportedProfileRow>
 }

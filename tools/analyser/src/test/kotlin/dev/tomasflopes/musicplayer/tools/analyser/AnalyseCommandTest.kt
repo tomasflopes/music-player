@@ -3,6 +3,7 @@ package dev.tomasflopes.musicplayer.tools.analyser
 import dev.tomasflopes.musicplayer.core.analysis.ExportHeader
 import dev.tomasflopes.musicplayer.core.analysis.HandBuiltProfilerV1
 import dev.tomasflopes.musicplayer.core.analysis.PcmBuffer
+import dev.tomasflopes.musicplayer.core.analysis.PcmChunkSink
 import dev.tomasflopes.musicplayer.core.analysis.PcmDecodeException
 import dev.tomasflopes.musicplayer.core.analysis.PcmInfo
 import dev.tomasflopes.musicplayer.core.analysis.PcmSource
@@ -48,6 +49,15 @@ class AnalyseCommandTest {
             startMs: Long,
             lengthMs: Long,
         ): PcmBuffer = decodeAll(location)
+
+        override fun decodeStream(
+            location: String,
+            sink: PcmChunkSink,
+        ) {
+            val pcm = decodeAll(location)
+            sink.begin(pcm.sampleRate, pcm.channels)
+            sink.accept(pcm.samples, pcm.samples.size)
+        }
     }
 
     private class OtherVersion : SoundProfiler {

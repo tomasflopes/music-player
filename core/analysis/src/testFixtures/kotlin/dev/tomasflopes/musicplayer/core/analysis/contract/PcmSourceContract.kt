@@ -1,8 +1,13 @@
 package dev.tomasflopes.musicplayer.core.analysis.contract
 
+import dev.tomasflopes.musicplayer.core.analysis.HandBuiltProfilerV1
 import dev.tomasflopes.musicplayer.core.analysis.MonoDownmix
+import dev.tomasflopes.musicplayer.core.analysis.PcmBuffer
+import dev.tomasflopes.musicplayer.core.analysis.PcmChunkSink
 import dev.tomasflopes.musicplayer.core.analysis.PcmDecodeException
 import dev.tomasflopes.musicplayer.core.analysis.PcmSource
+import dev.tomasflopes.musicplayer.core.analysis.analyse
+import dev.tomasflopes.musicplayer.core.analysis.analyseStream
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -32,7 +37,9 @@ object PcmSourceContract {
     ): List<ContractCheck> {
         val reference = ReferenceTable.parse(fixtures.referenceText())
         val perFile = reference.flatMap { file -> checksFor(source, fixtures.location(file.name), file) }
-        return perFile + ContractCheck("a missing file fails with PcmDecodeException") { missing(source, fixtures) }
+        return perFile +
+            ContractCheck("a missing file fails with PcmDecodeException") { missing(source, fixtures) } +
+            ContractCheck("streaming a missing file fails with PcmDecodeException") { missingStream(source, fixtures) }
     }
 
     private fun checksFor(
@@ -43,6 +50,9 @@ object PcmSourceContract {
         buildList {
             add(named(file, "format and length") { formatAndLength(source, location, file) })
             add(named(file, "loudness after a full decode") { fullDecode(source, location, file) })
+            add(named(file, "stream chunks and format") { streamShape(source, location, file) })
+            add(named(file, "loudness after a stream") { streamLoudness(source, location, file) })
+            add(named(file, "streamed profile equals the whole-file profile") { streamProfile(source, location) })
             add(named(file, "loudness after a seek") { seekDecode(source, location, file) })
             if (file.onsetMs >= 0) add(named(file, "first click offset") { onset(source, location, file) })
         }
@@ -95,6 +105,94 @@ object PcmSourceContract {
             val mono = MonoDownmix.toMono(pcm)
             expectRms(rms(mono.window(window.startMs, window.lengthMs)), window.monoRms, label)
         }
+    }
+
+    /** Records what a stream delivers: the format, the chunk sizes and the samples, in order. */
+    private class Recorder : PcmChunkSink {
+        var begins = 0
+        var sampleRate = 0
+        var channels = 0
+        var chunks = 0
+        var largest = 0
+        var misaligned = 0
+        var acceptedBeforeBegin = false
+        val samples = ArrayList<Float>()
+
+        override fun begin(
+            sampleRate: Int,
+            channels: Int,
+        ) {
+            begins++
+            this.sampleRate = sampleRate
+            this.channels = channels
+        }
+
+        override fun accept(
+            samples: FloatArray,
+            count: Int,
+        ) {
+            if (begins == 0) acceptedBeforeBegin = true
+            chunks++
+            largest = maxOf(largest, count)
+            if (channels > 0 && count % channels != 0) misaligned++
+            for (i in 0 until count) this.samples.add(samples[i])
+        }
+
+        fun toBuffer() = PcmBuffer(sampleRate, channels, 0L, samples.toFloatArray())
+    }
+
+    private fun streamShape(
+        source: PcmSource,
+        location: String,
+        file: ReferenceFile,
+    ) {
+        val recorder = Recorder()
+        source.decodeStream(location, recorder)
+        verify(recorder.begins == 1) { "begin was called ${recorder.begins} times" }
+        verify(!recorder.acceptedBeforeBegin) { "a chunk arrived before begin" }
+        verify(recorder.sampleRate == file.sampleRate && recorder.channels == file.channels) {
+            "streamed ${recorder.sampleRate} Hz, ${recorder.channels} ch"
+        }
+        verify(recorder.misaligned == 0) { "${recorder.misaligned} chunks split a frame" }
+        verify(recorder.largest <= PcmChunkSink.MAX_CHUNK_SAMPLES) { "a chunk of ${recorder.largest} values" }
+        val duration = recorder.toBuffer().durationMs
+        verify(abs(duration - file.durationMs) <= LENGTH_TOLERANCE_MS) { "streamed $duration ms" }
+    }
+
+    private fun streamLoudness(
+        source: PcmSource,
+        location: String,
+        file: ReferenceFile,
+    ) {
+        val recorder = Recorder()
+        source.decodeStream(location, recorder)
+        val mono = MonoDownmix.toMono(recorder.toBuffer())
+        for (window in file.windows) {
+            expectRms(
+                rms(mono.window(window.startMs, window.lengthMs)),
+                window.monoRms,
+                "window at ${window.startMs} ms",
+            )
+        }
+    }
+
+    /** The same decoder gives the same samples either way, and the profile does not depend on the chunking. */
+    private fun streamProfile(
+        source: PcmSource,
+        location: String,
+    ) {
+        val profiler = HandBuiltProfilerV1()
+        val whole = profiler.analyse(source.decodeAll(location))
+        val streamed = profiler.analyseStream(source, location)
+        verify(whole == streamed) { "the streamed profile differs from the whole-file profile" }
+    }
+
+    private fun missingStream(
+        source: PcmSource,
+        fixtures: ContractFixtures,
+    ) {
+        val failure = runCatching { source.decodeStream(fixtures.missingLocation(), Recorder()) }.exceptionOrNull()
+        verify(failure is PcmDecodeException) { "expected PcmDecodeException, got $failure" }
     }
 
     private fun onset(

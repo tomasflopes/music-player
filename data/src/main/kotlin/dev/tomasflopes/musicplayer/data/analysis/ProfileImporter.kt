@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.tomasflopes.musicplayer.core.analysis.AnalysisScheduler
 import dev.tomasflopes.musicplayer.core.analysis.ExportFormatException
 import dev.tomasflopes.musicplayer.core.analysis.ExportRecord
 import dev.tomasflopes.musicplayer.core.analysis.HandBuiltProfilerV1
@@ -61,6 +62,7 @@ class ProfileImporter
         @ApplicationContext private val context: Context,
         private val db: MusicDatabase,
         private val settings: SettingsRepository,
+        private val analysis: AnalysisScheduler,
     ) {
         /** Songs with a profile for the current file and version, and the ones still queued (ADR 0058). */
         fun observeSummary(): Flow<AnalysisSummaryRow> =
@@ -82,11 +84,15 @@ class ProfileImporter
                 val counting =
                     CountingInputStream(input) { read -> onProgress((read.toFloat() / total).coerceAtMost(1f)) }
                 try {
-                    counting.use { stream ->
-                        BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { reader ->
-                            importLines(reader, root.relativePath)
+                    val result =
+                        counting.use { stream ->
+                            BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { reader ->
+                                importLines(reader, root.relativePath)
+                            }
                         }
-                    }
+                    // The songs the file did not cover stay queued for the phone (ADR 0059).
+                    analysis.request()
+                    result
                 } catch (e: ExportFormatException) {
                     throw ProfileImportException("This is not a sound profile export: ${e.message}", e)
                 } catch (e: IOException) {
@@ -176,7 +182,7 @@ class ProfileImporter
                     songId = match.songId,
                     profilerVersion = version,
                     features = ProfileBlobCodec.encode(record.profile),
-                    source = SOURCE_MAC,
+                    source = ProfileSource.MAC,
                     fileSize = record.size,
                     analysedAt = System.currentTimeMillis(),
                 )
@@ -199,7 +205,6 @@ class ProfileImporter
 
         private companion object {
             const val BATCH_SIZE = 500
-            const val SOURCE_MAC = "mac"
             const val UNKNOWN_SIZE = 1L
         }
     }

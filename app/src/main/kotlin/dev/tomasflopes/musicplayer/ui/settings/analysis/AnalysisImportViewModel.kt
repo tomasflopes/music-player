@@ -6,7 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.tomasflopes.musicplayer.data.analysis.ProfileImportException
 import dev.tomasflopes.musicplayer.data.analysis.ProfileImporter
-import dev.tomasflopes.musicplayer.data.db.dao.AnalysisSummaryRow
+import dev.tomasflopes.musicplayer.data.analysis.RoomAnalysisProgress
+import dev.tomasflopes.musicplayer.data.db.dao.AnalysisProgressRow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,12 +28,13 @@ class AnalysisImportViewModel
     @Inject
     constructor(
         private val importer: ProfileImporter,
+        progressSource: RoomAnalysisProgress,
     ) : ViewModel() {
-        /** Profiled and queued songs for the current profiler version; the row reads "N matched, M queued". */
-        val summary: StateFlow<AnalysisSummaryRow> =
-            importer
-                .observeSummary()
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), AnalysisSummaryRow(0, 0))
+        /** Analysed, waiting on the phone queue and given up, for the current profiler version (ADR 0058, 0059). */
+        val progress: StateFlow<AnalysisProgressRow> =
+            progressSource
+                .observe()
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), AnalysisProgressRow(0, 0, 0))
 
         private val mutableState = MutableStateFlow(ImportState())
         val state: StateFlow<ImportState> = mutableState.asStateFlow()

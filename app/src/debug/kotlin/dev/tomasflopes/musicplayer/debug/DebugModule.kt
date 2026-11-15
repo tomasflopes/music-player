@@ -18,4 +18,8 @@ abstract class DebugModule {
     @Binds
     @IntoSet
     abstract fun analysisBenchmarkEntry(entry: AnalysisBenchmarkSettingsEntry): SettingsEntry
+
+    @Binds
+    @IntoSet
+    abstract fun consistencyReportEntry(entry: ConsistencyReportSettingsEntry): SettingsEntry
 }

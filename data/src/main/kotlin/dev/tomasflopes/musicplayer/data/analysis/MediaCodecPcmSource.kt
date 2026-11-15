@@ -8,6 +8,7 @@ import android.media.MediaFormat
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.tomasflopes.musicplayer.core.analysis.PcmBuffer
+import dev.tomasflopes.musicplayer.core.analysis.PcmChunkSink
 import dev.tomasflopes.musicplayer.core.analysis.PcmDecodeException
 import dev.tomasflopes.musicplayer.core.analysis.PcmInfo
 import dev.tomasflopes.musicplayer.core.analysis.PcmSource
@@ -44,6 +45,19 @@ class MediaCodecPcmSource
             lengthMs: Long,
         ): PcmBuffer = decode(location, startMs, lengthMs)
 
+        override fun decodeStream(
+            location: String,
+            sink: PcmChunkSink,
+        ) {
+            translated(location) {
+                withTrack(location) { extractor, format ->
+                    withCodec(
+                        format,
+                    ) { codec -> CodecLoop(extractor, codec, format, endUs = null, sink = sink).stream() }
+                }
+            }
+        }
+
         private fun decode(
             location: String,
             startMs: Long,
@@ -61,14 +75,19 @@ class MediaCodecPcmSource
             extractor: MediaExtractor,
             format: MediaFormat,
             endUs: Long?,
-        ): PcmBuffer {
+        ): PcmBuffer = withCodec(format) { codec -> CodecLoop(extractor, codec, format, endUs).run() }
+
+        private fun <T> withCodec(
+            format: MediaFormat,
+            block: (MediaCodec) -> T,
+        ): T {
             val mime = format.getString(MediaFormat.KEY_MIME).orEmpty()
             val codec = MediaCodec.createDecoderByType(mime)
             try {
                 format.setInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_FLOAT)
                 codec.configure(format, null, null, 0)
                 codec.start()
-                return CodecLoop(extractor, codec, format, endUs).run()
+                return block(codec)
             } finally {
                 codec.release()
             }

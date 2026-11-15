@@ -5,6 +5,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import dev.tomasflopes.musicplayer.core.analysis.PcmBuffer
+import dev.tomasflopes.musicplayer.core.analysis.PcmChunkSink
 import dev.tomasflopes.musicplayer.core.analysis.PcmDecodeException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -14,6 +15,9 @@ private const val US_PER_SECOND = 1_000_000L
 private const val US_PER_MS = 1_000L
 private const val SHORT_SCALE = 32_768f
 private const val INITIAL_SAMPLES = 1 shl 20
+
+/** A stream hands the sink about this many floats at a time (256 KiB), far under [PcmChunkSink.MAX_CHUNK_SAMPLES]. */
+private const val STREAM_CHUNK_SAMPLES = 1 shl 16
 
 /** A whole-file buffer is sized from the duration plus this margin; VBR durations are estimates, so it may grow. */
 private const val SIZE_MARGIN = 1.05
@@ -25,16 +29,18 @@ private const val MAX_IDLE_ROUNDS = 1_000
 /**
  * Feeds [extractor] into [codec] and collects the float PCM it returns, until the end of the file or until the output
  * reaches [endUs] (song time) when that is set. The buffer starts at the first frame the codec returns, which after a
- * seek can be a little before the one asked for.
+ * seek can be a little before the one asked for. With a [sink] the output is not collected: [stream] hands it on in
+ * chunks of about [STREAM_CHUNK_SAMPLES] floats, so memory does not grow with the song (ADR 0054).
  */
 internal class CodecLoop(
     private val extractor: MediaExtractor,
     private val codec: MediaCodec,
     format: MediaFormat,
     private val endUs: Long?,
+    private val sink: PcmChunkSink? = null,
 ) {
     private val info = MediaCodec.BufferInfo()
-    private var samples = FloatArray(initialSamples(format, endUs))
+    private var samples = FloatArray(initialSamples(format, endUs, sink != null))
     private var size = 0
     private var inputDone = false
     private var outputDone = false
@@ -43,15 +49,28 @@ internal class CodecLoop(
     private var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
     private var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
     private var encoding = AudioFormat.ENCODING_PCM_16BIT
+    private var beganRate = 0
+    private var beganChannels = 0
 
     fun run(): PcmBuffer {
+        pump()
+        val startMs = firstPtsUs.coerceAtLeast(0L) / US_PER_MS
+        return PcmBuffer(sampleRate, channels, startMs, samples.copyOf(size))
+    }
+
+    /** Decodes to the end into the sink given at construction. Throws when the file held no audio. */
+    fun stream() {
+        pump()
+        flush()
+        if (beganRate == 0) throw PcmDecodeException("No audio could be decoded")
+    }
+
+    private fun pump() {
         while (!outputDone) {
             feedInput()
             drainOutput()
             if (idleRounds > MAX_IDLE_ROUNDS) throw PcmDecodeException("The decoder stopped returning audio")
         }
-        val startMs = firstPtsUs.coerceAtLeast(0L) / US_PER_MS
-        return PcmBuffer(sampleRate, channels, startMs, samples.copyOf(size))
     }
 
     private fun feedInput() {
@@ -123,7 +142,23 @@ internal class CodecLoop(
     }
 
     private fun ensureRoom(extra: Int) {
+        if (sink != null && size > 0 && size + extra > STREAM_CHUNK_SAMPLES) flush()
         if (size + extra > samples.size) samples = samples.copyOf(maxOf(samples.size * 2, size + extra))
+    }
+
+    /** Hands the collected samples to the sink and starts again from empty. The first call tells it the format. */
+    private fun flush() {
+        val out = sink ?: return
+        if (size == 0) return
+        if (beganRate == 0) {
+            out.begin(sampleRate, channels)
+            beganRate = sampleRate
+            beganChannels = channels
+        } else if (sampleRate != beganRate || channels != beganChannels) {
+            throw PcmDecodeException("The audio format changed during the song")
+        }
+        out.accept(samples, size - size % channels)
+        size = 0
     }
 
     private fun reachedEnd(): Boolean {
@@ -142,8 +177,10 @@ internal class CodecLoop(
 private fun initialSamples(
     format: MediaFormat,
     endUs: Long?,
+    streaming: Boolean,
 ): Int {
-    if (endUs != null || !format.containsKey(MediaFormat.KEY_DURATION)) return INITIAL_SAMPLES
+    val presized = !streaming && endUs == null && format.containsKey(MediaFormat.KEY_DURATION)
+    if (!presized) return if (streaming) STREAM_CHUNK_SAMPLES else INITIAL_SAMPLES
     val seconds = format.getLong(MediaFormat.KEY_DURATION).toDouble() / US_PER_SECOND
     val perSecond = format.getInteger(MediaFormat.KEY_SAMPLE_RATE) * format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
     val expected = (seconds * perSecond * SIZE_MARGIN).toLong()

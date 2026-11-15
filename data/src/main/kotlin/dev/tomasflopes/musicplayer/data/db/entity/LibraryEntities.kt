@@ -43,7 +43,7 @@ data class SongEntity(
     @ColumnInfo(name = "in_library") val inLibrary: Boolean,
 ) {
     /** Rebuilt from the volume and MediaStore id, so the row stays correct when MediaStore re-indexes. */
-    fun contentUri(): String = "content://media/$volumeName/audio/media/$mediaStoreId"
+    fun contentUri(): String = mediaStoreContentUri(volumeName, mediaStoreId)
 }
 
 @Entity(tableName = "artist", indices = [Index(value = ["name"], unique = true)])
@@ -76,3 +76,9 @@ data class SongFeatureEntity(
     @ColumnInfo(name = "artist_id") val artistId: Long?,
     @ColumnInfo(name = "raw_name") val rawName: String?,
 )
+
+/** The MediaStore URI of an audio file: what the library plays and the analysis decodes. */
+fun mediaStoreContentUri(
+    volumeName: String,
+    mediaStoreId: Long,
+): String = "content://media/$volumeName/audio/media/$mediaStoreId"

@@ -7,6 +7,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import dev.tomasflopes.musicplayer.core.analysis.AnalysisScheduler
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import kotlinx.coroutines.flow.first
 
@@ -20,11 +21,14 @@ class LibraryScanWorker
         private val scanner: LibraryScanner,
         private val settings: SettingsRepository,
         private val progress: ScanProgressBus,
+        private val analysis: AnalysisScheduler,
     ) : CoroutineWorker(context, params) {
         override suspend fun doWork(): Result {
             val root = settings.musicRoot.first() ?: return Result.success()
             return try {
                 scanner.scan(root, progress::publish)
+                // New or changed songs have no profile yet: the phone analysis picks them up (ADR 0059).
+                analysis.request()
                 Result.success()
             } catch (
                 @Suppress("TooGenericExceptionCaught") e: Exception,

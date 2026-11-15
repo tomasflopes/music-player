@@ -12,5 +12,9 @@
             android:name=".debug.AnalysisBenchmarkActivity"
             android:exported="false"
             android:label="Analysis benchmark" />
+        <activity
+            android:name=".debug.ConsistencyReportActivity"
+            android:exported="false"
+            android:label="Consistency report" />
     </application>
 </manifest>
