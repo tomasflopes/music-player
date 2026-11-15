@@ -131,6 +131,32 @@ class PlayEventDaoTest {
         }
 
     @Test
+    fun playedSongIdsSinceHaveEachSongWithARowAtOrAfterTheBoundOnce() =
+        runTest {
+            listOf(1L to 5L, 2L to 10L, 3L to 20L, 2L to 25L, 3L to 26L).forEach { (id, at) ->
+                val event = PlayEvent(SongId(id), at, 0, 1, EndedBy.SKIPPED, PlaySource.REWIND, StartedBy.AUTO, false)
+                db.playEventDao().insert(PlayEventEntity.from(event))
+            }
+
+            assertEquals(
+                setOf(2L, 3L),
+                db
+                    .playEventDao()
+                    .observePlayedSongIdsSince(10)
+                    .first()
+                    .toSet(),
+            )
+            assertEquals(
+                emptySet<Long>(),
+                db
+                    .playEventDao()
+                    .observePlayedSongIdsSince(27)
+                    .first()
+                    .toSet(),
+            )
+        }
+
+    @Test
     fun searchEventsAreStored() =
         runTest {
             db.searchEventDao().insert(SearchEventEntity.from(SearchEvent("ed", SearchItemType.ARTIST, 7, 1_000)))

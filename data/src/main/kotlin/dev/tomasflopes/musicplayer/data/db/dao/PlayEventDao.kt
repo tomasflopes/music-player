@@ -23,6 +23,10 @@ interface PlayEventDao {
     @Query("SELECT DISTINCT song_id FROM play_event")
     fun observePlayedSongIds(): Flow<List<Long>>
 
+    /** Every song with a row that started at or after [since], of any outcome (Rewind's "played lately"). */
+    @Query("SELECT DISTINCT song_id FROM play_event WHERE started_at >= :since")
+    fun observePlayedSongIdsSince(since: Long): Flow<List<Long>>
+
     @Query("SELECT COUNT(*) FROM play_event")
     fun observeCount(): Flow<Int>
 }

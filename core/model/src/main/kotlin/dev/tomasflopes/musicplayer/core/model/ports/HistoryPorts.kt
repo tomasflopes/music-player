@@ -34,6 +34,15 @@ fun interface PlayedSongSource {
     fun observePlayedIds(): Flow<Set<SongId>>
 }
 
+/** Which songs the listening log has heard since a moment, for lists that want songs not played lately (Rewind). */
+fun interface PlayedSinceSource {
+    /**
+     * Every song with at least one `play_event` row that started at or after [sinceEpochMs], of any outcome.
+     * Emits again when the set changes.
+     */
+    fun observePlayedIdsSince(sinceEpochMs: Long): Flow<Set<SongId>>
+}
+
 interface SearchHistoryWriter {
     suspend fun append(event: SearchEvent)
 }

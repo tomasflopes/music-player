@@ -41,7 +41,8 @@ class DiscoverPolicy(
                 .filter { it.id !in played }
                 .map { Ranked(it, rank(it, artistScores, salt)) }
                 .sortedWith(compareByDescending<Ranked> { it.rank }.thenBy { it.song.id.value })
-        return spread(capped(ranked))
+        val best = ranked.map { it.song }.cappedPerArtist(config.maxPerArtist, config.size)
+        return best.spreadByArtist(config.artistGap)
     }
 
     private class Ranked(
@@ -55,59 +56,6 @@ class DiscoverPolicy(
         salt: Long,
     ): Double {
         val taste = tanh((artistScores[song.artistId] ?: 0.0) / config.tasteScale)
-        return taste + config.randomWeight * unit(salt, song.id.value)
-    }
-
-    private fun capped(ranked: List<Ranked>): List<Song> {
-        val perArtist = HashMap<ArtistId, Int>()
-        val kept = ArrayList<Song>(minOf(ranked.size, config.size))
-        for (entry in ranked) {
-            if (kept.size >= config.size) break
-            val count = perArtist.getOrDefault(entry.song.artistId, 0)
-            if (count < config.maxPerArtist) {
-                perArtist[entry.song.artistId] = count + 1
-                kept += entry.song
-            }
-        }
-        return kept
-    }
-
-    private fun spread(ranked: List<Song>): List<Song> {
-        if (config.artistGap == 0) return ranked
-        val rest = ranked.toMutableList()
-        val placed = ArrayList<Song>(rest.size)
-        val lastPlace = HashMap<ArtistId, Int>()
-        while (rest.isNotEmpty()) {
-            val recent = placed.takeLast(config.artistGap).mapTo(HashSet()) { it.artistId }
-            val free = rest.indexOfFirst { it.artistId !in recent }
-            val index = if (free >= 0) free else rest.indices.minBy { lastPlace.getValue(rest[it].artistId) }
-            val song = rest.removeAt(index)
-            lastPlace[song.artistId] = placed.size
-            placed += song
-        }
-        return placed
-    }
-
-    private companion object {
-        const val GOLDEN = -7_046_029_254_386_353_131L
-        const val MIX_1 = -4_658_895_280_553_007_687L
-        const val MIX_2 = -7_723_592_293_110_705_685L
-        const val SHIFT_1 = 30
-        const val SHIFT_2 = 27
-        const val SHIFT_3 = 31
-        const val UNIT_SHIFT = 11
-        const val UNIT_SCALE = 1.0 / (1L shl 53)
-
-        /** A value in [0, 1) that depends only on [salt] and [id] (a splitmix64 step). */
-        fun unit(
-            salt: Long,
-            id: Long,
-        ): Double {
-            var z = salt + id * GOLDEN
-            z = (z xor (z ushr SHIFT_1)) * MIX_1
-            z = (z xor (z ushr SHIFT_2)) * MIX_2
-            z = z xor (z ushr SHIFT_3)
-            return (z ushr UNIT_SHIFT) * UNIT_SCALE
-        }
+        return taste + config.randomWeight * seededUnit(salt, song.id.value)
     }
 }

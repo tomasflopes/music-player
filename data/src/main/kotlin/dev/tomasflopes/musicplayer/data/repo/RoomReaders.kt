@@ -21,6 +21,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.PlayedSinceSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayedSongSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlaylistAddSource
 import dev.tomasflopes.musicplayer.core.model.ports.SearchEventSource
@@ -113,7 +114,8 @@ class RoomPlayHistory(
 ) : PlayHistoryWriter,
     PlayHistoryReader,
     PlayEventSource,
-    PlayedSongSource {
+    PlayedSongSource,
+    PlayedSinceSource {
     override suspend fun append(event: PlayEvent) = db.playEventDao().insert(PlayEventEntity.from(event))
 
     override fun observeSince(sinceEpochMs: Long): Flow<List<PlayEvent>> =
@@ -128,6 +130,13 @@ class RoomPlayHistory(
         db
             .playEventDao()
             .observePlayedSongIds()
+            .map { ids -> ids.mapTo(HashSet()) { SongId(it) } }
+            .distinctUntilChanged()
+
+    override fun observePlayedIdsSince(sinceEpochMs: Long): Flow<Set<SongId>> =
+        db
+            .playEventDao()
+            .observePlayedSongIdsSince(sinceEpochMs)
             .map { ids -> ids.mapTo(HashSet()) { SongId(it) } }
             .distinctUntilChanged()
 }

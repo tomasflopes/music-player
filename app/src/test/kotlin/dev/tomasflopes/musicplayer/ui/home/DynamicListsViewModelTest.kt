@@ -1,10 +1,20 @@
 package dev.tomasflopes.musicplayer.ui.home
 
 import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.core.model.log.EndedBy
+import dev.tomasflopes.musicplayer.core.model.log.PlayEvent
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.log.StartedBy
+import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
+import dev.tomasflopes.musicplayer.core.model.ports.PlayedSinceSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayedSongSource
+import dev.tomasflopes.musicplayer.core.model.ports.PlaylistAddSource
+import dev.tomasflopes.musicplayer.core.model.ports.SearchEventSource
 import dev.tomasflopes.musicplayer.core.taste.lists.DiscoverPolicy
 import dev.tomasflopes.musicplayer.core.taste.lists.DiscoverProvider
+import dev.tomasflopes.musicplayer.core.taste.lists.RewindLogs
+import dev.tomasflopes.musicplayer.core.taste.lists.RewindPolicy
+import dev.tomasflopes.musicplayer.core.taste.lists.RewindProvider
 import dev.tomasflopes.musicplayer.core.taste.score.ArtistScore
 import dev.tomasflopes.musicplayer.core.taste.score.ScoreBoard
 import dev.tomasflopes.musicplayer.core.taste.score.SongScore
@@ -29,6 +39,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlin.coroutines.EmptyCoroutineContext
 
 /** No artist has a score, so Discover is ordered by its random part only. */
 private object NoScores : ScoreBoard {
@@ -93,6 +107,51 @@ class DynamicListsViewModelTest {
             assertEquals(listOf("recently_added", "top_100", "discover"), cards.value.map { it.id })
             assertEquals(DynamicListCard("discover", "Discover", 1, testSong(2, artistId = 2)), cards.value.last())
             assertEquals(PlaySource.DISCOVER, discover.playSource)
+        }
+
+    @Test
+    fun `Rewind gets its card after Discover, built from the real provider`() =
+        runTest {
+            val day = 86_400_000L
+            val now = 1_000 * day
+            val lovedThen =
+                PlayEvent(
+                    SongId(1),
+                    now - 61 * day,
+                    200_000,
+                    200_000,
+                    EndedBy.COMPLETED,
+                    PlaySource.ALBUM,
+                    StartedBy.PICKED,
+                    false,
+                )
+            val log =
+                object : PlayEventSource {
+                    override fun observeSince(sinceEpochMs: Long): Flow<List<PlayEvent>> = flowOf(listOf(lovedThen))
+                }
+            val library = FakeSongReader(songs = listOf(testSong(1, artistId = 1), testSong(2, artistId = 2)))
+            val rewind =
+                RewindProvider(
+                    library,
+                    RewindLogs(
+                        PlayedSinceSource { flowOf(emptySet()) },
+                        log,
+                        PlaylistAddSource { flowOf(emptyList()) },
+                        SearchEventSource { flowOf(emptyList()) },
+                    ),
+                    RewindPolicy(),
+                    Clock.fixed(Instant.ofEpochMilli(now), ZoneOffset.UTC),
+                    1,
+                    EmptyCoroutineContext,
+                )
+            val discover = FakeDynamicListProvider(id = "discover", order = 20, title = "Discover")
+            val top100 = FakeDynamicListProvider(id = "top_100", order = 10, title = "Top 100")
+
+            val cards = subscribed(DynamicListsViewModel(setOf(rewind, discover, top100, recentlyAdded)).cards)
+
+            assertEquals(listOf("recently_added", "top_100", "discover", "rewind"), cards.value.map { it.id })
+            assertEquals(DynamicListCard("rewind", "Rewind", 1, testSong(1, artistId = 1)), cards.value.last())
+            assertEquals(PlaySource.REWIND, rewind.playSource)
         }
 
     @Test
