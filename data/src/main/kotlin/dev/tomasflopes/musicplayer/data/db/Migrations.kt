@@ -80,5 +80,25 @@ object Migrations {
             }
         }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    /**
+     * Sound profiles (ADR 0058): one row per song with its BLOB, and one failure row per song and profiler version.
+     * Adds two tables and nothing else; the queue is a query, so there is no queue table.
+     */
+    val MIGRATION_5_6: Migration =
+        object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sound_profile` (`song_id` INTEGER NOT NULL, " +
+                        "`profiler_version` INTEGER NOT NULL, `features` BLOB NOT NULL, `source` TEXT NOT NULL, " +
+                        "`file_size` INTEGER NOT NULL, `analysed_at` INTEGER NOT NULL, PRIMARY KEY(`song_id`))",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `analysis_failure` (`song_id` INTEGER NOT NULL, " +
+                        "`profiler_version` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, " +
+                        "`last_error` TEXT NOT NULL, PRIMARY KEY(`song_id`, `profiler_version`))",
+                )
+            }
+        }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

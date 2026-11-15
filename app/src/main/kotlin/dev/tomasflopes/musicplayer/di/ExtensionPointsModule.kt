@@ -17,6 +17,7 @@ import dev.tomasflopes.musicplayer.ui.home.sections.PlaylistsSection
 import dev.tomasflopes.musicplayer.ui.home.sections.ShuffleAllSection
 import dev.tomasflopes.musicplayer.ui.settings.CrossfadeSettingsEntry
 import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
+import dev.tomasflopes.musicplayer.ui.settings.analysis.AnalysisImportSettingsEntry
 
 /**
  * Where the extension points get their implementations: one `@IntoSet` line per new Home section or dynamic list
@@ -45,6 +46,10 @@ abstract class ExtensionPointsModule {
     @Binds
     @IntoSet
     abstract fun crossfadeEntry(entry: CrossfadeSettingsEntry): SettingsEntry
+
+    @Binds
+    @IntoSet
+    abstract fun analysisImportEntry(entry: AnalysisImportSettingsEntry): SettingsEntry
 
     @Binds
     @IntoSet

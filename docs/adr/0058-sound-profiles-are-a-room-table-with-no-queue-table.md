@@ -1,6 +1,6 @@
 # 0058: Sound profiles are a Room table; the queue is a query, not a table
 
-Date: 2026-11-14 · Status: proposed · Amends the data section of the phase 3 file · Extends 0037
+Date: 2026-11-14 · Status: accepted · Amends the data section of the phase 3 file · Extends 0037
 
 **Context.** Design §7.5 named `sound_profile` and `analysis_queue`. A queue table can drift out of step with `song` (retired songs, rescans).
 

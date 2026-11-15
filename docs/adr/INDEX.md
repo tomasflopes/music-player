@@ -60,8 +60,8 @@ One line per decision. Open only the ADRs relevant to the task. Accepted ADRs ar
 | [0054](0054-decode-strategy-and-sample-rate-come-from-the-timing-spike.md) | Decode strategy, sample rate and FFT size come from the timing spike (numbers filled in after slice 1) | accepted |
 | [0055](0055-profiler-v1-is-an-ordered-feature-list-with-a-raw-float-blob.md) | Profiler v1 is an ordered feature list stored as a raw float32 BLOB; normalising moves to phase 4 | superseded by 0065 |
 | [0056](0056-the-mac-export-is-json-lines-with-a-header-line.md) | The Mac export is JSON Lines with a header line, resumable by appending; amends design §7.5 | accepted (line format amended by 0065) |
-| [0057](0057-import-matches-on-nfc-relative-path-and-exact-size.md) | Import matches on NFC-normalised relative path and exact size; extends 0003 | proposed |
-| [0058](0058-sound-profiles-are-a-room-table-with-no-queue-table.md) | Sound profiles are a Room table with no FK; the analysis queue is a query, not a table; `analysis_failure` added | proposed |
+| [0057](0057-import-matches-on-nfc-relative-path-and-exact-size.md) | Import matches on NFC-normalised relative path and exact size; extends 0003 | accepted |
+| [0058](0058-sound-profiles-are-a-room-table-with-no-queue-table.md) | Sound profiles are a Room table with no FK; the analysis queue is a query, not a table; `analysis_failure` added | accepted |
 | [0059](0059-phone-analysis-is-one-unique-batch-worker-without-a-foreground-service.md) | Phone analysis is one unique ~9 min batch worker, no foreground service; charging required above 100 waiting | proposed |
 | [0060](0060-mac-and-phone-consistency-is-checked-with-generated-files-and-a-debug-report.md) | Consistency: generated test MP3s, a golden file in `check` and `deviceCheck`, and a debug report on real songs; extends 0003 | proposed |
 | [0061](0061-crossfade-engine-is-a-seam-with-two-players-blended-by-hand.md) | Crossfade is a `CrossfadeEngine` seam (single-player or two ExoPlayers blended by hand), driven by `PlaybackEngine` as host; extends 0020 | proposed |

@@ -1,6 +1,6 @@
 # 0057: Import matches on NFC-normalised relative path and exact size
 
-Date: 2026-11-14 · Status: proposed · Extends 0003
+Date: 2026-11-14 · Status: accepted · Extends 0003
 
 **Context.** The Mac library is a byte-for-byte copy of the phone's `Music/` folder (owner, 2026-11-14): same subfolders, same files, not re-tagged. macOS often stores names in NFD, Android in NFC, so `Nós.mp3` would never match raw.
 

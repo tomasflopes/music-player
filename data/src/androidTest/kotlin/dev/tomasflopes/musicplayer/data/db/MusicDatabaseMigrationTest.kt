@@ -146,6 +146,36 @@ class MusicDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration5To6KeepsTheLibraryAndAddsTheSoundProfileTables() {
+        helper.createDatabase(db, 5).use { v5 ->
+            v5.execSQL("INSERT INTO artist (id, name, sort_name) VALUES (7, 'Rui Veloso', 'rui veloso')")
+        }
+
+        helper.runMigrationsAndValidate(db, 6, true, Migrations.MIGRATION_5_6).use { v6 ->
+            v6.query("SELECT name FROM artist WHERE id = 7").use {
+                assertTrue(it.moveToFirst())
+                assertEquals("Rui Veloso", it.getString(0))
+            }
+            v6.execSQL(
+                "INSERT INTO sound_profile (song_id, profiler_version, features, source, file_size, analysed_at) " +
+                    "VALUES (41, 1, X'0000803F', 'mac', 100, 5)",
+            )
+            v6.execSQL(
+                "INSERT INTO analysis_failure (song_id, profiler_version, attempts, last_error) " +
+                    "VALUES (41, 1, 2, 'decode failed')",
+            )
+            v6.query("SELECT length(features), source FROM sound_profile WHERE song_id = 41").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(4, it.getInt(0))
+                assertEquals("mac", it.getString(1))
+            }
+            // Keyed by song id with no foreign key to song (ADR 0058, as 0037).
+            assertEquals(setOf<String>(), foreignKeys(v6, "sound_profile"))
+            assertEquals(setOf<String>(), foreignKeys(v6, "analysis_failure"))
+        }
+    }
+
     private fun foreignKeys(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,

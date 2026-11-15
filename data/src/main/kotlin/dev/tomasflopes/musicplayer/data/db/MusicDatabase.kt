@@ -16,7 +16,9 @@ import dev.tomasflopes.musicplayer.data.db.dao.SongArtistDao
 import dev.tomasflopes.musicplayer.data.db.dao.SongDao
 import dev.tomasflopes.musicplayer.data.db.dao.SongFeatureDao
 import dev.tomasflopes.musicplayer.data.db.dao.SongScanDao
+import dev.tomasflopes.musicplayer.data.db.dao.SoundProfileDao
 import dev.tomasflopes.musicplayer.data.db.entity.AlbumEntity
+import dev.tomasflopes.musicplayer.data.db.entity.AnalysisFailureEntity
 import dev.tomasflopes.musicplayer.data.db.entity.ArtistEntity
 import dev.tomasflopes.musicplayer.data.db.entity.ArtistImageLookupEntity
 import dev.tomasflopes.musicplayer.data.db.entity.ArtistImageOverrideEntity
@@ -29,9 +31,10 @@ import dev.tomasflopes.musicplayer.data.db.entity.PlaylistSongEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SearchEventEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SongEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SongFeatureEntity
+import dev.tomasflopes.musicplayer.data.db.entity.SoundProfileEntity
 
 @Database(
-    version = 5,
+    version = 6,
     exportSchema = true,
     entities = [
         SongEntity::class,
@@ -47,6 +50,8 @@ import dev.tomasflopes.musicplayer.data.db.entity.SongFeatureEntity
         PlaylistSongEntity::class,
         PlaylistAddEventEntity::class,
         PlaylistDismissedEntity::class,
+        SoundProfileEntity::class,
+        AnalysisFailureEntity::class,
     ],
 )
 @TypeConverters(Converters::class)
@@ -76,6 +81,8 @@ abstract class MusicDatabase : RoomDatabase() {
     abstract fun playlistDismissedDao(): PlaylistDismissedDao
 
     abstract fun songArtistDao(): SongArtistDao
+
+    abstract fun soundProfileDao(): SoundProfileDao
 
     companion object {
         const val NAME = "music.db"

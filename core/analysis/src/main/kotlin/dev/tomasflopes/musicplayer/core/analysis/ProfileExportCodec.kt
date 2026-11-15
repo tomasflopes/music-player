@@ -77,7 +77,8 @@ object ProfileExportCodec {
         return ExportContents(header, records, truncated)
     }
 
-    private fun parseHeader(line: String): ExportHeader =
+    /** The header on [line]. Throws [ExportFormatException] when it is not an export header. */
+    fun parseHeader(line: String): ExportHeader =
         try {
             val json = Json.parseToJsonElement(line).jsonObject
             val names = json.getValue("fixed_names").jsonArray.map { it.jsonPrimitive.content }
@@ -94,8 +95,8 @@ object ProfileExportCodec {
             throw ExportFormatException("The first line is not an export header", e)
         }
 
-    /** The song on [line], or null when the line is not a complete song line. */
-    private fun parseSong(line: String): ExportRecord? =
+    /** The song on [line], or null when the line is not a complete song line (a half-written tail, for one). */
+    fun parseSong(line: String): ExportRecord? =
         try {
             val json: JsonObject = Json.parseToJsonElement(line).jsonObject
             val fixed =
