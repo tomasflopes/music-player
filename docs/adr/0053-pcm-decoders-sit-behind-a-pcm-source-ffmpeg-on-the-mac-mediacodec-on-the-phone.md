@@ -1,6 +1,6 @@
 # 0053: PCM decoders sit behind a `PcmSource`: ffmpeg on the Mac, MediaCodec on the phone
 
-Date: 2026-11-14 · Status: proposed
+Date: 2026-11-14 · Status: accepted (2026-11-15: `./gradlew check` and the emulator contract test are green)
 
 **Context.** The Mac tool and the app must feed the same features to `:core:analysis` (ADR 0003). Decoding is the cost that matters per song and the main source of Mac/phone disagreement.
 

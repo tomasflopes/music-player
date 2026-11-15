@@ -47,6 +47,9 @@ class AnalysisBenchmarkViewModel
         private val mutableState = MutableStateFlow(BenchUiState())
         val state: StateFlow<BenchUiState> = mutableState.asStateFlow()
 
+        /** Songs that threw OutOfMemoryError in the timed run; only touched from the single benchmark coroutine. */
+        private var memoryFailures = 0
+
         fun start() {
             if (mutableState.value.running) return
             mutableState.value = BenchUiState(running = true, progress = "Reading the library")
@@ -71,6 +74,7 @@ class AnalysisBenchmarkViewModel
             val rates = SampleRateCount.of(surveyed)
             val runner = BenchRunner(source)
             sample.take(WARM_UP_SONGS).forEach { measure(runner, it) }
+            memoryFailures = 0
 
             val timings = mutableListOf<SongTimings>()
             val start = System.nanoTime()
@@ -83,7 +87,15 @@ class AnalysisBenchmarkViewModel
 
             val run = BenchRun("this phone, 1 thread", parallelism = 1, wallNs = wall, timings = timings)
             val failed = sample.size - timings.size
-            return BenchReport.format(BenchInput(BenchSample.DEFAULT_SEED, failed, rates, listOf(run)))
+            val input =
+                BenchInput(
+                    seed = BenchSample.DEFAULT_SEED,
+                    failed = failed,
+                    sampleRates = rates,
+                    runs = listOf(run),
+                    failedByMemory = memoryFailures,
+                )
+            return BenchReport.format(input)
         }
 
         private suspend fun locationsByRelativePath(): Map<String, String> {
@@ -120,6 +132,10 @@ class AnalysisBenchmarkViewModel
             try {
                 runner.measure(location)
             } catch (ignored: PcmDecodeException) {
+                null
+            } catch (ignored: OutOfMemoryError) {
+                // Benchmark only: a song that does not fit the heap counts as failed, so the run can report how many.
+                memoryFailures++
                 null
             }
 

@@ -11,11 +11,14 @@ object Mp3Finder {
         val found = mutableMapOf<String, Path>()
         Files.walk(root).use { stream ->
             stream
-                .filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".mp3", ignoreCase = true) }
+                .filter { Files.isRegularFile(it) && isMp3(it.fileName.toString()) }
                 .forEach { found[relative(root, it)] = it }
         }
         return found
     }
+
+    /** Skips macOS `._name.mp3` helper files that FAT/exFAT cards get next to every copied file. */
+    private fun isMp3(name: String): Boolean = name.endsWith(".mp3", ignoreCase = true) && !name.startsWith("._")
 
     private fun relative(
         root: Path,

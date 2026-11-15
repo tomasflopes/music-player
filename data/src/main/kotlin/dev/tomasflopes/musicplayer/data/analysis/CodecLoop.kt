@@ -15,6 +15,10 @@ private const val US_PER_MS = 1_000L
 private const val SHORT_SCALE = 32_768f
 private const val INITIAL_SAMPLES = 1 shl 20
 
+/** A whole-file buffer is sized from the duration plus this margin; VBR durations are estimates, so it may grow. */
+private const val SIZE_MARGIN = 1.05
+private const val MAX_PRESIZED_SAMPLES = 1L shl 28
+
 /** About ten seconds of nothing from the codec (10 ms per round) means it is stuck, not slow. */
 private const val MAX_IDLE_ROUNDS = 1_000
 
@@ -30,7 +34,7 @@ internal class CodecLoop(
     private val endUs: Long?,
 ) {
     private val info = MediaCodec.BufferInfo()
-    private var samples = FloatArray(INITIAL_SAMPLES)
+    private var samples = FloatArray(initialSamples(format, endUs))
     private var size = 0
     private var inputDone = false
     private var outputDone = false
@@ -128,4 +132,20 @@ internal class CodecLoop(
         val coveredUs = firstPtsUs + (size / channels) * US_PER_SECOND / sampleRate
         return coveredUs >= end
     }
+}
+
+/**
+ * A whole-file decode knows its length from the format, so the buffer is sized once. Doubling from 1 M samples holds
+ * the old and the new array at the same time, about 1.5 times the final size, which is what ran out of memory on long
+ * songs (ADR 0054). A window decode stays small and keeps the default.
+ */
+private fun initialSamples(
+    format: MediaFormat,
+    endUs: Long?,
+): Int {
+    if (endUs != null || !format.containsKey(MediaFormat.KEY_DURATION)) return INITIAL_SAMPLES
+    val seconds = format.getLong(MediaFormat.KEY_DURATION).toDouble() / US_PER_SECOND
+    val perSecond = format.getInteger(MediaFormat.KEY_SAMPLE_RATE) * format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+    val expected = (seconds * perSecond * SIZE_MARGIN).toLong()
+    return expected.coerceIn(INITIAL_SAMPLES.toLong(), MAX_PRESIZED_SAMPLES).toInt()
 }

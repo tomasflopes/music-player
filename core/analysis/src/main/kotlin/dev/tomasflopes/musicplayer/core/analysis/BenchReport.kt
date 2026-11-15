@@ -42,6 +42,8 @@ class BenchInput(
     val sampleRates: SampleRateCount,
     val runs: List<BenchRun>,
     val rules: BenchRules = BenchRules(),
+    /** How many of [failed] died with an out-of-memory error (the phone's whole-song decode, ADR 0054). */
+    val failedByMemory: Int = 0,
 )
 
 /** The text both `analyser bench` and the phone screen print: median and p95 per stage, estimates and the rules. */
@@ -53,7 +55,8 @@ object BenchReport {
                     .firstOrNull()
                     ?.timings
                     ?.size ?: 0
-            appendLine("Analysis benchmark: $songs songs, seed ${input.seed}, ${input.failed} failed")
+            val failures = "${input.failed} failed, ${input.failedByMemory} by memory"
+            appendLine("Analysis benchmark: $songs songs, seed ${input.seed}, $failures")
             appendLine("Sample rates over ${input.sampleRates.total} files: ${input.sampleRates.describe()}")
             input.runs.forEach { appendRun(it, input.rules) }
             input.runs.firstOrNull()?.let { appendRules(it, input) }

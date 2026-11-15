@@ -7,7 +7,8 @@ import java.nio.file.Paths
 /** The command line was wrong; [message] is what to tell the owner. */
 class UsageException(
     message: String,
-) : Exception(message)
+    cause: Throwable? = null,
+) : Exception(message, cause)
 
 /** `analyser bench --root <music folder> [--sample 60] [--survey 500] [--seed N] [--threads N]`. */
 data class BenchOptions(

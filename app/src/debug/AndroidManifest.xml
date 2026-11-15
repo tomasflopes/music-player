@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Debug builds only: the debug screen, opened from Settings (no launcher icon of its own). -->
-    <application>
+    <!-- Debug builds only: the debug screen, opened from Settings (no launcher icon of its own). largeHeap: the
+         benchmark decodes whole songs into memory, which does not fit the 256 MB default (ADR 0054). -->
+    <application android:largeHeap="true">
         <activity
             android:name=".debug.DebugActivity"
             android:exported="false"
