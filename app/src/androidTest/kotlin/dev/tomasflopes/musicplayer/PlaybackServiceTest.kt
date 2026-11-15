@@ -8,22 +8,18 @@ import androidx.media3.session.SessionToken
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
-import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ref
 import dev.tomasflopes.musicplayer.core.tags.Id3TagReader
 import dev.tomasflopes.musicplayer.core.tags.SampleLibrary
-import dev.tomasflopes.musicplayer.data.db.MusicDatabase
 import dev.tomasflopes.musicplayer.data.scan.ContentResolverTagSource
 import dev.tomasflopes.musicplayer.data.scan.LibraryScanner
 import dev.tomasflopes.musicplayer.data.scan.MediaStoreSongLister
+import dev.tomasflopes.musicplayer.debug.TestGraph
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.PlaybackService
@@ -47,16 +43,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class PlaybackServiceTest {
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface Graph {
-        fun controller(): PlaybackController
-
-        fun songs(): SongReader
-
-        fun db(): MusicDatabase
-    }
-
     private val context: Context = ApplicationProvider.getApplicationContext()
     private lateinit var playback: PlaybackController
     private lateinit var songs: List<Song>
@@ -69,8 +55,8 @@ class PlaybackServiceTest {
                 .getInstrumentation()
                 .uiAutomation
                 .grantRuntimePermission(context.packageName, Manifest.permission.READ_MEDIA_AUDIO)
-            lateinit var graph: Graph
-            onMain { graph = EntryPointAccessors.fromApplication(context, Graph::class.java) }
+            lateinit var graph: TestGraph
+            onMain { graph = EntryPointAccessors.fromApplication(context, TestGraph::class.java) }
             val cr = context.contentResolver
             LibraryScanner(
                 lister = MediaStoreSongLister(cr),
@@ -82,7 +68,7 @@ class PlaybackServiceTest {
             songs = graph.songs().observeSongs().first()
             assertTrue("push the samples first: scripts/push-samples.sh", songs.size >= SAMPLE_MIN)
             onMain {
-                playback = graph.controller()
+                playback = graph.playback()
                 val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
                 second = MediaController.Builder(context, token).buildAsync().get()
             }

@@ -7,16 +7,11 @@ import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
-import dev.tomasflopes.musicplayer.core.model.ports.LibraryScanController
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.ScanPhase
-import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
-import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.tags.SampleLibrary
+import dev.tomasflopes.musicplayer.debug.TestGraph
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -30,19 +25,6 @@ internal const val PLAY_WAIT_MS = 5_000L
 private const val SCAN_WAIT_MS = 30_000L
 private const val POLL_MS = 100L
 private const val SAMPLE_MIN = 20
-
-/** The ports the flow tests use to put the app in a known state; the screens themselves are driven by [Screen]. */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface FlowGraph {
-    fun settings(): SettingsRepository
-
-    fun scanner(): LibraryScanController
-
-    fun songs(): SongReader
-
-    fun playback(): PlaybackController
-}
 
 /**
  * Reads and clicks what is on screen through the accessibility tree that `UiAutomation` sees. Compose publishes
@@ -111,7 +93,7 @@ internal class Screen {
  */
 internal class FlowRig {
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private lateinit var graph: FlowGraph
+    private lateinit var graph: TestGraph
     private var previousRoot: MusicRoot? = null
 
     val screen = Screen()
@@ -128,7 +110,7 @@ internal class FlowRig {
                 .getInstrumentation()
                 .uiAutomation
                 .grantRuntimePermission(context.packageName, Manifest.permission.READ_MEDIA_AUDIO)
-            onMain { graph = EntryPointAccessors.fromApplication(context, FlowGraph::class.java) }
+            onMain { graph = EntryPointAccessors.fromApplication(context, TestGraph::class.java) }
             previousRoot =
                 graph
                     .settings()
