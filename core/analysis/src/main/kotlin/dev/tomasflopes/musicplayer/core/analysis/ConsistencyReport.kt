@@ -15,11 +15,14 @@ data class FeatureGap(
 
 /**
  * The debug "Consistency report" (ADR 0060): how far a fresh phone analysis is from the profile the Mac made, per v1
- * feature. Tempo is compared in BPM (limit 1), the others as a share of the stored value (limit 2 %).
+ * feature. Tempo is compared in BPM (limit 1), the others as a share of the stored value (limit 2 %), except the two
+ * onset-based features, which get 5 % on real music (ADR 0067).
  */
 object ConsistencyReport {
     private const val TEMPO_LIMIT_BPM = 1.0
     private const val RELATIVE_LIMIT = 0.02
+    private const val ONSET_LIMIT = 0.05
+    private val onsetBased = setOf(SoundProfile.ONSET_DENSITY, SoundProfile.BEAT_STRENGTH)
     private const val FLOOR = 1e-4
     private const val PERCENT = 100
 
@@ -28,7 +31,12 @@ object ConsistencyReport {
         (0 until SoundProfile.FEATURE_COUNT).map { index ->
             val isTempo = index == SoundProfile.TEMPO
             val gaps = pairs.map { (stored, fresh) -> gap(stored.fixed[index], fresh.fixed[index], isTempo) }
-            val limit = if (isTempo) TEMPO_LIMIT_BPM else RELATIVE_LIMIT
+            val limit =
+                when {
+                    isTempo -> TEMPO_LIMIT_BPM
+                    index in onsetBased -> ONSET_LIMIT
+                    else -> RELATIVE_LIMIT
+                }
             FeatureGap(
                 name = SoundProfile.FIXED_NAMES[index],
                 maxGap = gaps.maxOrNull() ?: 0.0,

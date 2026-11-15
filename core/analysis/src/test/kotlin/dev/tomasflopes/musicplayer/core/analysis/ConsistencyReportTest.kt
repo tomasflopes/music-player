@@ -37,6 +37,19 @@ class ConsistencyReportTest {
     }
 
     @Test
+    fun `onset based features get 5 percent and the others stay at 2 percent`() {
+        val stored = profile(SoundProfile.ONSET_DENSITY to 2f, SoundProfile.BEAT_STRENGTH to 2f)
+        val fresh = profile(SoundProfile.ONSET_DENSITY to 2.1f, SoundProfile.BEAT_STRENGTH to 2.14f)
+
+        val gaps = ConsistencyReport.compare(listOf(stored to fresh)).associateBy { it.name }
+
+        assertEquals(0.05, gaps.getValue("onset_density").limit, 1e-9)
+        assertEquals(0, gaps.getValue("onset_density").songsOver)
+        assertEquals(1, gaps.getValue("beat_strength").songsOver)
+        assertEquals(0.02, gaps.getValue("bass_energy_ratio").limit, 1e-9)
+    }
+
+    @Test
     fun `the text has one line per feature and names the song count`() {
         val same = profile()
 
