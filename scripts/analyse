@@ -1,0 +1,14 @@
+#!/bin/sh
+# Profiles every MP3 under a music folder into one JSON Lines file (ADR 0003, 0065). Resumable: after Ctrl-C, run the
+# same command again. Songs that fail to decode are listed at the end and retried on the next run.
+# usage: scripts/analyse <music folder> [profiles.jsonl] [--threads N]
+set -eu
+cd "$(dirname "$0")/.."
+ROOT="${1:?usage: scripts/analyse <music folder> [profiles.jsonl] [--threads N]}"
+OUT="${2:-profiles.jsonl}"
+shift
+[ $# -gt 0 ] && shift
+case "$ROOT" in /*) ;; *) ROOT="$OLDPWD/$ROOT" ;; esac
+case "$OUT" in /*) ;; *) OUT="$OLDPWD/$OUT" ;; esac
+./gradlew -q :tools:analyser:installDist
+exec tools/analyser/build/install/analyser/bin/analyser analyse --root "$ROOT" --out "$OUT" "$@"

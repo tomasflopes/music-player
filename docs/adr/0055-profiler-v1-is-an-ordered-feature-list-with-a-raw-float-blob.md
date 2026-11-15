@@ -1,6 +1,6 @@
 # 0055: Profiler v1 is an ordered feature list stored as a raw float BLOB
 
-Date: 2026-11-14 · Status: proposed
+Date: 2026-11-14 · Status: superseded by 0065
 
 **Context.** `SoundProfiler { version; analyse(pcm): FloatArray }` (design §7.5) needs a stable stored layout, and a version change must re-queue every song.
 

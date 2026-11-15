@@ -1,6 +1,6 @@
 # 0056: The Mac export is JSON Lines with a header line
 
-Date: 2026-11-14 · Status: proposed · Amends the "profiles.db" example in design §7.5
+Date: 2026-11-14 · Status: accepted, line format amended by 0065 · Amends the "profiles.db" example in design §7.5
 
 **Context.** The export must be resumable after Ctrl-C, easy to diff and readable by the app without a second database reader.
 
