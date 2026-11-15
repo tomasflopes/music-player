@@ -21,6 +21,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.LibraryChanges
 import dev.tomasflopes.musicplayer.core.model.ports.PlayEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryReader
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.PlayedSongSource
 import dev.tomasflopes.musicplayer.core.model.ports.PlaylistAddSource
 import dev.tomasflopes.musicplayer.core.model.ports.SearchEventSource
 import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
@@ -31,6 +32,7 @@ import dev.tomasflopes.musicplayer.data.db.dao.SongRow
 import dev.tomasflopes.musicplayer.data.db.entity.PlayEventEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SearchEventEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 private fun Flow<List<SongRow>>.songs(): Flow<List<Song>> = map { rows -> rows.map(SongRow::toSong) }
@@ -110,7 +112,8 @@ class RoomPlayHistory(
     private val db: MusicDatabase,
 ) : PlayHistoryWriter,
     PlayHistoryReader,
-    PlayEventSource {
+    PlayEventSource,
+    PlayedSongSource {
     override suspend fun append(event: PlayEvent) = db.playEventDao().insert(PlayEventEntity.from(event))
 
     override fun observeSince(sinceEpochMs: Long): Flow<List<PlayEvent>> =
@@ -120,6 +123,13 @@ class RoomPlayHistory(
         db.playEventDao().observeRecent(limit).map { rows -> rows.map { it.toDomain() } }
 
     override fun observeCount(): Flow<Int> = db.playEventDao().observeCount()
+
+    override fun observePlayedIds(): Flow<Set<SongId>> =
+        db
+            .playEventDao()
+            .observePlayedSongIds()
+            .map { ids -> ids.mapTo(HashSet()) { SongId(it) } }
+            .distinctUntilChanged()
 }
 
 class RoomSearchHistory(

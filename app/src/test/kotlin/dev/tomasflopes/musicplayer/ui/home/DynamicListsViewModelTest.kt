@@ -1,13 +1,23 @@
 package dev.tomasflopes.musicplayer.ui.home
 
+import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.ports.PlayedSongSource
+import dev.tomasflopes.musicplayer.core.taste.lists.DiscoverPolicy
+import dev.tomasflopes.musicplayer.core.taste.lists.DiscoverProvider
+import dev.tomasflopes.musicplayer.core.taste.score.ArtistScore
+import dev.tomasflopes.musicplayer.core.taste.score.ScoreBoard
+import dev.tomasflopes.musicplayer.core.taste.score.SongScore
 import dev.tomasflopes.musicplayer.fakes.FakeDynamicListProvider
+import dev.tomasflopes.musicplayer.fakes.FakeSongReader
 import dev.tomasflopes.musicplayer.fakes.testSong
 import dev.tomasflopes.musicplayer.ui.home.sections.DynamicListCard
 import dev.tomasflopes.musicplayer.ui.home.sections.DynamicListsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -19,6 +29,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+
+/** No artist has a score, so Discover is ordered by its random part only. */
+private object NoScores : ScoreBoard {
+    override fun observeRanked(): Flow<List<SongScore>> = flowOf(emptyList())
+
+    override fun observeArtistRanked(): Flow<List<ArtistScore>> = flowOf(emptyList())
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DynamicListsViewModelTest {
@@ -61,6 +78,21 @@ class DynamicListsViewModelTest {
             val cards = subscribed(DynamicListsViewModel(setOf(discover, rewind, recentlyAdded)).cards)
 
             assertEquals(listOf("recently_added", "rewind", "discover"), cards.value.map { it.id })
+        }
+
+    @Test
+    fun `Discover gets its card after Top 100, built from the real provider`() =
+        runTest {
+            val top100 = FakeDynamicListProvider(id = "top_100", order = 10, title = "Top 100")
+            val library = FakeSongReader(songs = listOf(testSong(1, artistId = 1), testSong(2, artistId = 2)))
+            val discover =
+                DiscoverProvider(library, PlayedSongSource { flowOf(setOf(SongId(1))) }, NoScores, DiscoverPolicy(), 1)
+
+            val cards = subscribed(DynamicListsViewModel(setOf(discover, top100, recentlyAdded)).cards)
+
+            assertEquals(listOf("recently_added", "top_100", "discover"), cards.value.map { it.id })
+            assertEquals(DynamicListCard("discover", "Discover", 1, testSong(2, artistId = 2)), cards.value.last())
+            assertEquals(PlaySource.DISCOVER, discover.playSource)
         }
 
     @Test

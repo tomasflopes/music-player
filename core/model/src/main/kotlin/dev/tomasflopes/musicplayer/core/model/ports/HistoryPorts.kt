@@ -28,6 +28,12 @@ interface PlayEventSource {
     fun observeSince(sinceEpochMs: Long): Flow<List<PlayEvent>>
 }
 
+/** Which songs the listening log has ever heard of, for lists that want songs never played (Discover). */
+fun interface PlayedSongSource {
+    /** Every song with at least one `play_event` row, of any age and any outcome. Emits again when the set changes. */
+    fun observePlayedIds(): Flow<Set<SongId>>
+}
+
 interface SearchHistoryWriter {
     suspend fun append(event: SearchEvent)
 }

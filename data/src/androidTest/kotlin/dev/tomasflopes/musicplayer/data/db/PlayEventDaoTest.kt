@@ -108,6 +108,29 @@ class PlayEventDaoTest {
         }
 
     @Test
+    fun playedSongIdsHaveEachSongOnceWhateverTheOutcome() =
+        runTest {
+            listOf(
+                EndedBy.COMPLETED to 1L,
+                EndedBy.SKIPPED to 1L,
+                EndedBy.SKIPPED to 2L,
+            ).forEachIndexed { index, (endedBy, id) ->
+                val at = index.toLong()
+                val event = PlayEvent(SongId(id), at, 0, 1, endedBy, PlaySource.DISCOVER, StartedBy.AUTO, false)
+                db.playEventDao().insert(PlayEventEntity.from(event))
+            }
+
+            assertEquals(
+                setOf(1L, 2L),
+                db
+                    .playEventDao()
+                    .observePlayedSongIds()
+                    .first()
+                    .toSet(),
+            )
+        }
+
+    @Test
     fun searchEventsAreStored() =
         runTest {
             db.searchEventDao().insert(SearchEventEntity.from(SearchEvent("ed", SearchItemType.ARTIST, 7, 1_000)))

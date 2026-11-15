@@ -19,6 +19,10 @@ interface PlayEventDao {
     @Query("SELECT * FROM play_event WHERE started_at >= :since ORDER BY started_at, id")
     fun observeSince(since: Long): Flow<List<PlayEventEntity>>
 
+    /** Every song with at least one row, of any age and outcome (Discover's "never played"). */
+    @Query("SELECT DISTINCT song_id FROM play_event")
+    fun observePlayedSongIds(): Flow<List<Long>>
+
     @Query("SELECT COUNT(*) FROM play_event")
     fun observeCount(): Flow<Int>
 }
