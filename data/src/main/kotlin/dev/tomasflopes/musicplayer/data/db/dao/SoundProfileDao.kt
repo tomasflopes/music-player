@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import dev.tomasflopes.musicplayer.core.analysis.SoundProfile
 import dev.tomasflopes.musicplayer.data.db.entity.AnalysisFailureEntity
 import dev.tomasflopes.musicplayer.data.db.entity.SoundProfileEntity
 import kotlinx.coroutines.flow.Flow
@@ -46,6 +47,15 @@ class ImportedProfileRow(
     @ColumnInfo(name = "volume_name") val volumeName: String,
     val features: ByteArray,
 )
+
+/** The first 33 floats of a profile BLOB, which is all the sound space needs (ADR 0069). */
+class SoundHeadRow(
+    @ColumnInfo(name = "song_id") val songId: Long,
+    val head: ByteArray,
+)
+
+/** Bytes of the fixed part of a profile (33 float32, ADR 0065). */
+private const val HEAD_BYTES = SoundProfile.FIXED_SIZE * 4
 
 /** The "no profile for this file and version" join shared by the queue queries (ADR 0058). */
 private const val QUEUE_FROM =
@@ -142,4 +152,17 @@ interface SoundProfileDao {
         profilerVersion: Int,
         limit: Int,
     ): List<ImportedProfileRow>
+
+    /**
+     * The head of every current profile of an in-library song (ADR 0058, 0069): the version is the current one, the
+     * file is the one it was made from, and the BLOB is long enough to hold the fixed part. Ascending song id.
+     */
+    @Query(
+        "SELECT sound_profile.song_id AS song_id, substr(sound_profile.features, 1, $HEAD_BYTES) AS head " +
+            "FROM sound_profile JOIN song ON song.id = sound_profile.song_id " +
+            "WHERE song.in_library = 1 AND sound_profile.profiler_version = :profilerVersion " +
+            "AND sound_profile.file_size = song.file_size AND length(sound_profile.features) >= $HEAD_BYTES " +
+            "ORDER BY sound_profile.song_id",
+    )
+    suspend fun soundHeads(profilerVersion: Int): List<SoundHeadRow>
 }

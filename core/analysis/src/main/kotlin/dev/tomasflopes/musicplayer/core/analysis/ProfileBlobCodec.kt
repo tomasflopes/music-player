@@ -26,5 +26,15 @@ object ProfileBlobCodec {
         return SoundProfile(fixed, curve)
     }
 
+    /**
+     * Only the 33 fixed floats, from a whole blob or from its first 132 bytes (what the sound space reads, ADR 0069).
+     * Throws [IllegalArgumentException] for fewer than 132 bytes.
+     */
+    fun decodeFixed(bytes: ByteArray): FloatArray {
+        require(bytes.size >= SoundProfile.FIXED_SIZE * FLOAT_BYTES) { "Not a sound profile head: ${bytes.size} bytes" }
+        val buffer = ByteBuffer.wrap(bytes).order(ORDER)
+        return FloatArray(SoundProfile.FIXED_SIZE) { buffer.getFloat() }
+    }
+
     private val ORDER = ByteOrder.LITTLE_ENDIAN
 }

@@ -10,7 +10,8 @@ import kotlin.random.Random
 /**
  * Picks the Discover list from what the listening log and the tags say (design §7.7, ADR 0063). Pure Kotlin.
  *
- * 1. Candidates are the songs with no `play_event` row at all.
+ * 1. Candidates are the songs with no `play_event` row at all, counting a copy of the same recording as the same song
+ *    and listing only one copy of it (ADR 0070).
  * 2. Each gets a rank: its main artist's squashed taste score plus a small random part. The random part is a hash of
  *    one draw from [Random] and the song id, so a given seed always gives the same list and a song that leaves the
  *    candidates (because it was just played) does not move the others.
@@ -38,7 +39,7 @@ class DiscoverPolicy(
         val salt = random.nextLong()
         val ranked =
             library
-                .filter { it.id !in played }
+                .neverPlayed(played)
                 .map { Ranked(it, rank(it, artistScores, salt)) }
                 .sortedWith(compareByDescending<Ranked> { it.rank }.thenBy { it.song.id.value })
         val best = ranked.map { it.song }.cappedPerArtist(config.maxPerArtist, config.size)

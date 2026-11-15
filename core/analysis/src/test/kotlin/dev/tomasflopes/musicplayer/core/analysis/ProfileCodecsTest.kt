@@ -49,6 +49,22 @@ class ProfileCodecsTest {
     }
 
     @Test
+    fun `the fixed part can be read from the first 33 floats alone`() {
+        val profile = sample(4)
+        val bytes = ProfileBlobCodec.encode(profile)
+
+        val head = bytes.copyOf(SoundProfile.FIXED_SIZE * 4)
+
+        assertTrue(profile.fixed.contentEquals(ProfileBlobCodec.decodeFixed(head)))
+        assertTrue(profile.fixed.contentEquals(ProfileBlobCodec.decodeFixed(bytes)))
+    }
+
+    @Test
+    fun `a head shorter than the fixed part is rejected`() {
+        assertThrows(IllegalArgumentException::class.java) { ProfileBlobCodec.decodeFixed(ByteArray(4 * 32)) }
+    }
+
+    @Test
     fun `an export round trips every float`() {
         val header = ExportHeader(profilerVersion = 1, musicRootHint = "Music")
         val records =
