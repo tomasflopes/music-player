@@ -95,14 +95,39 @@ class RadioPolicyTest {
     }
 
     @Test
-    fun `the exploration share comes from outside the nearest songs`() {
+    fun `the default share is about 12 percent and the rest is nearest`() {
         val library = (1L..100L).map { by(it) }
 
-        val followers = pick(library, ramp(100)).drop(1).ids()
+        val followers = pick(library, ramp(100), config = RadioConfig(explorationBand = 40)).drop(1).ids()
 
-        // 24 songs after the seed: 17 nearest (songs 2..18) and 7 random ones from the rest of the library.
-        assertEquals((2L..18L).toSet(), followers.filter { it <= 18 }.toSet())
-        assertEquals(7, followers.count { it > 18 })
+        // 24 songs after the seed: 3 exploration (12 %) and 21 nearest (songs 2..22).
+        assertEquals((2L..22L).toSet(), followers.filter { it <= 22 }.toSet())
+        assertEquals(3, followers.count { it > 22 })
+    }
+
+    @Test
+    fun `exploration is drawn only from the band of nearest songs`() {
+        val library = (1L..200L).map { by(it) }
+        val config = RadioConfig(explorationShare = 0.5, nearestShare = 0.5, explorationBand = 40)
+
+        (1..20).forEach { random ->
+            val followers = pick(library, ramp(200), config = config, random = random).drop(1).ids()
+
+            // Band = the 40 nearest candidates (songs 2..41); nothing from the rest of the library.
+            assertTrue(followers.all { it <= 41 }, "seed $random drew outside the band: $followers")
+            assertEquals(24, followers.size)
+        }
+    }
+
+    @Test
+    fun `exploration picks are never songs already chosen as nearest`() {
+        val library = (1L..60L).map { by(it) }
+        val config = RadioConfig(explorationShare = 0.5, nearestShare = 0.5, explorationBand = 30)
+
+        val batch = pick(library, ramp(60), config = config).ids()
+
+        assertEquals(batch.size, batch.toSet().size)
+        assertEquals(25, batch.size)
     }
 
     @Test
@@ -118,11 +143,12 @@ class RadioPolicyTest {
     fun `the same seed gives the same batch and another seed another one`() {
         val library = (1L..100L).map { by(it) }
         val space = ramp(100)
+        val config = RadioConfig(explorationBand = 100)
 
-        val first = pick(library, space, random = 1).ids()
+        val first = pick(library, space, config = config, random = 1).ids()
 
-        assertEquals(first, pick(library, space, random = 1).ids())
-        assertNotEquals(first, pick(library, space, random = 2).ids())
+        assertEquals(first, pick(library, space, config = config, random = 1).ids())
+        assertNotEquals(first, pick(library, space, config = config, random = 2).ids())
     }
 
     @Test
@@ -262,6 +288,11 @@ class RadioPolicyTest {
         val library = listOf(by(1))
 
         assertEquals(listOf(1L), pick(library, ramp(1)).ids())
+    }
+
+    @Test
+    fun `the config rejects a band smaller than the batch`() {
+        assertThrows(IllegalArgumentException::class.java) { RadioConfig(batchSize = 25, explorationBand = 24) }
     }
 
     @Test

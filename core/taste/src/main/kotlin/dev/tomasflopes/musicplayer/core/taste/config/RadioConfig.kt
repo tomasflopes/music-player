@@ -3,16 +3,21 @@ package dev.tomasflopes.musicplayer.core.taste.config
 import kotlin.math.abs
 
 /**
- * The numbers behind Radio v0 (design §7.6, ADR 0072), in one place like [DiscoverConfig]. Defaults are starting
+ * The numbers behind Radio v0 (design §7.6, ADR 0072, exploration changed by ADR 0075), in one place like [DiscoverConfig]. Defaults are starting
  * values the owner can retune.
  */
 data class RadioConfig(
     /** Songs in one batch, the seed included. */
     val batchSize: Int = 25,
     /** Share of the songs after the seed that are the seed's nearest neighbours. */
-    val nearestShare: Double = 0.7,
-    /** Share of the songs after the seed that are random profiled songs from the whole library. */
-    val explorationShare: Double = 0.3,
+    val nearestShare: Double = 0.88,
+    /** Share of the songs after the seed that are exploration picks (ADR 0075: 12 %, was 30 % in ADR 0072). */
+    val explorationShare: Double = 0.12,
+    /**
+     * Exploration picks are drawn at random only from the [explorationBand] nearest candidates (ranked as for the
+     * nearest part), never from the whole library. A wider band is a looser radio; it must hold a whole batch.
+     */
+    val explorationBand: Int = 150,
     /** A song played in the last [recentDays] days gets [recentPenalty] added to its distance. */
     val recentDays: Int = 2,
     /** Added to the distance of a recently played song, in the units of the sound space. */
@@ -32,6 +37,9 @@ data class RadioConfig(
         }
         require(abs(nearestShare + explorationShare - 1.0) < SHARE_EPSILON) {
             "nearestShare and explorationShare must add up to 1: $nearestShare + $explorationShare"
+        }
+        require(explorationBand >= batchSize) {
+            "explorationBand must hold a whole batch ($batchSize): $explorationBand"
         }
         require(recentDays >= 0) { "recentDays must not be negative: $recentDays" }
         require(recentPenalty.isFinite() && recentPenalty >= 0.0) {

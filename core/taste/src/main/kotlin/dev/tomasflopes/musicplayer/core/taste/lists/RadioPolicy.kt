@@ -17,8 +17,9 @@ import kotlin.random.Random
  *    file name ([SoundNeighbours.fileKey], ADR 0073) or the same duplicate key (ADR 0070).
  * 2. The nearest part: candidates by distance to the seed's own point, plus [RadioConfig.recentPenalty] when the song
  *    is in `recentlyPlayed`. A recent song ranks later but stays.
- * 3. The exploration part: the other candidates in a seeded random order (a hash of one draw from [Random] and the
- *    song id, as in Discover), so one seed gives one batch.
+ * 3. The exploration part: the [RadioConfig.explorationBand] nearest candidates (same ranking as step 2) in a seeded
+ *    random order (a hash of one draw from [Random] and the song id, as in Discover), so one seed gives one batch.
+ *    Nothing outside the band is ever drawn (ADR 0075).
  * 4. Both parts obey the same shape rules: at most [RadioConfig.maxPerArtist] songs per main artist (the seed counts)
  *    and no two songs with the same duplicate key.
  * 5. The exploration picks are spread evenly among the nearest ones, then the whole batch is spread so no main artist
@@ -50,9 +51,11 @@ class RadioPolicy(
         val nearestWanted = followers - explorationWanted
 
         val picker = Picker(seed, config.maxPerArtist)
-        val nearest = picker.take(nearestRanked(candidates, space, seedRow, recentlyPlayed), nearestWanted)
+        val ranked = nearestRanked(candidates, space, seedRow, recentlyPlayed)
+        val nearest = picker.take(ranked, nearestWanted)
         val salt = random.nextLong()
-        val exploration = picker.take(candidates.sortedBy { seededUnit(salt, it.song.id.value) }, explorationWanted)
+        val band = ranked.take(config.explorationBand).sortedBy { seededUnit(salt, it.song.id.value) }
+        val exploration = picker.take(band, explorationWanted)
 
         return (listOf(seed) + interleave(nearest, exploration)).spreadByArtist(config.artistGap)
     }
