@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 import kotlin.random.Random
 
 class ArtistRadioPolicyTest {
-    private val artist = ArtistId(100)
+    private val artist = ArtistId(1000)
 
     private fun by(
         id: Long,
@@ -42,7 +42,7 @@ class ArtistRadioPolicyTest {
     @Test
     fun `the query is the mean point of the artist's profiled songs`() {
         // The artist's songs 10 and 20 average to 15, a point that belongs to song 15 of another artist.
-        val library = (1L..60L).map { if (it == 10L || it == 20L) by(it, artist = 100) else by(it) }
+        val library = (1L..60L).map { if (it == 10L || it == 20L) by(it, artist = 1000) else by(it) }
 
         val batch = pick(library, ramp(60))
 
@@ -51,7 +51,7 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `an artist with no profiled song gives an empty batch`() {
-        val library = listOf(by(1, 100), by(2, 100)) + (3L..30L).map { by(it) }
+        val library = listOf(by(1, 1000), by(2, 1000)) + (3L..30L).map { by(it) }
         val space = line(*(3L..30L).map { it to it.toFloat() }.toTypedArray())
 
         assertEquals(emptyList<Song>(), pick(library, space))
@@ -66,14 +66,14 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `an empty space gives an empty batch`() {
-        val library = (1L..5L).map { by(it, 100) }
+        val library = (1L..5L).map { by(it, 1000) }
 
         assertEquals(emptyList<Song>(), pick(library, SoundSpace(LongArray(0), 1, FloatArray(0))))
     }
 
     @Test
     fun `an artist with one profiled song uses that song's own point`() {
-        val library = listOf(by(10, 100), by(11, 100)) + (1L..9L).map { by(it) } + (12L..40L).map { by(it) }
+        val library = listOf(by(10, 1000), by(11, 1000)) + (1L..9L).map { by(it) } + (12L..40L).map { by(it) }
         // Song 11 has no profile, so only song 10 (position 10) defines the sound.
         val space = line(*((1L..10L) + (12L..40L)).map { it to it.toFloat() }.toTypedArray())
 
@@ -86,7 +86,7 @@ class ArtistRadioPolicyTest {
     @Test
     fun `the artist's own songs can appear but never more than three`() {
         // Songs 1..10 are the artist's and sit at the centre of the sound, so every nearest pick would be theirs.
-        val library = (1L..10L).map { by(it, 100) } + (11L..60L).map { by(it) }
+        val library = (1L..10L).map { by(it, 1000) } + (11L..60L).map { by(it) }
 
         val batch = pick(library, ramp(60))
 
@@ -96,7 +96,7 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `the batch is the configured size with no seed and no duplicates`() {
-        val library = listOf(by(1, 100)) + (2L..100L).map { by(it) }
+        val library = listOf(by(1, 1000)) + (2L..100L).map { by(it) }
 
         val batch = pick(library, ramp(100), config = RadioConfig())
 
@@ -106,7 +106,7 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `a recently played song ranks later but stays`() {
-        val library = listOf(by(1, 100)) + (2L..5L).map { by(it) }
+        val library = listOf(by(1, 1000)) + (2L..5L).map { by(it) }
         val space = line(1L to 0f, 2L to 0.05f, 3L to 0.1f, 4L to 0.12f, 5L to 5f)
 
         val plain = pick(library, space)
@@ -118,7 +118,7 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `exploration comes only from the band of nearest songs`() {
-        val library = listOf(by(1, 100)) + (2L..200L).map { by(it) }
+        val library = listOf(by(1, 1000)) + (2L..200L).map { by(it) }
         val config = RadioConfig(nearestShare = 0.5, explorationShare = 0.5, explorationBand = 40, artistGap = 0)
 
         (1..20).forEach { random ->
@@ -131,7 +131,7 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `the same seed gives the same batch and another seed another one`() {
-        val library = listOf(by(1, 100)) + (2L..100L).map { by(it) }
+        val library = listOf(by(1, 1000)) + (2L..100L).map { by(it) }
         val config = RadioConfig(explorationBand = 100)
 
         val first = pick(library, ramp(100), config = config, random = 1).ids()
@@ -142,7 +142,7 @@ class ArtistRadioPolicyTest {
 
     @Test
     fun `no artist repeats inside the gap when the batch can avoid it`() {
-        val library = (0L until 10L).flatMap { a -> (1L..3L).map { by(a * 3 + it, if (a == 0L) 100 else a) } }
+        val library = (0L until 10L).flatMap { a -> (1L..3L).map { by(a * 3 + it, if (a == 0L) 1000 else a) } }
         val config = nearestOnly.copy(artistGap = 4, batchSize = 30)
 
         val artists = pick(library, ramp(30), config = config).map { it.artistId }
