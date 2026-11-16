@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,7 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.radio.RadioViewModel
 import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
 import dev.tomasflopes.musicplayer.ui.playlists.AddToPlaylistSheet
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
@@ -37,9 +40,9 @@ import kotlinx.coroutines.launch
 internal val ActionHeight = 64.dp
 
 /**
- * The "more" button of a song row. It opens a bottom sheet with Play next, Add to queue and Add to playlist as large
- * rows, easy to hit with a thumb. The caller binds the queue actions; adding to a playlist is the same sheet
- * everywhere, so the button opens it for [songId] itself.
+ * The "more" button of a song row. It opens a bottom sheet with Play next, Add to queue, Add to playlist and Start
+ * radio as large rows, easy to hit with a thumb. The caller binds the queue actions; adding to a playlist and
+ * starting a radio (ADR 0072) are the same everywhere, so the button does both for [songId] itself.
  */
 @Composable
 fun SongMenuButton(
@@ -54,10 +57,12 @@ fun SongMenuButton(
         Icon(Icons.Default.MoreVert, contentDescription = "Song actions")
     }
     if (open) {
+        val radio: RadioViewModel = hiltViewModel()
         SongActionsSheet(
             onPlayNext = onPlayNext,
             onAddToQueue = onAddToQueue,
             onAddToPlaylist = { addingToPlaylist = true },
+            onStartRadio = { radio.start(songId) },
             onDismiss = { open = false },
         )
     }
@@ -72,6 +77,7 @@ private fun SongActionsSheet(
     onPlayNext: () -> Unit,
     onAddToQueue: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onStartRadio: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -88,6 +94,7 @@ private fun SongActionsSheet(
             ActionRow(Icons.Default.SkipNext, "Play next") { choose(onPlayNext) }
             ActionRow(Icons.Default.Add, "Add to queue") { choose(onAddToQueue) }
             ActionRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist") { choose(onAddToPlaylist) }
+            ActionRow(Icons.Default.Radio, "Start radio") { choose(onStartRadio) }
         }
     }
 }

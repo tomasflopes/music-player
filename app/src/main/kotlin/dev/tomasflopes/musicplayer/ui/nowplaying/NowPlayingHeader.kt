@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
@@ -20,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +64,16 @@ internal fun NowPlayingHeader(
         }
         SeekBar(state.positionMs, state.durationMs, actions.onSeek, Modifier.padding(top = Spacing.s))
         TransportRow(state, actions)
+        StartRadioButton { actions.onStartRadio(song.id) }
+    }
+}
+
+/** "Start radio" (ADR 0072): a radio seeded with the song playing now. */
+@Composable
+private fun StartRadioButton(onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.padding(top = Spacing.xxs)) {
+        Icon(Icons.Default.Radio, contentDescription = null)
+        Text("Start radio", modifier = Modifier.padding(start = Spacing.xxs))
     }
 }
 

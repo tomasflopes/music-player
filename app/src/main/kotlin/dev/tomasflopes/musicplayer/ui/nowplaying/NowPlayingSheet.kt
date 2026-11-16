@@ -20,7 +20,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.playback.PlaybackState
+import dev.tomasflopes.musicplayer.radio.RadioViewModel
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.SectionHeader
 import dev.tomasflopes.musicplayer.ui.components.SongRow
@@ -35,6 +37,7 @@ import dev.tomasflopes.musicplayer.ui.theme.Spacing
 fun NowPlayingSheet(
     onDismiss: () -> Unit,
     viewModel: NowPlayingViewModel = hiltViewModel(),
+    radio: RadioViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     ModalBottomSheet(
@@ -55,6 +58,7 @@ fun NowPlayingSheet(
                         onJumpToUpcoming = viewModel::jumpToUpcoming,
                         onJumpTo = viewModel::jumpTo,
                         onRemove = viewModel::remove,
+                        onStartRadio = radio::start,
                     ),
             )
             // The sheet covers the shell's snackbar, so it carries its own.
@@ -63,7 +67,7 @@ fun NowPlayingSheet(
     }
 }
 
-/** Everything the sheet can ask the player for, so the content takes one parameter instead of seven callbacks. */
+/** Everything the sheet can ask the player for, so the content takes one parameter instead of eight callbacks. */
 internal data class NowPlayingActions(
     val onPlayPause: () -> Unit,
     val onPrevious: () -> Unit,
@@ -74,6 +78,7 @@ internal data class NowPlayingActions(
     val onJumpToUpcoming: (Int) -> Unit,
     val onJumpTo: (Int, Song) -> Unit,
     val onRemove: (Int, Song) -> Unit,
+    val onStartRadio: (SongId) -> Unit,
 )
 
 @Composable
