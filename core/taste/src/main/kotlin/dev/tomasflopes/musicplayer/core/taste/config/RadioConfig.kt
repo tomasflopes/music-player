@@ -3,8 +3,8 @@ package dev.tomasflopes.musicplayer.core.taste.config
 import kotlin.math.abs
 
 /**
- * The numbers behind Radio v0 (design §7.6, ADR 0072, exploration changed by ADR 0075), in one place like [DiscoverConfig]. Defaults are starting
- * values the owner can retune.
+ * The numbers behind Radio v0 and the artist radio (design §7.6, ADR 0072, exploration changed by ADR 0075), in one
+ * place like [DiscoverConfig]. Defaults are starting values the owner can retune.
  */
 data class RadioConfig(
     /** Songs in one batch, the seed included. */
