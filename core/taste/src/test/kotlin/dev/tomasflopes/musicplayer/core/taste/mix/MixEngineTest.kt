@@ -27,7 +27,7 @@ class MixEngineTest {
 
     private fun songSeed(id: Long) = MixSeed(MixSeedKind.SONG, id)
 
-    private val nearestOnly = MixConfig(explorationShare = 0.0, artistGap = 0, densityRank = 3)
+    private val nearestOnly = MixConfig(explorationShare = 0.0, artistGap = 0, densityRank = 3, openingPerArtist = 0)
 
     private fun pick(
         seeds: List<MixSeed>,
@@ -95,6 +95,26 @@ class MixEngineTest {
             )
 
         assertEquals(20L, batch.first().id.value)
+    }
+
+    @Test
+    fun `every artist seed opens the batch with its own songs`() {
+        // Each seed artist's two songs lie far apart, so their centroid sits among strangers' songs.
+        val crowd = (1L..120L).map { by(it, artist = it + 1000) }
+        val library = crowd + listOf(by(201, artist = 7), by(202, artist = 7), by(301, artist = 8), by(302, artist = 8))
+        val points =
+            (1L..60L).map { it to 500f + it * 0.01f } + (61L..120L).map { it to 2500f + it * 0.01f } +
+                listOf(201L to 100f, 202L to 900f, 301L to 2100f, 302L to 2900f)
+
+        val batch =
+            pick(
+                listOf(MixSeed(MixSeedKind.ARTIST, 7), MixSeed(MixSeedKind.ARTIST, 8)),
+                library,
+                line(*points.toTypedArray()),
+                config = MixConfig(explorationShare = 0.0, artistGap = 0, densityRank = 3),
+            )
+
+        assertTrue(batch.ids().containsAll(listOf(201L, 202L, 301L, 302L)), "batch: ${batch.ids()}")
     }
 
     @Test

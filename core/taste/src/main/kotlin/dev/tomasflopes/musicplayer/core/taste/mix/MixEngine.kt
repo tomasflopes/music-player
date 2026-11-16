@@ -13,16 +13,18 @@ import kotlin.random.Random
  * Builds one batch for a mix (design §7.6, ADR 0076). Pure Kotlin; it sees the sound only as a [SoundSpace].
  *
  * 1. The seeds become anchor points ([MixAnchors]); the [MixQuery] turns them into a rank key per song.
- * 2. Every in-library song with a point in the space is a candidate, the seeds' own songs included (their key is the
+ * 2. For every artist seed, its [MixConfig.openingPerArtist] own songs closest to its sound open the batch
+ *    ([MixOpening]), so the seed artists are always heard.
+ * 3. Every in-library song with a point in the space is a candidate, the seeds' own songs included (their key is the
  *    lowest, so a mix starts around what it was made from).
- * 3. The batch is the radio's [RadioBatchBuilder]: [MixConfig.batchSize] songs, [MixConfig.explorationShare] of them
+ * 4. The batch is the radio's [RadioBatchBuilder]: [MixConfig.batchSize] songs, [MixConfig.explorationShare] of them
  *    drawn at random from the [MixConfig.explorationBand] nearest, the recent penalty, one song per duplicate key, at
  *    most [MixConfig.maxPerArtist] per main artist and the artist gap.
  *
  * Seeds with no point in the space give an empty list. Too few candidates give a shorter batch.
  */
 class MixEngine(
-    config: MixConfig = MixConfig(),
+    private val config: MixConfig = MixConfig(),
     private val query: MixQuery = AnchorQuery(config),
 ) {
     private val builder = RadioBatchBuilder(config.builderConfig())
@@ -44,6 +46,7 @@ class MixEngine(
                 val row = space.indexOf(song.id.value)
                 if (row < 0) null else Candidate(song, row)
             }
-        return builder.build(emptyList(), candidates, { ranking.keyOf(it.row) }, recentlyPlayed, random)
+        val opening = MixOpening.of(seeds, candidates, space, config.openingPerArtist)
+        return builder.build(opening, candidates, { ranking.keyOf(it.row) }, recentlyPlayed, random)
     }
 }

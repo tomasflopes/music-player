@@ -3,15 +3,25 @@ package dev.tomasflopes.musicplayer.ui.mixes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,8 +33,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.mixes.MixLimits
@@ -112,7 +122,10 @@ private fun ColumnScope.MixEditorContent(
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         if (!state.isNew) {
-            TextButton(onClick = onDelete) { Text("Delete mix") }
+            TextButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text("Delete") }
         }
         Button(
             onClick = { scope.launch { if (viewModel.save()) onBack() } },
@@ -123,19 +136,32 @@ private fun ColumnScope.MixEditorContent(
     }
 }
 
+/** The picked seeds as removable chips in one scrolling row. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SelectedSeeds(
     state: MixEditorState,
     viewModel: MixEditorViewModel,
 ) {
-    state.seeds.forEach { item ->
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(item.label, modifier = Modifier.weight(1f), maxLines = 1)
-            TextButton(onClick = { viewModel.toggle(item.seed) }) { Text("Remove") }
+    if (state.seeds.isEmpty()) return
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = Spacing.s),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        modifier = Modifier.padding(bottom = Spacing.xs),
+    ) {
+        items(state.seeds, key = { "${it.seed.kind.wire}-${it.seed.refId}" }) { item ->
+            InputChip(
+                selected = true,
+                onClick = { viewModel.toggle(item.seed) },
+                label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                trailingIcon = {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove ${item.label}",
+                        modifier = Modifier.size(InputChipDefaults.IconSize),
+                    )
+                },
+            )
         }
     }
 }

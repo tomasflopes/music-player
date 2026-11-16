@@ -24,12 +24,20 @@ data class MixConfig(
     val maxPerArtist: Int = 3,
     /** No song by the same main artist among the next [artistGap] songs; same meaning as smart shuffle's gap. */
     val artistGap: Int = SmartShuffleConfig().artistGap,
+    /**
+     * For every artist seed, this many of the artist's own songs (the closest to its sound) open the batch, so a mix
+     * always plays its seed artists; 0 turns it off. They count towards [maxPerArtist].
+     */
+    val openingPerArtist: Int = 2,
     /** Fixes the exploration draw when set (tests, debugging); null draws a new one for every batch. */
     val seed: Long? = null,
 ) {
     init {
         require(batchSize >= 1) { "batchSize must be at least 1: $batchSize" }
         require(explorationBand >= batchSize) { "explorationBand must hold a batch: $explorationBand < $batchSize" }
+        require(openingPerArtist in 0..maxPerArtist) {
+            "openingPerArtist must be in 0..$maxPerArtist: $openingPerArtist"
+        }
         require(densityRank >= 1) { "densityRank must be at least 1: $densityRank" }
         require(explorationShare.isFinite() && explorationShare in 0.0..1.0) {
             "explorationShare must be in 0..1: $explorationShare"
