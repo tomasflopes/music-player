@@ -13,25 +13,18 @@ import org.junit.jupiter.api.Test
 
 class QueueScrollTest {
     @Test
-    fun `the header is the first row, so the initial position shows it and the current song`() {
-        assertEquals(0, QueueLayout.HEADER_INDEX)
-    }
-
-    @Test
-    fun `rows run header, played, then up next`() {
+    fun `rows run played, header, then up next`() {
         val layout = QueueLayout(playedCount = 3)
-        assertEquals(2, layout.playedHeaderIndex)
-        assertEquals(3, layout.firstPlayedIndex)
+        assertEquals(0, layout.playedHeaderIndex)
+        assertEquals(4, layout.headerIndex)
         assertEquals(6, layout.upNextHeaderIndex)
-        assertTrue(QueueLayout.HEADER_INDEX < layout.playedHeaderIndex!!)
-        assertTrue(layout.firstPlayedIndex!! < layout.upNextHeaderIndex)
     }
 
     @Test
-    fun `with nothing played, up next follows the header block`() {
+    fun `with nothing played the header is the first row and the initial position`() {
         val layout = QueueLayout(playedCount = 0)
         assertNull(layout.playedHeaderIndex)
-        assertNull(layout.firstPlayedIndex)
+        assertEquals(0, layout.headerIndex)
         assertEquals(2, layout.upNextHeaderIndex)
     }
 

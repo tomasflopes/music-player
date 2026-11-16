@@ -98,17 +98,18 @@ private fun NowPlayingContent(
     QueueList(state, song, actions)
 }
 
-/** Now playing → played → up next (design 8.2). */
+/** Played → now playing → up next (design 8.2); the list opens on the header, the played songs above it. */
 @Composable
 private fun QueueList(
     state: PlaybackState,
     song: Song,
     actions: NowPlayingActions,
 ) {
-    val listState = rememberLazyListState()
+    val headerIndex = QueueLayout(state.played.size).headerIndex
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = headerIndex)
     val headerScroll = remember { HeaderScroll() }
     LaunchedEffect(song.id) {
-        if (headerScroll.shouldScrollTo(song.id)) listState.animateScrollToItem(QueueLayout.HEADER_INDEX)
+        if (headerScroll.shouldScrollTo(song.id)) listState.animateScrollToItem(headerIndex)
     }
     val keepScroll = remember { KeepScrollInList() }
     LazyColumn(
@@ -116,9 +117,9 @@ private fun QueueList(
         state = listState,
         contentPadding = PaddingValues(bottom = Spacing.l),
     ) {
+        playedRows(state, actions)
         item(key = "now-playing") { NowPlayingHeader(state, song, actions) }
         item(key = "save") { SaveAsPlaylistButton("Queue", enabled = true) { saveQueue(it) } }
-        playedRows(state, actions)
         upNextRows(state, actions)
     }
 }

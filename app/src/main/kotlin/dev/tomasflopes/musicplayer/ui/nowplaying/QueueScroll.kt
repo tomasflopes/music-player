@@ -7,25 +7,21 @@ import androidx.compose.ui.unit.Velocity
 import dev.tomasflopes.musicplayer.core.model.SongId
 
 /**
- * Where the rows of the queue list sit, top to bottom: the Now playing header, its save button, the played songs
- * (dimmed, under a "Played" header) and then "Up next". The header is always first, so it is also the row the list
- * scrolls to when the current song changes.
+ * Where the rows of the queue list sit, top to bottom: the played songs (dimmed, under a "Played" header), the
+ * Now playing header, its save button and "Up next". The played songs are above the header, so the list opens on
+ * the header with them scrolled out of sight, "Up next" right under it, and scrolls back to the header whenever the
+ * current song changes.
  */
 internal class QueueLayout(
     private val playedCount: Int,
 ) {
     /** The row of the played songs' own header, or `null` when nothing has been played. */
-    val playedHeaderIndex: Int? get() = if (playedCount > 0) SAVE_INDEX + 1 else null
+    val playedHeaderIndex: Int? get() = if (playedCount > 0) 0 else null
 
-    /** The first played song's row, or `null` when nothing has been played. */
-    val firstPlayedIndex: Int? get() = playedHeaderIndex?.plus(1)
+    /** The row of the Now playing header: the list's initial position and its scroll target. */
+    val headerIndex: Int get() = if (playedCount > 0) 1 + playedCount else 0
 
-    val upNextHeaderIndex: Int get() = if (playedCount > 0) SAVE_INDEX + 1 + 1 + playedCount else SAVE_INDEX + 1
-
-    companion object {
-        const val HEADER_INDEX = 0
-        private const val SAVE_INDEX = 1
-    }
+    val upNextHeaderIndex: Int get() = headerIndex + 2
 }
 
 /**
