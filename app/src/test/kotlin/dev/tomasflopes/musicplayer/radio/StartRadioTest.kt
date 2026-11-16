@@ -84,7 +84,12 @@ class StartRadioTest {
             assertEquals(PlaySource.RADIO, request.source)
             assertEquals(true, request.picked)
             assertEquals(null, request.playlistId)
-            assertEquals(5L, request.songs.first().songId.value)
+            assertEquals(
+                5L,
+                request.songs
+                    .first()
+                    .songId.value,
+            )
             assertEquals(25, request.songs.size)
             assertTrue(messages.shown.isEmpty())
         }
