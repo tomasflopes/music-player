@@ -6,26 +6,24 @@ import org.junit.jupiter.api.Test
 
 class HomeStackRuleTest {
     @Test
-    fun `a page opened from Home above Home pops to Home`() {
-        assertTrue(HomeStackRule.popsToHome(listOf(null, "home", "settings")))
-        assertTrue(HomeStackRule.popsToHome(listOf(null, "home", "dynamic/recent", "playlist/3")))
+    fun `a page opened from Home pops to Home`() {
+        assertTrue(HomeStackRule.popsToHome("settings", otherTabOnStack = false))
+        assertTrue(HomeStackRule.popsToHome("playlist/3", otherTabOnStack = false))
     }
 
     @Test
-    fun `Home alone has nothing to pop`() {
-        assertFalse(HomeStackRule.popsToHome(listOf(null, "home")))
+    fun `Home itself has nothing to pop`() {
+        assertFalse(HomeStackRule.popsToHome("home", otherTabOnStack = false))
     }
 
     @Test
     fun `another tab in the stack keeps the normal tab switch and its saved state`() {
-        assertFalse(HomeStackRule.popsToHome(listOf(null, "home", "library")))
-        assertFalse(HomeStackRule.popsToHome(listOf(null, "home", "library", "album/1")))
-        assertFalse(HomeStackRule.popsToHome(listOf(null, "home", "search")))
+        assertFalse(HomeStackRule.popsToHome("library", otherTabOnStack = true))
+        assertFalse(HomeStackRule.popsToHome("album/1", otherTabOnStack = true))
     }
 
     @Test
-    fun `a stack without Home does not match`() {
-        assertFalse(HomeStackRule.popsToHome(emptyList()))
-        assertFalse(HomeStackRule.popsToHome(listOf(null, "settings")))
+    fun `no current screen does not match`() {
+        assertFalse(HomeStackRule.popsToHome(null, otherTabOnStack = false))
     }
 }

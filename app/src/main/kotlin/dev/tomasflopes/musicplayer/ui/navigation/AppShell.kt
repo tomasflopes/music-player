@@ -244,8 +244,8 @@ private fun BottomChrome(
  * from Home (Settings, a list, a playlist) pops to Home; restoring the saved state would bring the page back.
  */
 private fun NavHostController.navigateToTopLevel(destination: TopLevelDestination) {
-    val stack = currentBackStack.value.map { it.destination.route }
-    if (destination == TopLevelDestination.HOME && HomeStackRule.popsToHome(stack)) {
+    val insideHome = HomeStackRule.popsToHome(currentDestination?.route, otherTabOnStack())
+    if (destination == TopLevelDestination.HOME && insideHome) {
         popBackStack(destination.route, inclusive = false)
         return
     }
@@ -255,3 +255,9 @@ private fun NavHostController.navigateToTopLevel(destination: TopLevelDestinatio
         restoreState = true
     }
 }
+
+/** Whether the Library or Search tab is in the back stack (a tab other than Home was opened and not popped). */
+private fun NavHostController.otherTabOnStack(): Boolean =
+    TopLevelDestination.entries
+        .filter { it != TopLevelDestination.HOME }
+        .any { tab -> runCatching { getBackStackEntry(tab.route) }.isSuccess }

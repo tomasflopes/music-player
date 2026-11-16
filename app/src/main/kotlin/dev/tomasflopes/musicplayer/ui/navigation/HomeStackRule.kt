@@ -7,13 +7,12 @@ package dev.tomasflopes.musicplayer.ui.navigation
  */
 object HomeStackRule {
     /**
-     * `true` when [stackRoutes] (bottom to top, `null` for entries without a route) holds something above Home
-     * and no other tab: the pages on top belong to Home, so they can be dropped. With another tab in the stack
-     * the normal tab switch applies, which keeps that tab's state.
+     * `true` when the screen showing is not Home itself and no other tab is in the back stack: the pages above
+     * Home belong to Home, so they can be dropped. With another tab in the stack the normal tab switch applies,
+     * which keeps that tab's state.
      */
-    fun popsToHome(stackRoutes: List<String?>): Boolean {
-        val tabs = stackRoutes.filter { route -> TopLevelDestination.entries.any { it.route == route } }
-        val homeIndex = stackRoutes.indexOf(TopLevelDestination.HOME.route)
-        return tabs == listOf(TopLevelDestination.HOME.route) && homeIndex in 0 until stackRoutes.lastIndex
-    }
+    fun popsToHome(
+        currentRoute: String?,
+        otherTabOnStack: Boolean,
+    ): Boolean = currentRoute != null && currentRoute != TopLevelDestination.HOME.route && !otherTabOnStack
 }
