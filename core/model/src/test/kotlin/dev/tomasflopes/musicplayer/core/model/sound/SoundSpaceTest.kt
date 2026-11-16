@@ -67,4 +67,33 @@ class SoundSpaceTest {
         assertEquals(3, line().nearest(row = 1, k = 50).size)
         assertTrue(line().nearest(row = 1, k = 0).isEmpty())
     }
+
+    @Test
+    fun `the centroid is the mean of the rows, value by value`() {
+        val space = SoundSpace(longArrayOf(1, 2, 3), 2, floatArrayOf(0f, 4f, 2f, 0f, 10f, 2f))
+
+        val centre = space.centroid(listOf(0, 1))
+
+        assertEquals(listOf(1.0, 2.0), centre.toList())
+        assertEquals(listOf(4.0, 2.0), space.centroid(listOf(0, 1, 2)).toList())
+    }
+
+    @Test
+    fun `the centroid of one row is that row`() {
+        val space = line()
+
+        assertEquals(space.vector(2).map { it.toDouble() }, space.centroid(listOf(2)).toList())
+    }
+
+    @Test
+    fun `the centroid does not depend on the order of the rows`() {
+        val space = line()
+
+        assertEquals(space.centroid(listOf(0, 2, 3)).toList(), space.centroid(listOf(3, 0, 2)).toList())
+    }
+
+    @Test
+    fun `the centroid of no rows is refused`() {
+        assertThrows(IllegalArgumentException::class.java) { line().centroid(emptyList()) }
+    }
 }

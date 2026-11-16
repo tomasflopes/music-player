@@ -9,14 +9,16 @@ import dev.tomasflopes.musicplayer.core.model.ports.PlayedSinceSource
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
 import dev.tomasflopes.musicplayer.core.taste.config.RadioConfig
+import dev.tomasflopes.musicplayer.core.taste.lists.ArtistRadioPolicy
 import dev.tomasflopes.musicplayer.core.taste.lists.RadioPolicy
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.radio.ShortMessages
+import dev.tomasflopes.musicplayer.radio.StartArtistRadio
 import dev.tomasflopes.musicplayer.radio.StartRadio
 import dev.tomasflopes.musicplayer.radio.ToastMessages
 import java.time.Clock
 
-/** Radio v0 (ADR 0072): the use case is a plain class; the annotations live here (plan D5). */
+/** Radio v0 (ADR 0072, 0075): the use cases is a plain class; the annotations live here (plan D5). */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RadioBindingsModule {
@@ -38,4 +40,14 @@ object RadioModule {
         config: RadioConfig,
         clock: Clock,
     ) = StartRadio(songs, vectors, played, playback, messages, RadioPolicy(config), config, clock)
+
+    @Provides fun startArtistRadio(
+        songs: SongReader,
+        vectors: SoundVectorSource,
+        played: PlayedSinceSource,
+        playback: PlaybackController,
+        messages: ShortMessages,
+        config: RadioConfig,
+        clock: Clock,
+    ) = StartArtistRadio(songs, vectors, played, playback, messages, ArtistRadioPolicy(config), config, clock)
 }

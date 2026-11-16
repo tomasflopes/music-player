@@ -2,8 +2,15 @@ package dev.tomasflopes.musicplayer.ui.library.artist
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,6 +25,7 @@ import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.radio.RadioViewModel
 import dev.tomasflopes.musicplayer.ui.components.AlbumRow
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
@@ -32,6 +40,7 @@ import dev.tomasflopes.musicplayer.ui.playlists.AddWholeButton
 import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
 import dev.tomasflopes.musicplayer.ui.selection.SelectionState
+import dev.tomasflopes.musicplayer.ui.theme.Spacing
 
 /** One artist: [artistId] is the route argument; [onBack] pops it and [onOpenAlbum] opens one of the albums. */
 @Composable
@@ -40,6 +49,7 @@ fun ArtistScreen(
     onBack: () -> Unit,
     onOpenAlbum: (AlbumId) -> Unit,
     viewModel: ArtistViewModel = hiltViewModel(),
+    radio: RadioViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(artistId) { viewModel.open(artistId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -48,7 +58,7 @@ fun ArtistScreen(
         when (val shown = state) {
             ArtistUiState.Loading -> Unit
             ArtistUiState.NotFound -> EmptyState("This artist does not exist.")
-            is ArtistUiState.Ready -> ReadyContent(shown, viewModel, onOpenAlbum)
+            is ArtistUiState.Ready -> ReadyContent(shown, viewModel, radio, onOpenAlbum)
         }
     }
 }
@@ -57,6 +67,7 @@ fun ArtistScreen(
 private fun ReadyContent(
     ready: ArtistUiState.Ready,
     viewModel: ArtistViewModel,
+    radio: RadioViewModel,
     onOpenAlbum: (AlbumId) -> Unit,
 ) {
     var changingPhoto by rememberSaveable { mutableStateOf(false) }
@@ -84,6 +95,9 @@ private fun ReadyContent(
                 saveList(it, ready.songs.map { song -> song.id }, PlaySource.ARTIST)
             }
         }
+        item(key = "start-radio") {
+            StartArtistRadioButton(enabled = ready.songs.isNotEmpty()) { radio.startArtist(ready.artist.id) }
+        }
         items(ready.entries, key = { it.key }, contentType = { it::class }) { entry ->
             when (entry) {
                 is ArtistEntry.Header -> SectionHeader(entry.section.title)
@@ -97,6 +111,22 @@ private fun ReadyContent(
                     SongEntryRow(entry.song, viewModel, selection) { viewModel.onFeaturedClick(entry.index) }
             }
         }
+    }
+}
+
+/** "Start radio" (ADR 0075): a radio seeded with the artist's sound. */
+@Composable
+private fun StartArtistRadioButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.s),
+    ) {
+        Icon(Icons.Default.Radio, contentDescription = null)
+        Text("Start radio", modifier = Modifier.padding(start = Spacing.xxs))
     }
 }
 

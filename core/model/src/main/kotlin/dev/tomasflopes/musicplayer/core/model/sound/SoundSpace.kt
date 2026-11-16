@@ -50,6 +50,17 @@ class SoundSpace(
         return sqrt(sum)
     }
 
+    /** The mean point of [rows] ([dim] values), for example the sound of an artist. [rows] must not be empty. */
+    fun centroid(rows: List<Int>): DoubleArray {
+        require(rows.isNotEmpty()) { "A centroid needs at least one row" }
+        val sum = DoubleArray(dim)
+        for (row in rows) {
+            for (d in 0 until dim) sum[d] += values[row * dim + d].toDouble()
+        }
+        for (d in 0 until dim) sum[d] /= rows.size
+        return sum
+    }
+
     /** Distance from [row] to an arbitrary point of [dim] values (a cluster centre, say). */
     fun distanceTo(
         row: Int,
