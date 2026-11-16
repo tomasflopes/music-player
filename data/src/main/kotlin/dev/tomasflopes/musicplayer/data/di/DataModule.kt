@@ -72,7 +72,7 @@ object DataModule {
     fun scanController(
         @ApplicationContext context: Context,
         bus: ScanProgressBus,
-    ): LibraryScanController = WorkManagerScanController(WorkManager.getInstance(context), bus)
+    ): LibraryScanController = WorkManagerScanController(lazy { WorkManager.getInstance(context) }, bus)
 
     @Provides
     fun musicRootResolver(): MusicRootResolver = TreeUriMusicRootResolver()

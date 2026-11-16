@@ -7,15 +7,18 @@ import dev.tomasflopes.musicplayer.core.model.ports.LibraryScanController
 import dev.tomasflopes.musicplayer.core.model.ports.ScanProgress
 import kotlinx.coroutines.flow.StateFlow
 
-/** Scans run as the unique work `library-scan`; a request while one runs is dropped (policy KEEP). */
+/**
+ * Scans run as the unique work `library-scan`; a request while one runs is dropped (policy KEEP). WorkManager is
+ * created on the first request, not when the Application builds the graph (ADR 0074).
+ */
 class WorkManagerScanController(
-    private val workManager: WorkManager,
+    private val workManager: Lazy<WorkManager>,
     private val bus: ScanProgressBus,
 ) : LibraryScanController {
     override val progress: StateFlow<ScanProgress> = bus.progress
 
     override fun requestScan() {
-        workManager.enqueueUniqueWork(
+        workManager.value.enqueueUniqueWork(
             LibraryScanWorker.UNIQUE_NAME,
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<LibraryScanWorker>().build(),
