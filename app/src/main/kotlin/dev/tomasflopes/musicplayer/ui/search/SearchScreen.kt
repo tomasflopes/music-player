@@ -31,9 +31,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -113,6 +116,7 @@ fun SearchScreen(
     SearchContent(query, state, searching, actions, focusRequest, transition)
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun SearchContent(
     query: String,
@@ -126,6 +130,8 @@ private fun SearchContent(
     AutofocusOnceSettled(focusRequest, transition, focus)
     val selection = remember { SelectionState() }
     LaunchedEffect(query) { selection.clear() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val hideOnScroll = remember(keyboard) { HideKeyboardOnScroll { keyboard?.hide() } }
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Search")
         SearchField(query, actions.onQueryChange, Modifier.focusRequester(focus))
@@ -135,8 +141,8 @@ private fun SearchContent(
             SearchUiState.Idle -> EmptyState("Search your songs, artists and albums.")
             SearchUiState.Indexing -> EmptyState("Getting your library ready...")
             is SearchUiState.NoResults -> EmptyState("No matches for \"${state.query.trim()}\".")
-            is SearchUiState.Results -> ResultsList(state.sections, actions, selection)
-            is SearchUiState.SeeAll -> SeeAllList(state, actions, selection)
+            is SearchUiState.Results -> ResultsList(state.sections, actions, selection, hideOnScroll)
+            is SearchUiState.SeeAll -> SeeAllList(state, actions, selection, hideOnScroll)
         }
     }
 }
@@ -181,8 +187,9 @@ private fun ResultsList(
     sections: SearchSections,
     actions: SearchActions,
     selection: SelectionState,
+    hideOnScroll: HideKeyboardOnScroll,
 ) {
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize().nestedScroll(hideOnScroll)) {
         item(key = "top") { TopResult(sections.top, actions) }
         section("Artists", sections.artists, sections.moreArtists, SearchItemType.ARTIST, actions) { item ->
             ArtistRow(item.artist, onClick = { actions.onOpen(item) })
@@ -272,6 +279,7 @@ private fun SeeAllList(
     state: SearchUiState.SeeAll,
     actions: SearchActions,
     selection: SelectionState,
+    hideOnScroll: HideKeyboardOnScroll,
 ) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = Spacing.xxs), verticalAlignment = Alignment.CenterVertically) {
@@ -280,7 +288,7 @@ private fun SeeAllList(
             }
             Text(state.type.seeAllTitle(), style = MaterialTheme.typography.titleLarge)
         }
-        LazyColumn(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize().nestedScroll(hideOnScroll)) {
             itemsIndexed(state.items, key = { _, item -> item.key }) { index, item ->
                 when (item) {
                     is ArtistItem -> ArtistRow(item.artist, onClick = { actions.onOpen(item) })
