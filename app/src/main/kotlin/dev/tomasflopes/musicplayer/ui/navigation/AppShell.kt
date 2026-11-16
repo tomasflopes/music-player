@@ -239,8 +239,16 @@ private fun BottomChrome(
     }
 }
 
-/** Switching tabs keeps each tab's state and never stacks copies of the same tab. */
+/**
+ * Switching tabs keeps each tab's state and never stacks copies of the same tab. Selecting Home from a page opened
+ * from Home (Settings, a list, a playlist) pops to Home; restoring the saved state would bring the page back.
+ */
 private fun NavHostController.navigateToTopLevel(destination: TopLevelDestination) {
+    val stack = currentBackStack.value.map { it.destination.route }
+    if (destination == TopLevelDestination.HOME && HomeStackRule.popsToHome(stack)) {
+        popBackStack(destination.route, inclusive = false)
+        return
+    }
     navigate(destination.route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
