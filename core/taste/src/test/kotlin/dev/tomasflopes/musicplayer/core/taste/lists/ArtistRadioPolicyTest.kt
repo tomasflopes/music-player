@@ -46,7 +46,33 @@ class ArtistRadioPolicyTest {
 
         val batch = pick(library, ramp(60))
 
-        assertEquals(listOf(15L, 14L, 16L, 13L, 17L), batch.ids().take(5))
+        // The artist's own songs open the batch (both 5 away), then the nearest to the point.
+        assertEquals(listOf(10L, 20L, 15L, 14L, 16L, 13L, 17L), batch.ids().take(7))
+    }
+
+    @Test
+    fun `the first song is the artist's and their closest songs come first even when far from the point`() {
+        // The artist's songs sit at 0 and 100, the other songs between 30 and 87: the centre (50) is nearer to every
+        // other song, so only the opening rule can put the artist's songs in the batch.
+        val library = listOf(by(1, 1000), by(2, 1000)) + (3L..60L).map { by(it) }
+        val space = line(1L to 0f, 2L to 100f, *(3L..60L).map { it to (it + 27).toFloat() }.toTypedArray())
+
+        val batch = pick(library, space)
+
+        assertEquals(listOf(1L, 2L), batch.ids().take(2))
+        assertEquals(25, batch.size)
+    }
+
+    @Test
+    fun `the first song stays the artist's after spacing and exploration`() {
+        val library = (1L..10L).map { by(it, 1000) } + (11L..200L).map { by(it) }
+
+        (1..10).forEach { random ->
+            val batch = pick(library, ramp(200), config = RadioConfig(), random = random)
+
+            assertEquals(artist, batch.first().artistId)
+            assertEquals(3, batch.count { it.artistId == artist })
+        }
     }
 
     @Test

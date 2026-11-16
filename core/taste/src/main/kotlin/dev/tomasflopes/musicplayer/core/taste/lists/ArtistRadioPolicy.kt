@@ -12,17 +12,17 @@ import kotlin.random.Random
  *
  * 1. The query is the artist's sound: the mean point ([SoundSpace.centroid]) of the songs whose main artist is the
  *    artist and that have a point in the space. One song is enough; two or more are averaged.
- * 2. Candidates are every in-library song with a point in the space, the artist's own songs included. The artist is
- *    not special: the same cap of [RadioConfig.maxPerArtist] songs per main artist applies, so at most that many of
- *    the batch are theirs.
- * 3. Ranking, the exploration band, the per-artist cap, duplicate keys and the artist gap are exactly the song radio's
- *    ([RadioBatchBuilder]); there is no seed song, so the batch is [RadioConfig.batchSize] songs and none is fixed
- *    in first place.
+ * 2. The artist's own songs come first: the [RadioConfig.maxPerArtist] closest to that point (one per duplicate key)
+ *    open the batch, nearest first, so the first song is always the artist's. They count towards the batch size and
+ *    the per-artist cap, so no more than that many of the batch are theirs.
+ * 3. The rest is the song radio's ([RadioBatchBuilder]): every other in-library song with a point in the space,
+ *    ranked by distance to the point, with the exploration band, duplicate keys, recent penalty and artist gap. The
+ *    batch is [RadioConfig.batchSize] songs in all.
  *
  * An artist with no profiled song gives an empty list. Too few candidates give a shorter batch.
  */
 class ArtistRadioPolicy(
-    config: RadioConfig = RadioConfig(),
+    private val config: RadioConfig = RadioConfig(),
 ) {
     private val builder = RadioBatchBuilder(config)
 
@@ -46,6 +46,14 @@ class ArtistRadioPolicy(
         if (own.isEmpty()) return emptyList()
         val centre = space.centroid(own.map { it.row })
         val distanceOf = { candidate: Candidate -> space.distanceTo(candidate.row, centre) }
-        return builder.build(emptyList(), candidates, distanceOf, recentlyPlayed, random)
+        val opening = own.openingSongs(distanceOf)
+        return builder.build(opening, candidates, distanceOf, recentlyPlayed, random)
     }
+
+    /** The artist's songs closest to the point, one per duplicate key, at most [RadioConfig.maxPerArtist]. */
+    private fun List<Candidate>.openingSongs(distanceOf: (Candidate) -> Double): List<Song> =
+        sortedWith(compareBy<Candidate> { distanceOf(it) }.thenBy { it.song.id.value })
+            .distinctBy { it.song.duplicateKey() }
+            .take(config.maxPerArtist)
+            .map { it.song }
 }
