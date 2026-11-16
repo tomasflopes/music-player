@@ -62,4 +62,28 @@ class PendingPlayStoreTest {
             assertNull(read?.playlistId)
         }
     }
+
+    @Test
+    fun `the mix of the row survives a checkpoint`() {
+        val file = Files.createTempDirectory("pending-play").resolve("event").toFile()
+        val event =
+            PlayEvent(SongId(7), 1, 2, 3, EndedBy.SKIPPED, PlaySource.MIX, StartedBy.PICKED, false, mixId = 4)
+        PendingPlayStore(file).save(PendingPlay(event, 5L))
+
+        val read = PendingPlayStore(file).takeLeftover()
+
+        assertEquals(4L, read?.mixId)
+        assertNull(read?.playlistId)
+    }
+
+    @Test
+    fun `a checkpoint with 9 fields, written before mixes, is still read with no mix`() {
+        val file = Files.createTempDirectory("pending-play").resolve("nine").toFile()
+        file.writeText("7\t1\t2\t3\tsongs\tpicked\tfalse\t\t12")
+
+        val read = PendingPlayStore(file).takeLeftover()
+
+        assertEquals(12L, read?.playlistId)
+        assertNull(read?.mixId)
+    }
 }

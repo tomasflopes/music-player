@@ -140,6 +140,7 @@ class PlayEventTracker(
             source = if (entry.manual) PlaySource.QUEUE else entry.source,
             startedBy = startedBy,
             shuffle = shuffle,
+            mixId = if (entry.manual) null else entry.mixId,
             playlistId = if (entry.manual) null else entry.playlistId,
         )
     }

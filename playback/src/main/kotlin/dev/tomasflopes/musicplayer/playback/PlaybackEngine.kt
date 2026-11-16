@@ -215,6 +215,7 @@ internal class PlaybackEngine(
                 request.shuffle,
                 randomStart,
                 request.playlistId,
+                request.mixId,
             )
             prepareWindow()
             sync.onQueueReplaced()
@@ -316,7 +317,10 @@ internal class PlaybackEngine(
     /** Puts a removed entry back (undo). A removed current song becomes current again, at its position. */
     fun restoreToQueue(removed: RemovedQueueEntry) =
         serial {
-            queue.insertAt(removed.index, QueueEntry(removed.ref, removed.source, removed.manual, removed.playlistId))
+            queue.insertAt(
+                removed.index,
+                QueueEntry(removed.ref, removed.source, removed.manual, removed.playlistId, removed.mixId),
+            )
             prepareWindow()
             if (removed.wasCurrent) {
                 queue.jumpTo(removed.index.coerceAtMost(queue.size - 1)) ?: return@serial

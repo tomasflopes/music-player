@@ -25,6 +25,7 @@ internal object PlaybackCommands {
     private const val SOURCE = "source"
     private const val PICKED = "picked"
     private const val PLAYLIST_ID = "playlistId"
+    private const val MIX_ID = "mixId"
     private const val INDEX = "index"
     private const val SONG_ID = "songId"
     private const val ARTIST_ID = "artistId"
@@ -53,6 +54,7 @@ internal object PlaybackCommands {
             putString(SOURCE, request.source.wire)
             putBoolean(PICKED, request.picked)
             request.playlistId?.let { putLong(PLAYLIST_ID, it) }
+            request.mixId?.let { putLong(MIX_ID, it) }
         }
 
     fun requestOf(bundle: Bundle) =
@@ -63,6 +65,7 @@ internal object PlaybackCommands {
             source = PlaySource.fromWire(bundle.getString(SOURCE) ?: PlaySource.SONGS.wire),
             picked = bundle.getBoolean(PICKED),
             playlistId = if (bundle.containsKey(PLAYLIST_ID)) bundle.getLong(PLAYLIST_ID) else null,
+            mixId = if (bundle.containsKey(MIX_ID)) bundle.getLong(MIX_ID) else null,
         )
 
     fun bundleOf(index: Int) = Bundle().apply { putInt(INDEX, index) }
@@ -83,6 +86,7 @@ internal object PlaybackCommands {
             putString(SOURCE, removed.source.wire)
             putBoolean(MANUAL, removed.manual)
             removed.playlistId?.let { putLong(PLAYLIST_ID, it) }
+            removed.mixId?.let { putLong(MIX_ID, it) }
             putBoolean(WAS_CURRENT, removed.wasCurrent)
             putLong(POSITION, removed.positionMs)
             putBoolean(WAS_PLAYING, removed.wasPlaying)
@@ -98,5 +102,6 @@ internal object PlaybackCommands {
             wasCurrent = bundle.getBoolean(WAS_CURRENT),
             positionMs = bundle.getLong(POSITION),
             wasPlaying = bundle.getBoolean(WAS_PLAYING),
+            mixId = if (bundle.containsKey(MIX_ID)) bundle.getLong(MIX_ID) else null,
         )
 }

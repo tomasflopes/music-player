@@ -83,6 +83,7 @@ internal class MediaControllerPlaybackController(
                 source = entry.source,
                 manual = entry.manual,
                 playlistId = entry.playlistId,
+                mixId = entry.mixId,
                 wasCurrent = index == queue.index,
                 positionMs = controller?.currentPosition ?: 0,
                 wasPlaying = controller?.playWhenReady == true,

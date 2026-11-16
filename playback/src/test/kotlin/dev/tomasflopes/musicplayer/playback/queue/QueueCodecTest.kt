@@ -57,8 +57,27 @@ class QueueCodecTest {
     }
 
     @Test
-    fun `a queue saved before playlists were logged is ignored`() {
-        assertEquals(2, QueueCodec.VERSION)
+    fun `a queue saved before mixes were logged is ignored`() {
+        assertEquals(3, QueueCodec.VERSION)
+    }
+
+    @Test
+    fun `the mix an entry came from survives the round trip next to its playlist`() {
+        val list = (1L..4L).map(::ref)
+        val entries =
+            listOf(
+                QueueEntry(list[0], PlaySource.MIX, manual = false, mixId = 3L),
+                QueueEntry(list[1], PlaySource.MIX, manual = false, mixId = 3L),
+                QueueEntry(list[2], PlaySource.QUEUE, manual = true),
+                QueueEntry(list[3], PlaySource.PLAYLIST, manual = false, playlistId = 9L, mixId = 1_000_000_000_000L),
+            )
+        val original = SavedQueue(QueueSnapshot(entries, list, 1, shuffled = false, repeatMode = RepeatMode.OFF), 5L)
+
+        val decoded = QueueCodec.decode(QueueCodec.encode(original))
+
+        assertEquals(original, decoded)
+        assertEquals(listOf(3L, 3L, null, 1_000_000_000_000L), decoded?.snapshot?.entries?.map { it.mixId })
+        assertEquals(listOf(null, null, null, 9L), decoded?.snapshot?.entries?.map { it.playlistId })
     }
 
     @Test

@@ -14,6 +14,7 @@ import dev.tomasflopes.musicplayer.core.taste.lists.TopHundredProvider
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.home.sections.AnalysisHintSection
 import dev.tomasflopes.musicplayer.ui.home.sections.DynamicListsSection
+import dev.tomasflopes.musicplayer.ui.home.sections.MixesSection
 import dev.tomasflopes.musicplayer.ui.home.sections.PlaylistsSection
 import dev.tomasflopes.musicplayer.ui.home.sections.ShuffleAllSection
 import dev.tomasflopes.musicplayer.ui.settings.CrossfadeSettingsEntry
@@ -34,6 +35,10 @@ abstract class ExtensionPointsModule {
     @Binds
     @IntoSet
     abstract fun analysisHintSection(section: AnalysisHintSection): HomeSection
+
+    @Binds
+    @IntoSet
+    abstract fun mixesSection(section: MixesSection): HomeSection
 
     @Binds
     @IntoSet

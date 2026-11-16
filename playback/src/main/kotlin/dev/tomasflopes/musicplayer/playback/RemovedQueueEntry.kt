@@ -16,4 +16,5 @@ data class RemovedQueueEntry(
     val wasCurrent: Boolean,
     val positionMs: Long,
     val wasPlaying: Boolean,
+    val mixId: Long? = null,
 )

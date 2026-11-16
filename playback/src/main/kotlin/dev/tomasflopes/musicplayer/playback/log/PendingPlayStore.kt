@@ -43,6 +43,7 @@ class PendingPlayStore(
                     event.shuffle,
                     pending.playingSinceWallMs ?: "",
                     event.playlistId ?: "",
+                    event.mixId ?: "",
                 ).joinToString("\t"),
             )
             renameTo(file)
@@ -69,12 +70,13 @@ class PendingPlayStore(
                 PlaySource.fromWire(fields[SOURCE]),
                 StartedBy.fromWire(fields[STARTED_BY]),
                 fields[SHUFFLE].toBooleanStrict(),
+                mixId = fields.getOrNull(MIX_ID)?.toLongOrNull(),
                 playlistId = fields.getOrNull(PLAYLIST_ID)?.toLongOrNull(),
             )
         }.getOrNull()
 
     private companion object {
-        const val FIELD_COUNT = 9
+        const val FIELD_COUNT = 10
         const val OLD_FIELD_COUNT = 7
         const val SONG_ID = 0
         const val STARTED_AT = 1
@@ -85,5 +87,6 @@ class PendingPlayStore(
         const val SHUFFLE = 6
         const val PLAYING_SINCE = 7
         const val PLAYLIST_ID = 8
+        const val MIX_ID = 9
     }
 }

@@ -42,6 +42,9 @@ import dev.tomasflopes.musicplayer.ui.library.album.AlbumRoute
 import dev.tomasflopes.musicplayer.ui.library.album.AlbumScreen
 import dev.tomasflopes.musicplayer.ui.library.artist.ArtistRoute
 import dev.tomasflopes.musicplayer.ui.library.artist.ArtistScreen
+import dev.tomasflopes.musicplayer.ui.mixes.EditMixRoute
+import dev.tomasflopes.musicplayer.ui.mixes.MixEditorScreen
+import dev.tomasflopes.musicplayer.ui.mixes.NewMixRoute
 import dev.tomasflopes.musicplayer.ui.nowplaying.NowPlayingSheet
 import dev.tomasflopes.musicplayer.ui.onboarding.FolderPromptScreen
 import dev.tomasflopes.musicplayer.ui.player.MiniPlayerHost
@@ -124,6 +127,7 @@ private fun NavGraphBuilder.appDestinations(
         )
     }
     playlistDestinations(navController)
+    mixDestinations(navController)
     searchDestination(navController, searchFocusRequest)
     composable(
         route = AlbumRoute.PATTERN,
@@ -155,6 +159,22 @@ private fun NavGraphBuilder.dynamicListDestination(navController: NavHostControl
     ) { entry ->
         DynamicListScreen(
             listId = entry.arguments?.getString(DynamicListRoute.ARG_ID).orEmpty(),
+            onBack = { navController.popBackStack() },
+        )
+    }
+}
+
+/** The mix editor, opened from the "Your mixes" row on Home: one screen for a new mix and for an existing one. */
+private fun NavGraphBuilder.mixDestinations(navController: NavHostController) {
+    composable(route = NewMixRoute.PATTERN) {
+        MixEditorScreen(mixId = null, onBack = { navController.popBackStack() })
+    }
+    composable(
+        route = EditMixRoute.PATTERN,
+        arguments = listOf(navArgument(EditMixRoute.ARG_ID) { type = NavType.LongType }),
+    ) { entry ->
+        MixEditorScreen(
+            mixId = entry.arguments?.getLong(EditMixRoute.ARG_ID),
             onBack = { navController.popBackStack() },
         )
     }

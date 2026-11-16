@@ -176,6 +176,45 @@ class MusicDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration6To7KeepsPlaylistsLogAndProfilesAndAddsTheMixTablesThatCascade() {
+        helper.createDatabase(db, 6).use { v6 ->
+            v6.execSQL(
+                "INSERT INTO playlist (id, name, created_at, updated_at, last_used_at) VALUES (1, 'Gym', 1, 1, 1)",
+            )
+            v6.execSQL("INSERT INTO playlist_song (playlist_id, song_id, position, added_at) VALUES (1, 42, 0, 1)")
+            v6.execSQL(
+                "INSERT INTO play_event (song_id, started_at, listened_ms, song_duration_ms, ended_by, source, " +
+                    "started_by, shuffle, mix_id, playlist_id) " +
+                    "VALUES (42, 5, 100, 200, 'completed', 'playlist', 'picked', 0, NULL, 1)",
+            )
+            v6.execSQL(
+                "INSERT INTO sound_profile (song_id, profiler_version, features, source, file_size, analysed_at) " +
+                    "VALUES (41, 1, X'0000803F', 'mac', 100, 5)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(db, 7, true, Migrations.MIGRATION_6_7).use { v7 ->
+            listOf("playlist", "playlist_song", "play_event", "sound_profile").forEach { table ->
+                v7.query("SELECT COUNT(*) FROM `$table`").use {
+                    assertTrue(it.moveToFirst())
+                    assertEquals("rows of $table", 1, it.getInt(0))
+                }
+            }
+            v7.execSQL("PRAGMA foreign_keys = ON")
+            v7.execSQL("INSERT INTO mix (id, name, created_at, updated_at) VALUES (1, 'Run', 1, 1)")
+            v7.execSQL("INSERT INTO mix_seed (mix_id, position, kind, ref_id) VALUES (1, 0, 'song', 42)")
+            v7.execSQL("INSERT INTO mix_seed (mix_id, position, kind, ref_id) VALUES (1, 1, 'artist', 7)")
+            assertEquals(setOf("mix"), foreignKeys(v7, "mix_seed"))
+
+            v7.execSQL("DELETE FROM mix WHERE id = 1")
+            v7.query("SELECT COUNT(*) FROM mix_seed").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(0, it.getInt(0))
+            }
+        }
+    }
+
     private fun foreignKeys(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,

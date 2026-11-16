@@ -100,5 +100,28 @@ object Migrations {
             }
         }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+    /**
+     * Mixes (ADR 0076): the mix and its seeds. Two tables and an index; no score table (a mix's state is read from the
+     * log), no foreign key to `song` or `artist` (as ADR 0037). `play_event.mix_id` has existed since version 1.
+     */
+    val MIGRATION_6_7: Migration =
+        object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `mix` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `mix_seed` (`mix_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, " +
+                        "`kind` TEXT NOT NULL, `ref_id` INTEGER NOT NULL, PRIMARY KEY(`mix_id`, `kind`, `ref_id`), " +
+                        "FOREIGN KEY(`mix_id`) REFERENCES `mix`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_mix_seed_mix_id_position` ON `mix_seed` (`mix_id`, `position`)",
+                )
+            }
+        }
+
+    val ALL: Array<Migration> =
+        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 }

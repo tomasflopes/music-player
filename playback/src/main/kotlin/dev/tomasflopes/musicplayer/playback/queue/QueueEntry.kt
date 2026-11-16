@@ -5,13 +5,15 @@ import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 
 /**
  * One slot of the queue. [manual] entries came from Play next / Add to queue and never move or reshuffle.
- * [playlistId] is the playlist the entry was played from (ADR 0042); manual entries have none.
+ * [playlistId] is the playlist the entry was played from (ADR 0042) and [mixId] the mix (ADR 0076); manual entries
+ * have neither.
  */
 data class QueueEntry(
     val ref: SongRef,
     val source: PlaySource,
     val manual: Boolean,
     val playlistId: Long? = null,
+    val mixId: Long? = null,
 )
 
 enum class RepeatMode { OFF, ALL, ONE }
