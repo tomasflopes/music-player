@@ -22,4 +22,8 @@ abstract class DebugModule {
     @Binds
     @IntoSet
     abstract fun consistencyReportEntry(entry: ConsistencyReportSettingsEntry): SettingsEntry
+
+    @Binds
+    @IntoSet
+    abstract fun soundNeighboursEntry(entry: SoundNeighboursSettingsEntry): SettingsEntry
 }

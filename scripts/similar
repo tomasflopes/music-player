@@ -1,0 +1,11 @@
+#!/bin/sh
+# The songs that sound closest to a seed, from a Mac export (ADR 0073).
+# usage: scripts/similar <profiles.jsonl> "<path substring>" [--k N]
+set -eu
+cd "$(dirname "$0")/.."
+PROFILES="${1:?usage: scripts/similar <profiles.jsonl> \"<path substring>\" [--k N]}"
+SEED="${2:?usage: scripts/similar <profiles.jsonl> \"<path substring>\" [--k N]}"
+shift 2
+case "$PROFILES" in /*) ;; *) PROFILES="$OLDPWD/$PROFILES" ;; esac
+./gradlew -q :tools:analyser:installDist
+exec tools/analyser/build/install/analyser/bin/analyser similar --profiles "$PROFILES" --seed "$SEED" "$@"

@@ -1,0 +1,9 @@
+# 0073: Evaluation tools: `analyser similar` and the Sound neighbours screen
+
+Date: 2026-11-16 · Status: proposed · Extends 0068, 0069
+
+**Context.** ADR 0068 is not accepted until its reference lists are reproduced, and the owner needs to look at neighbours before Discover ranks anything with them. Both checks must run on the same code the app will use.
+
+**Decision.** `analyser similar --profiles <jsonl> --seed "<path substring>" [--k 10]` reads the Mac export with `ProfileExportCodec`, builds the space with `SoundVectorizer` and finds the neighbours with `SoundSpace.nearest`; `:tools:*` still depends on `:core:*` only (0013). The seed is found by a case-insensitive, NFC-folded path substring; no match or several is a usage error that lists the matches (at most 20). Output: the seed, then the k nearest with distance and the five weighted values. A song whose file name (no folder, no `.mp3`, lower case, NFC) equals the seed's is left out, because copies of a recording sit at distance 0. That rule and the search call are `SoundNeighbours` in `:core:model`, so the command and the screen cannot drift. The debug screen "Sound neighbours" (settings row, own activity, debug source set only, 0019) picks the seed through the Search tab's `SearchEngineFactory`, reads the space from `SoundVectorSource` (0069) and lists 20 neighbours with the same columns. A tap plays that neighbour and the rest of the list after it.
+
+**Consequences.** The command needs no phone and no Room, so a weight change can be judged on the Mac in seconds. Ties go to the export line number in the command and to the song id in the app, so a near-tie can order differently between the two. The numbers on the Mac come from the export, the numbers on the phone from the database, which should be equal after an import. Taps on the screen are logged as `discover` plays and count as played for Discover v0 (0063). Not a user feature; release builds have neither the screen nor its row.

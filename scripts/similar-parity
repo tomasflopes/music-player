@@ -1,0 +1,21 @@
+#!/bin/sh
+# Parity and review runs of ADR 0073 / 0068. The first two seeds are compared with the reference lists (top 5, same
+# set, near ties may swap); the rest are printed with their top 10 for the owner. A seed that matches several songs
+# prints the list of matches instead; rerun it with a longer part of the path.
+# usage: scripts/similar-parity [profiles.jsonl]      (default ~/MusicPhoneProfiles.jsonl)
+set -u
+cd "$(dirname "$0")/.."
+PROFILES="${1:-$HOME/MusicPhoneProfiles.jsonl}"
+./gradlew -q :tools:analyser:installDist || exit 1
+BIN=tools/analyser/build/install/analyser/bin/analyser
+run() {
+  echo "=== $1 (k=$2)"
+  "$BIN" similar --profiles "$PROFILES" --seed "$1" --k "$2" 2>&1
+  echo
+}
+run "HH/Valete/Valete - Fim Da Ditadura" 5
+run "HH/Plutonio/Plutonio - Tirar Bilhete" 5
+for seed in "X-Tense - 22-22" "X-Tense - EQlibrio" "6Lack - Disconnect" "HH/Dillaz/Dillaz - Copo De Balão" \
+  "Smorra - Ruff Baby" "Sam The Kid - Homem Do Meio" "Xeg - Caminho Inverso" "Lhast - Guava" "Ed - Tua Falta"; do
+  run "$seed" 10
+done

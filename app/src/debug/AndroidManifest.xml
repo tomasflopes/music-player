@@ -16,5 +16,9 @@
             android:name=".debug.ConsistencyReportActivity"
             android:exported="false"
             android:label="Consistency report" />
+        <activity
+            android:name=".debug.SoundNeighboursActivity"
+            android:exported="false"
+            android:label="Sound neighbours" />
     </application>
 </manifest>
