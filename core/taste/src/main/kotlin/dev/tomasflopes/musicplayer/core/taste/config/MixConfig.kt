@@ -29,6 +29,8 @@ data class MixConfig(
      * always plays its seed artists; 0 turns it off. They count towards [maxPerArtist].
      */
     val openingPerArtist: Int = 2,
+    /** A refill starts when this many non-manual songs or fewer are left in the queue; below [batchSize] (ADR 0078). */
+    val refillLowWater: Int = 5,
     /** Fixes the exploration draw when set (tests, debugging); null draws a new one for every batch. */
     val seed: Long? = null,
 ) {
@@ -37,6 +39,9 @@ data class MixConfig(
         require(explorationBand >= batchSize) { "explorationBand must hold a batch: $explorationBand < $batchSize" }
         require(openingPerArtist in 0..maxPerArtist) {
             "openingPerArtist must be in 0..$maxPerArtist: $openingPerArtist"
+        }
+        require(refillLowWater in 0 until batchSize) {
+            "refillLowWater must be in 0 until $batchSize: $refillLowWater"
         }
         require(densityRank >= 1) { "densityRank must be at least 1: $densityRank" }
         require(explorationShare.isFinite() && explorationShare in 0.0..1.0) {

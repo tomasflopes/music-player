@@ -30,4 +30,10 @@ class MixConfigTest {
     fun `a band that cannot hold a batch is refused`() {
         assertThrows(IllegalArgumentException::class.java) { MixConfig(explorationBand = 10) }
     }
+
+    @Test
+    fun `refill starts at 5 or fewer songs left and must stay below the batch size`() {
+        assertEquals(5, MixConfig().refillLowWater)
+        assertThrows(IllegalArgumentException::class.java) { MixConfig(refillLowWater = 25) }
+    }
 }
