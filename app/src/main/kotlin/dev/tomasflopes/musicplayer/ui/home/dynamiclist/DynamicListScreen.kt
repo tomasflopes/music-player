@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.ui.components.BackTitleRow
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
 import dev.tomasflopes.musicplayer.ui.components.PlayShuffleButtons
+import dev.tomasflopes.musicplayer.ui.components.SongMenuButton
 import dev.tomasflopes.musicplayer.ui.components.SongRow
 import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.selection.SelectionBar
@@ -57,7 +58,12 @@ private fun ReadyContent(
         saveList(it, ready.songs.map { song -> song.id }, ready.playSource)
     }
     val selection = remember { SelectionState() }
-    SelectionBar(selection, ready.songs)
+    SelectionBar(
+        selection,
+        ready.songs,
+        onPlayNext = viewModel::onPlayNextSelected,
+        onAddToQueue = viewModel::onAddToQueueSelected,
+    )
     if (ready.songs.isEmpty()) {
         EmptyState(emptyText(ready.windowDays))
     } else {
@@ -68,6 +74,13 @@ private fun ReadyContent(
                     onClick = { selection.onTap(song.id) { viewModel.onSongClick(index) } },
                     onLongClick = { selection.onLongPress(song.id) },
                     selected = selection.isSelected(song.id),
+                    trailing = {
+                        SongMenuButton(
+                            songId = song.id,
+                            onPlayNext = { viewModel.onPlayNext(song) },
+                            onAddToQueue = { viewModel.onAddToQueue(song) },
+                        )
+                    },
                 )
             }
         }

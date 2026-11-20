@@ -3,6 +3,9 @@ package dev.tomasflopes.musicplayer.ui.home.dynamiclist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ref
@@ -54,6 +57,26 @@ class DynamicListViewModel
 
         /** Plays the list in its shown order, starting at the tapped song. */
         fun onSongClick(index: Int) = start(startIndex = index, shuffle = false, picked = true)
+
+        /** Play next / Add to queue for one row: a manual queue entry, as a Search result's (ADR 0082). */
+        fun onPlayNext(song: Song) = playback.playNext(listOf(song.ref))
+
+        fun onAddToQueue(song: Song) = playback.addToQueue(listOf(song.ref))
+
+        /** The same two actions for the ticked songs (ADR 0040), in the list's order whatever the tick order. */
+        fun onPlayNextSelected(ids: List<SongId>) = tickedRefs(ids).ifNotEmpty(playback::playNext)
+
+        fun onAddToQueueSelected(ids: List<SongId>) = tickedRefs(ids).ifNotEmpty(playback::addToQueue)
+
+        private fun List<SongRef>.ifNotEmpty(action: (List<SongRef>) -> Unit) {
+            if (isNotEmpty()) action(this)
+        }
+
+        private fun tickedRefs(ids: List<SongId>): List<SongRef> {
+            val wanted = ids.toSet()
+            val shown = (state.value as? DynamicListUiState.Ready)?.songs.orEmpty()
+            return shown.filter { it.id in wanted }.map { it.ref }
+        }
 
         private fun start(
             startIndex: Int,

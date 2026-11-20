@@ -185,6 +185,84 @@ class DynamicListViewModelTest {
             assertEquals(DynamicListUiState.Loading, viewModel().state.value)
         }
 
+    @Test
+    fun `play next on a row queues that one song by hand and starts nothing`() =
+        runTest {
+            val viewModel = open(viewModel())
+
+            viewModel.onPlayNext(eighteenDays)
+
+            assertEquals(listOf(listOf(eighteenDays.ref)), playback.playNextCalls)
+            assertTrue(playback.addToQueueCalls.isEmpty())
+            assertTrue(playback.requests.isEmpty())
+        }
+
+    @Test
+    fun `add to queue on a row queues that one song by hand and starts nothing`() =
+        runTest {
+            val viewModel = open(viewModel())
+
+            viewModel.onAddToQueue(fiveDays)
+
+            assertEquals(listOf(listOf(fiveDays.ref)), playback.addToQueueCalls)
+            assertTrue(playback.playNextCalls.isEmpty())
+            assertTrue(playback.requests.isEmpty())
+        }
+
+    @Test
+    fun `play next on a selection queues the ticked songs in the list's order`() =
+        runTest {
+            val viewModel = open(viewModel())
+
+            // Ticked in the opposite order to the list (newest first): the list's order wins.
+            viewModel.onPlayNextSelected(listOf(eighteenDays.id, fiveDays.id))
+
+            assertEquals(listOf(listOf(fiveDays.ref, eighteenDays.ref)), playback.playNextCalls)
+        }
+
+    @Test
+    fun `add to queue on a selection queues the ticked songs in the list's order`() =
+        runTest {
+            val viewModel = open(viewModel())
+
+            viewModel.onAddToQueueSelected(listOf(eighteenDays.id, fiveDays.id))
+
+            assertEquals(listOf(listOf(fiveDays.ref, eighteenDays.ref)), playback.addToQueueCalls)
+        }
+
+    @Test
+    fun `a selection only queues songs that are still in the list`() =
+        runTest {
+            val viewModel = open(viewModel())
+
+            viewModel.onAddToQueueSelected(listOf(old.id, fiveDays.id))
+
+            assertEquals(listOf(listOf(fiveDays.ref)), playback.addToQueueCalls)
+        }
+
+    @Test
+    fun `an empty selection asks the player for nothing`() =
+        runTest {
+            val viewModel = open(viewModel())
+
+            viewModel.onPlayNextSelected(emptyList())
+            viewModel.onAddToQueueSelected(listOf(old.id))
+
+            assertTrue(playback.playNextCalls.isEmpty())
+            assertTrue(playback.addToQueueCalls.isEmpty())
+        }
+
+    @Test
+    fun `the queue actions work for any list, not only Recently added`() =
+        runTest {
+            val other = FakeDynamicListProvider(id = "other", title = "Other", songs = listOf(old, fiveDays))
+            val viewModel = open(viewModel(other), "other")
+
+            viewModel.onPlayNextSelected(listOf(fiveDays.id, old.id))
+
+            assertEquals(listOf(listOf(old.ref, fiveDays.ref)), playback.playNextCalls)
+        }
+
     private companion object {
         const val SECONDS_PER_DAY = 86_400L
     }
