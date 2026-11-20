@@ -8,6 +8,15 @@ android {
         applicationId = "dev.tomasflopes.musicplayer"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    buildTypes {
+        // Personal use: the release build is signed with the debug key so `installRelease` works without a keystore.
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }
 
 dependencies {
