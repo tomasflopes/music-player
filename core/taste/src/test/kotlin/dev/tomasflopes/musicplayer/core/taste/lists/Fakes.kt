@@ -88,6 +88,10 @@ internal class FakeSettings(
     }
 
     override suspend fun setCrossfade(settings: CrossfadeSettings) = Unit
+
+    override val extendSingleSongs: Flow<Boolean> = MutableStateFlow(true)
+
+    override suspend fun setExtendSingleSongs(on: Boolean) = Unit
 }
 
 /** A board that always answers with the same ranking. */

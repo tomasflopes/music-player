@@ -281,6 +281,14 @@ class FakeSettingsRepository : SettingsRepository {
     override suspend fun setCrossfade(settings: CrossfadeSettings) {
         crossfadeSettings.value = settings.coerced()
     }
+
+    /** "Extend single songs": on by default, as in the real store. */
+    val extendSingleSongsOn = MutableStateFlow(true)
+    override val extendSingleSongs: Flow<Boolean> = extendSingleSongsOn
+
+    override suspend fun setExtendSingleSongs(on: Boolean) {
+        extendSingleSongsOn.value = on
+    }
 }
 
 class FakeArtistPhotoSettings : ArtistPhotoSettings {

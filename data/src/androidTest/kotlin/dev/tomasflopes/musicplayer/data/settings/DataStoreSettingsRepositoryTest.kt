@@ -53,6 +53,16 @@ class DataStoreSettingsRepositoryTest {
     }
 
     @Test
+    fun extendSingleSongsIsOnByDefaultAndSurvivesANewInstance() =
+        runTest {
+            assertEquals(true, newInstance().extendSingleSongs.first())
+
+            newInstance().setExtendSingleSongs(false)
+
+            assertEquals(false, newInstance().extendSingleSongs.first())
+        }
+
+    @Test
     fun defaultDaysIsTwenty() =
         runTest {
             assertEquals(20, newInstance().recentlyAddedDays.first())

@@ -19,4 +19,12 @@ data class SoloExtensionConfig(
             "explorationShare must be in 0..1: $explorationShare"
         }
     }
+
+    /** The radio's numbers with this batch size and exploration share; everything else stays as in [base]. */
+    fun radioConfig(base: RadioConfig = RadioConfig()): RadioConfig =
+        base.copy(
+            batchSize = batchSize,
+            nearestShare = 1.0 - explorationShare,
+            explorationShare = explorationShare,
+        )
 }

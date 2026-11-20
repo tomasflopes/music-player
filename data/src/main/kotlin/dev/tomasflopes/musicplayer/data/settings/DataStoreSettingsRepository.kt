@@ -49,6 +49,11 @@ class DataStoreSettingsRepository(
                 ).coerced()
             }.distinctUntilChanged()
 
+    override val extendSingleSongs: Flow<Boolean> =
+        store.data
+            .map { it[EXTEND_SINGLE_SONGS] ?: true }
+            .distinctUntilChanged()
+
     override suspend fun setMusicRoot(root: MusicRoot) {
         store.edit { preferences ->
             preferences[MUSIC_ROOT_TREE_URI] = root.treeUri
@@ -69,6 +74,10 @@ class DataStoreSettingsRepository(
         }
     }
 
+    override suspend fun setExtendSingleSongs(on: Boolean) {
+        store.edit { it[EXTEND_SINGLE_SONGS] = on }
+    }
+
     private companion object {
         val MUSIC_ROOT_TREE_URI = stringPreferencesKey("music_root_tree_uri")
         val MUSIC_ROOT_VOLUME = stringPreferencesKey("music_root_volume")
@@ -76,5 +85,6 @@ class DataStoreSettingsRepository(
         val RECENTLY_ADDED_DAYS = intPreferencesKey("recently_added_days")
         val CROSSFADE_ENABLED = booleanPreferencesKey("crossfade_enabled")
         val CROSSFADE_DURATION_MS = intPreferencesKey("crossfade_duration_ms")
+        val EXTEND_SINGLE_SONGS = booleanPreferencesKey("extend_single_songs")
     }
 }

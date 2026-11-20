@@ -15,6 +15,16 @@ class SoloExtensionConfigTest {
     }
 
     @Test
+    fun `the radio config carries the batch and the share and keeps the other radio numbers`() {
+        val radio = SoloExtensionConfig().radioConfig(RadioConfig(maxPerArtist = 2))
+
+        assertEquals(5, radio.batchSize)
+        assertEquals(0.12, radio.explorationShare, 1e-9)
+        assertEquals(0.88, radio.nearestShare, 1e-9)
+        assertEquals(2, radio.maxPerArtist)
+    }
+
+    @Test
     fun `a low water mark at or above the batch size is refused`() {
         assertThrows(IllegalArgumentException::class.java) { SoloExtensionConfig(batchSize = 5, lowWater = 5) }
     }

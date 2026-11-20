@@ -18,10 +18,15 @@ interface SettingsRepository {
     /** Crossfade on/off and its length (phase 6); off, 4 s until the owner changes it. */
     val crossfade: Flow<CrossfadeSettings>
 
+    /** "Extend single songs" (ADR 0080): a song chosen from Search is followed by songs like it. On by default. */
+    val extendSingleSongs: Flow<Boolean>
+
     suspend fun setMusicRoot(root: MusicRoot)
 
     suspend fun setRecentlyAddedDays(days: Int)
 
     /** Saved with the length coerced into [CrossfadeSettings.DURATION_RANGE_MS]. */
     suspend fun setCrossfade(settings: CrossfadeSettings)
+
+    suspend fun setExtendSingleSongs(on: Boolean)
 }
