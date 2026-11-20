@@ -14,6 +14,7 @@ import dev.tomasflopes.musicplayer.fakes.FakeAlbumReader
 import dev.tomasflopes.musicplayer.fakes.FakeArtistReader
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.FakeSearchHistoryWriter
+import dev.tomasflopes.musicplayer.fakes.FakeSettingsRepository
 import dev.tomasflopes.musicplayer.fakes.FakeSongFeatureReader
 import dev.tomasflopes.musicplayer.fakes.FakeSongReader
 import dev.tomasflopes.musicplayer.fakes.testAlbum
@@ -79,6 +80,7 @@ class SearchViewModelTest {
 
     private val playback = FakePlaybackController()
     private val history = FakeSearchHistoryWriter()
+    private val settings = FakeSettingsRepository()
     private val songReader =
         FakeSongReader(
             songs = listOf(morning, night, faded, ended, bigEd, empire),
@@ -89,6 +91,9 @@ class SearchViewModelTest {
     private val artistReader = FakeArtistReader(listOf(ed, eddie, kendrick, jayZ, sample))
     private val albumReader = FakeAlbumReader(listOf(education))
     private val featureReader = FakeSongFeatureReader(mapOf(night.id to listOf("Ed")))
+    private fun soloRequest(song: Song) =
+        PlayRequest(listOf(song.ref), 0, shuffle = false, PlaySource.SEARCH, picked = true, soloSeed = song.id.value)
+
     private val clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC)
 
     @BeforeEach
@@ -115,6 +120,7 @@ class SearchViewModelTest {
                 featureReader,
                 history,
                 clock,
+                settings,
                 factory,
                 workDispatcher,
             )
@@ -350,10 +356,7 @@ class SearchViewModelTest {
             viewModel.onSongClick(1)
             advanceUntilIdle()
 
-            assertEquals(
-                listOf(PlayRequest(shown.map { it.ref }, 1, shuffle = false, PlaySource.SEARCH, picked = true)),
-                playback.requests,
-            )
+            assertEquals(listOf(soloRequest(shown[1])), playback.requests)
             assertEquals(
                 listOf(SearchEvent("ed", SearchItemType.SONG, shown[1].id.value, NOW)),
                 history.events,
@@ -374,11 +377,24 @@ class SearchViewModelTest {
             viewModel.onSongClick(last)
             advanceUntilIdle()
 
+            assertEquals(listOf(soloRequest(shown[last])), playback.requests)
+            assertEquals(shown[last].id, SongId(history.events.single().chosenId))
+        }
+
+    @Test
+    fun `with Extend single songs off the shown list plays from the chosen song`() =
+        runTest {
+            settings.extendSingleSongsOn.value = false
+            val viewModel = viewModel()
+            val shown = typed(viewModel, "ed").results().songs.map { it.song }
+
+            viewModel.onSongClick(1)
+            advanceUntilIdle()
+
             assertEquals(
-                listOf(PlayRequest(shown.map { it.ref }, last, shuffle = false, PlaySource.SEARCH, picked = true)),
+                listOf(PlayRequest(shown.map { it.ref }, 1, shuffle = false, PlaySource.SEARCH, picked = true)),
                 playback.requests,
             )
-            assertEquals(shown[last].id, SongId(history.events.single().chosenId))
         }
 
     @Test

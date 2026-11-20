@@ -11,6 +11,7 @@ import dev.tomasflopes.musicplayer.core.model.log.SearchItemType
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
+import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ref
@@ -47,6 +48,10 @@ import javax.inject.Inject
  * searches the latest build. Choosing a result appends a [SearchEvent]; a song or the top card then plays, while an
  * artist or album row only opens its page.
  *
+ * Playing one song (a row of the Songs section or of See all, or the top card's Play) starts that song alone and
+ * extends it with songs that sound like it (ADR 0080), unless "Extend single songs" is off; the other matching
+ * results are no longer queued.
+ *
  * The constructor is a Hilt dependency list (the ports, the clock and the engine seam), hence the suppression.
  */
 @Suppress("LongParameterList")
@@ -62,12 +67,17 @@ class SearchViewModel
         private val featureReader: SongFeatureReader,
         private val history: SearchHistoryWriter,
         private val clock: Clock,
+        settings: SettingsRepository,
         private val engineFactory: SearchEngineFactory,
         @SearchWorkDispatcher private val workDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
         private val queryText = MutableStateFlow("")
         private val seeAllType = MutableStateFlow<SearchItemType?>(null)
         private val busy = MutableStateFlow(false)
+
+        // Kept live for the ViewModel's life, so a tap reads the current value without waiting for the store.
+        private val extendSingleSongs: StateFlow<Boolean> =
+            settings.extendSingleSongs.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
         /** The text field's content, kept apart from [state] so typing never waits for a search. */
         val query: StateFlow<String> = queryText.asStateFlow()
@@ -135,8 +145,7 @@ class SearchViewModel
             val shown = shownSongs()
             val song = shown.getOrNull(index) ?: return
             viewModelScope.launch {
-                val refs = shown.map { it.ref }
-                playback.play(PlayRequest(refs, index, shuffle = false, PlaySource.SEARCH, picked = true))
+                playback.play(songRequest(song, shown, index))
                 log(SongItem(song))
             }
         }
@@ -162,14 +171,33 @@ class SearchViewModel
                         val songs = songReader.observeAlbumSongs(item.album.id).firstOrNull().orEmpty()
                         playList(songs, shuffle, PlaySource.ALBUM)
                     }
-                    is SongItem ->
-                        playback.play(
-                            PlayRequest(listOf(item.song.ref), 0, shuffle = false, PlaySource.SEARCH, picked = true),
-                        )
+                    is SongItem -> playback.play(songRequest(item.song, listOf(item.song), 0))
                 }
                 log(item)
             }
         }
+
+        /**
+         * One song, extended (ADR 0080): the queue is that song alone, seeded with it, and the refiller adds the songs
+         * that sound like it after it has started. With the setting off it is the shown list from the chosen song.
+         */
+        private fun songRequest(
+            song: Song,
+            shown: List<Song>,
+            index: Int,
+        ): PlayRequest =
+            if (extendSingleSongs.value) {
+                PlayRequest(
+                    listOf(song.ref),
+                    0,
+                    shuffle = false,
+                    PlaySource.SEARCH,
+                    picked = true,
+                    soloSeed = song.id.value,
+                )
+            } else {
+                PlayRequest(shown.map { it.ref }, index, shuffle = false, PlaySource.SEARCH, picked = true)
+            }
 
         private fun playList(
             songs: List<Song>,

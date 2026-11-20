@@ -18,6 +18,7 @@ import dev.tomasflopes.musicplayer.ui.home.sections.MixesSection
 import dev.tomasflopes.musicplayer.ui.home.sections.PlaylistsSection
 import dev.tomasflopes.musicplayer.ui.home.sections.ShuffleAllSection
 import dev.tomasflopes.musicplayer.ui.settings.CrossfadeSettingsEntry
+import dev.tomasflopes.musicplayer.ui.settings.ExtendSingleSongsSettingsEntry
 import dev.tomasflopes.musicplayer.ui.settings.SettingsEntry
 import dev.tomasflopes.musicplayer.ui.settings.analysis.AnalysisImportSettingsEntry
 
@@ -56,6 +57,11 @@ abstract class ExtensionPointsModule {
     @Binds
     @IntoSet
     abstract fun crossfadeEntry(entry: CrossfadeSettingsEntry): SettingsEntry
+
+    /** Extend single songs: a switch, below Crossfade (ADR 0080). */
+    @Binds
+    @IntoSet
+    abstract fun extendSingleSongsEntry(entry: ExtendSingleSongsSettingsEntry): SettingsEntry
 
     @Binds
     @IntoSet
