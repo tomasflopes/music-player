@@ -34,7 +34,10 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 
 private val TrackHeight = 4.dp
 private val ThumbIdle = 6.dp
@@ -48,15 +51,18 @@ private const val HOLD_AFTER_SEEK_MS = 1_000L
 
 /**
  * The position bar of Now Playing: a slim track and a small thumb that grows while it is dragged. A tap or the end
- * of a drag seeks; while the finger is down the bar follows it instead of the player.
+ * of a drag seeks; while the finger is down the bar follows it instead of the player. It collects [position] itself,
+ * so a tick recomposes this bar and its labels and nothing above it (ADR 0077).
  */
 @Composable
 internal fun SeekBar(
-    positionMs: Long,
-    durationMs: Long,
+    position: Flow<PlaybackPosition>,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val current by position.collectAsStateWithLifecycle(PlaybackPosition())
+    val positionMs = current.positionMs
+    val durationMs = current.durationMs
     var dragged by remember { mutableStateOf<Float?>(null) }
     var settling by remember { mutableStateOf<Float?>(null) }
     LaunchedEffect(settling) {

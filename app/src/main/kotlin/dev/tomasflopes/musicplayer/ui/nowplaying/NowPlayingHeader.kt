@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import dev.tomasflopes.musicplayer.ui.components.AlbumArt
@@ -42,6 +43,7 @@ import dev.tomasflopes.musicplayer.ui.playlists.AddTarget
 import dev.tomasflopes.musicplayer.ui.playlists.AddToPlaylistSheet
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
+import kotlinx.coroutines.flow.Flow
 
 private val PlayButtonSize = 72.dp
 private val PlayIconSize = 40.dp
@@ -50,6 +52,7 @@ private val PlayIconSize = 40.dp
 @Composable
 internal fun NowPlayingHeader(
     state: PlaybackState,
+    position: Flow<PlaybackPosition>,
     song: Song,
     actions: NowPlayingActions,
 ) {
@@ -62,7 +65,7 @@ internal fun NowPlayingHeader(
             SongText(song, Modifier.weight(1f))
             AddToPlaylistButton(song.id)
         }
-        SeekBar(state.positionMs, state.durationMs, actions.onSeek, Modifier.padding(top = Spacing.s))
+        SeekBar(position, actions.onSeek, Modifier.padding(top = Spacing.s))
         TransportRow(state, actions)
         StartRadioButton { actions.onStartRadio(song.id) }
     }

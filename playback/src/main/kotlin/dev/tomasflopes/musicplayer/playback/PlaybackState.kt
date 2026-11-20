@@ -6,8 +6,6 @@ import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 data class PlaybackState(
     val current: Song? = null,
     val isPlaying: Boolean = false,
-    val positionMs: Long = 0,
-    val durationMs: Long = 0,
     val upcoming: List<Song> = emptyList(),
     /** How many of the first [upcoming] songs came from Play next / Add to queue (ADR 0010: they come first). */
     val manualUpcoming: Int = 0,

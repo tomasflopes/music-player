@@ -1,12 +1,16 @@
 package dev.tomasflopes.musicplayer.ui.nowplaying
 
+import app.cash.turbine.test
 import dev.tomasflopes.musicplayer.core.model.undo.SingleUndoSlot
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.testSong
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -21,8 +25,6 @@ class NowPlayingViewModelTest {
             PlaybackState(
                 current = testSong(1),
                 isPlaying = true,
-                positionMs = 40_000,
-                durationMs = 180_000,
                 shuffle = true,
                 repeatMode = RepeatMode.ALL,
             )
@@ -31,6 +33,21 @@ class NowPlayingViewModelTest {
 
         assertEquals(reported, viewModel.state.value)
     }
+
+    @Test
+    fun `the position is the player's own flow and moving it leaves the state alone`() =
+        runTest {
+            val before = viewModel.state.value
+
+            viewModel.position.test {
+                assertEquals(PlaybackPosition(), awaitItem())
+
+                playback.playbackPosition.value = PlaybackPosition(positionMs = 40_000, durationMs = 180_000)
+
+                assertEquals(PlaybackPosition(40_000, 180_000), awaitItem())
+            }
+            assertSame(before, viewModel.state.value)
+        }
 
     @Test
     fun `seeking asks the player for that position`() {

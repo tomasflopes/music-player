@@ -20,16 +20,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import dev.tomasflopes.musicplayer.ui.components.AlbumArt
 import dev.tomasflopes.musicplayer.ui.theme.ArtSize
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
+import kotlinx.coroutines.flow.Flow
 
 private val ProgressHeight = 2.dp
 
@@ -37,6 +41,7 @@ private val ProgressHeight = 2.dp
 @Composable
 fun MiniPlayer(
     state: PlaybackState,
+    position: Flow<PlaybackPosition>,
     onOpen: () -> Unit,
     onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
@@ -49,9 +54,7 @@ fun MiniPlayer(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column {
-            ProgressLine(
-                if (state.durationMs > 0) (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f,
-            )
+            ProgressLine(position)
             Row(
                 modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
                 verticalAlignment = Alignment.CenterVertically,
@@ -64,9 +67,12 @@ fun MiniPlayer(
     }
 }
 
-/** A thin line along the top edge of the bar showing how far the song has played. */
+/** A thin line along the top edge of the bar showing how far the song has played; the only part a tick recomposes. */
 @Composable
-private fun ProgressLine(fraction: Float) {
+private fun ProgressLine(position: Flow<PlaybackPosition>) {
+    val current by position.collectAsStateWithLifecycle(PlaybackPosition())
+    val fraction =
+        if (current.durationMs > 0) (current.positionMs.toFloat() / current.durationMs).coerceIn(0f, 1f) else 0f
     Box(
         Modifier
             .fillMaxWidth()

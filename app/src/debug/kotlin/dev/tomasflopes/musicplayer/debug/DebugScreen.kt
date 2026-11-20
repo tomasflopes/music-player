@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 
 @Composable
 fun DebugScreen(
@@ -22,6 +23,7 @@ fun DebugScreen(
     onPickFolder: () -> Unit,
 ) {
     val state by viewModel.playbackState.collectAsState()
+    val playbackPosition by viewModel.position.collectAsState(PlaybackPosition())
     val scan by viewModel.scan.collectAsState()
     val count by viewModel.songCount.collectAsState()
     val events by viewModel.recentEvents.collectAsState()
@@ -43,8 +45,8 @@ fun DebugScreen(
             Button(onClick = viewModel::cycleRepeat) { Text("Repeat ${state.repeatMode}") }
         }
         Text(state.current?.let { "${it.artistName} – ${it.title}" } ?: "Nothing playing")
-        val position = state.positionMs / MS_PER_SECOND
-        val duration = state.durationMs / MS_PER_SECOND
+        val position = playbackPosition.positionMs / MS_PER_SECOND
+        val duration = playbackPosition.durationMs / MS_PER_SECOND
         Text("${position}s / ${duration}s · next: ${state.upcoming.firstOrNull()?.title}")
         Text("Last plays", style = MaterialTheme.typography.titleSmall)
         LazyColumn {

@@ -14,7 +14,9 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.data.scan.TreeUriMapper
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -34,6 +36,7 @@ class DebugViewModel
         history: PlayHistoryReader,
     ) : ViewModel() {
         val playbackState: StateFlow<PlaybackState> = playback.state
+        val position: Flow<PlaybackPosition> = playback.position
         val scan: StateFlow<ScanProgress> = scanner.progress
 
         val songCount: StateFlow<Int> =

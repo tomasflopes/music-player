@@ -2,11 +2,19 @@ package dev.tomasflopes.musicplayer.playback
 
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /** What screens use to play music. Nothing outside `:playback` touches Media3. */
 interface PlaybackController {
     val state: StateFlow<PlaybackState>
+
+    /**
+     * The current song's position and length (ADR 0077). Cold: each collector reads the player directly, ticks every
+     * [PlaybackConfig.positionTickMs] only while the player is playing, and while paused emits once and again on a
+     * seek or any other player event. Collect it on the main thread, as close to where it is drawn as possible.
+     */
+    val position: Flow<PlaybackPosition>
 
     fun play(request: PlayRequest)
 

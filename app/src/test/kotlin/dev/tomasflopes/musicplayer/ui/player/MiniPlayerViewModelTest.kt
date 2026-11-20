@@ -3,6 +3,7 @@ package dev.tomasflopes.musicplayer.ui.player
 import app.cash.turbine.test
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.testSong
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -55,7 +56,7 @@ class MiniPlayerViewModelTest {
             MiniPlayerViewModel(playback).visible.test {
                 assertEquals(true, awaitItem())
 
-                playback.playbackState.value = PlaybackState(current = testSong(1), positionMs = 1_000)
+                playback.playbackPosition.value = PlaybackPosition(positionMs = 1_000, durationMs = 1_000)
                 expectNoEvents()
             }
         }

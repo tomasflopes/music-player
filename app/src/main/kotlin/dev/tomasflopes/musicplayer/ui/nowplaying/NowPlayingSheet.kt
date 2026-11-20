@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.radio.RadioViewModel
 import dev.tomasflopes.musicplayer.ui.components.EmptyState
@@ -34,6 +35,7 @@ import dev.tomasflopes.musicplayer.ui.components.SwipeToRemove
 import dev.tomasflopes.musicplayer.ui.components.UndoSnackbarHost
 import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
+import kotlinx.coroutines.flow.Flow
 
 /** Now Playing (design 8.2): a bottom sheet over whichever tab is showing, opened from the mini-player. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +53,7 @@ fun NowPlayingSheet(
         Box {
             NowPlayingContent(
                 state = state,
+                position = viewModel.position,
                 actions =
                     NowPlayingActions(
                         onPlayPause = viewModel::togglePlayPause,
@@ -88,6 +91,7 @@ internal data class NowPlayingActions(
 @Composable
 private fun NowPlayingContent(
     state: PlaybackState,
+    position: Flow<PlaybackPosition>,
     actions: NowPlayingActions,
 ) {
     val song = state.current
@@ -95,13 +99,14 @@ private fun NowPlayingContent(
         EmptyState("Nothing is playing.")
         return
     }
-    QueueList(state, song, actions)
+    QueueList(state, position, song, actions)
 }
 
 /** Played → now playing → up next (design 8.2); the list opens on the header, the played songs above it. */
 @Composable
 private fun QueueList(
     state: PlaybackState,
+    position: Flow<PlaybackPosition>,
     song: Song,
     actions: NowPlayingActions,
 ) {
@@ -118,7 +123,7 @@ private fun QueueList(
         contentPadding = PaddingValues(bottom = Spacing.l),
     ) {
         playedRows(state, actions)
-        item(key = "now-playing") { NowPlayingHeader(state, song, actions) }
+        item(key = "now-playing") { NowPlayingHeader(state, position, song, actions) }
         item(key = "save") { SaveAsPlaylistButton("Queue", enabled = true) { saveQueue(it) } }
         upNextRows(state, actions)
     }

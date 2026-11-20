@@ -28,6 +28,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.playback.QueueContent
 import dev.tomasflopes.musicplayer.playback.RemovedQueueEntry
@@ -46,6 +47,8 @@ import kotlinx.coroutines.flow.map
 class FakePlaybackController : PlaybackController {
     val playbackState = MutableStateFlow(PlaybackState())
     override val state: StateFlow<PlaybackState> = playbackState
+    val playbackPosition = MutableStateFlow(PlaybackPosition())
+    override val position: Flow<PlaybackPosition> = playbackPosition
     val requests = mutableListOf<PlayRequest>()
 
     /** Every "Play next" and "Add to queue" call, in order, with the songs it carried. */

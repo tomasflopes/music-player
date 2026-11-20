@@ -14,6 +14,6 @@ fun MiniPlayerHost(
     val visible by viewModel.visible.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     if (visible) {
-        MiniPlayer(state, onOpen, viewModel::previous, viewModel::togglePlayPause, viewModel::next)
+        MiniPlayer(state, viewModel.position, onOpen, viewModel::previous, viewModel::togglePlayPause, viewModel::next)
     }
 }

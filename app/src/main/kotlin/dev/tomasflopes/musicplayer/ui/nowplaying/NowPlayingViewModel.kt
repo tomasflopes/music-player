@@ -5,7 +5,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.undo.UndoSlot
 import dev.tomasflopes.musicplayer.playback.PlaybackController
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
@@ -21,6 +23,9 @@ class NowPlayingViewModel
         private val undo: UndoSlot,
     ) : ViewModel() {
         val state: StateFlow<PlaybackState> = playback.state
+
+        /** Collected only by the seek bar (ADR 0077). */
+        val position: Flow<PlaybackPosition> = playback.position
 
         fun togglePlayPause() = playback.togglePlayPause()
 

@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.tomasflopes.musicplayer.playback.PlaybackController
+import dev.tomasflopes.musicplayer.playback.PlaybackPosition
 import dev.tomasflopes.musicplayer.playback.PlaybackState
 import dev.tomasflopes.musicplayer.ui.WhileSubscribed
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -19,6 +21,9 @@ class MiniPlayerViewModel
         private val playback: PlaybackController,
     ) : ViewModel() {
         val state: StateFlow<PlaybackState> = playback.state
+
+        /** Collected only by the progress line (ADR 0077). */
+        val position: Flow<PlaybackPosition> = playback.position
 
         /** The bar exists only while a song is loaded. */
         val visible: StateFlow<Boolean> =
