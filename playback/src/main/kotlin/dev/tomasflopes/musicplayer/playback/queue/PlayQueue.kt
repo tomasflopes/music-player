@@ -2,8 +2,10 @@ package dev.tomasflopes.musicplayer.playback.queue
 
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.core.taste.shuffle.ShuffleStrategy
 import dev.tomasflopes.musicplayer.playback.QueueContent
+import dev.tomasflopes.musicplayer.playback.RefillSignal
 import kotlin.random.Random
 
 /**
@@ -37,6 +39,13 @@ class PlayQueue(
     var repeatMode: RepeatMode = RepeatMode.OFF
 
     /**
+     * Counts [replace] and [restore] calls (ADR 0078). A batch built for an earlier epoch belongs to a queue that is
+     * gone and is dropped; [append] does not move it.
+     */
+    var epoch: Int = 0
+        private set
+
+    /**
      * Plays [songs] now, starting at [startIndex]; manual entries not yet played stay right after it (plan C7).
      * With [shuffled] and [randomStart] the first song is the shuffle's too, not [startIndex]'s.
      */
@@ -48,7 +57,9 @@ class PlayQueue(
         randomStart: Boolean = false,
         playlistId: Long? = null,
         mixId: Long? = null,
+        soloSeed: Long? = null,
     ) {
+        epoch++
         val pendingManual = upcomingManual()
         this.shuffled = shuffled
         originalOrder = songs
@@ -56,7 +67,7 @@ class PlayQueue(
         entries.clear()
         val manualAhead = pendingManual.map { it.ref }
         val order = ordering.initial(songs, startIndex, source, shuffled, randomStart, manualAhead)
-        entries += order.map { QueueEntry(it, label, manual = false, playlistId = playlistId, mixId = mixId) }
+        entries += order.map { QueueEntry(it, label, manual = false, playlistId, mixId, soloSeed) }
         currentIndex =
             when {
                 entries.isEmpty() -> -1
@@ -105,6 +116,39 @@ class PlayQueue(
 
     fun addToQueue(songs: List<SongRef>) {
         entries.addAll(currentIndex + 1 + upcomingManual().size, songs.map(::manualEntry))
+    }
+
+    /**
+     * Adds a refill batch at the tail (ADR 0078): non-manual entries carrying [seed], logged with [source]. They come
+     * after everything queued, manual entries included, and join the original order so turning shuffle off keeps them.
+     */
+    fun append(
+        songs: List<SongRef>,
+        source: PlaySource,
+        seed: RefillSeed,
+    ) {
+        val label = source.withShuffle(shuffled)
+        val mixId = (seed as? RefillSeed.Mix)?.id
+        val soloSeed = (seed as? RefillSeed.Song)?.id
+        entries += songs.map { QueueEntry(it, label, manual = false, mixId = mixId, soloSeed = soloSeed) }
+        originalOrder = originalOrder + songs
+    }
+
+    /**
+     * What a refill needs to know, or null when the queue is empty, repeat is not OFF (a looping queue is not
+     * extended), or no non-manual entry has a seed. The seed is the last non-manual entry's, so a manual song playing
+     * with no auto songs left still extends the queue.
+     */
+    fun refillSignal(): RefillSignal? {
+        if (entries.isEmpty() || repeatMode != RepeatMode.OFF) return null
+        val seed = entries.lastOrNull { !it.manual }?.refillSeed ?: return null
+        return RefillSignal(
+            seed = seed,
+            nonManualAhead = upcoming().count { !it.manual },
+            queued = entries.map { it.ref },
+            lastArtists = entries.takeLast(LAST_ARTISTS).map { it.ref.mainArtistId },
+            epoch = epoch,
+        )
     }
 
     /** The user pressed next. Under repeat ONE this still moves on, and wraps at the end (ADR 0010). */
@@ -217,6 +261,7 @@ class PlayQueue(
         currentIndex = snapshot.index.coerceIn(-1, entries.lastIndex)
         shuffled = snapshot.shuffled
         repeatMode = snapshot.repeatMode
+        epoch++
     }
 
     private fun manualEntry(ref: SongRef) = QueueEntry(ref, PlaySource.QUEUE, manual = true)
@@ -250,4 +295,9 @@ class PlayQueue(
 
     /** The manual entries waiting right after the current song. */
     private fun upcomingManual(): List<QueueEntry> = upcoming().takeWhile { it.manual }
+
+    private companion object {
+        /** The artist gap never looks further back than this (smart shuffle's largest gap). */
+        const val LAST_ARTISTS = 4
+    }
 }
