@@ -10,8 +10,10 @@ import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadePolicy
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.crossfade.Transition
 import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionCause
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngine
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeHost
 import dev.tomasflopes.musicplayer.playback.crossfade.PlannedTransition
@@ -216,6 +218,7 @@ internal class PlaybackEngine(
                 randomStart,
                 request.playlistId,
                 request.mixId,
+                request.soloSeed,
             )
             prepareWindow()
             sync.onQueueReplaced()
@@ -253,6 +256,26 @@ internal class PlaybackEngine(
     fun playNext(refs: List<SongRef>) = serial { edit { queue.playNext(refs) } }
 
     fun addToQueue(refs: List<SongRef>) = serial { edit { queue.addToQueue(refs) } }
+
+    /**
+     * Appends a refill batch at the tail (ADR 0078). Dropped when the queue it was built for is gone (another epoch or
+     * seed) or no longer wants one (repeat on, no seed); songs already queued, played ones included, are left out. The
+     * edit is outside the player's window, so it announces itself (ADR 0077).
+     */
+    fun appendBatch(
+        refs: List<SongRef>,
+        seed: RefillSeed,
+        epoch: Int,
+        source: PlaySource,
+    ) = serial {
+        val signal = queue.refillSignal()
+        if (signal == null || signal.epoch != epoch || signal.seed != seed) return@serial
+        val queued = signal.queued.toHashSet()
+        val fresh = refs.distinct().filter { it !in queued }
+        if (fresh.isEmpty()) return@serial
+        edit { queue.append(fresh, source, seed) }
+        exposed.notifyModes()
+    }
 
     fun jumpToUpcoming(index: Int) =
         serial {
@@ -319,7 +342,14 @@ internal class PlaybackEngine(
         serial {
             queue.insertAt(
                 removed.index,
-                QueueEntry(removed.ref, removed.source, removed.manual, removed.playlistId, removed.mixId),
+                QueueEntry(
+                    removed.ref,
+                    removed.source,
+                    removed.manual,
+                    removed.playlistId,
+                    removed.mixId,
+                    removed.soloSeed,
+                ),
             )
             prepareWindow()
             if (removed.wasCurrent) {

@@ -2,6 +2,8 @@ package dev.tomasflopes.musicplayer.playback
 
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,6 +26,17 @@ interface PlaybackController {
     fun playNext(songs: List<SongRef>)
 
     fun addToQueue(songs: List<SongRef>)
+
+    /**
+     * Appends a refill batch built for the queue of [epoch] and [seed] (ADR 0078). The engine drops it when that queue
+     * is gone, and leaves out songs already queued.
+     */
+    fun appendBatch(
+        songs: List<SongRef>,
+        seed: RefillSeed,
+        epoch: Int,
+        source: PlaySource,
+    )
 
     fun togglePlayPause()
 

@@ -8,8 +8,10 @@ import androidx.media3.session.SessionToken
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.queue.QueueSlot
+import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.core.model.queue.queueLayoutOf
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
@@ -93,6 +95,13 @@ internal class MediaControllerPlaybackController(
 
     override fun addToQueue(songs: List<SongRef>) = send(PlaybackCommands.addToQueue, PlaybackCommands.bundleOf(songs))
 
+    override fun appendBatch(
+        songs: List<SongRef>,
+        seed: RefillSeed,
+        epoch: Int,
+        source: PlaySource,
+    ) = send(PlaybackCommands.appendBatch, PlaybackCommands.bundleOf(songs, seed, epoch, source))
+
     override fun jumpToUpcoming(index: Int) = send(PlaybackCommands.jumpToUpcoming, PlaybackCommands.bundleOf(index))
 
     override fun jumpToQueueIndex(
@@ -113,6 +122,7 @@ internal class MediaControllerPlaybackController(
                 manual = entry.manual,
                 playlistId = entry.playlistId,
                 mixId = entry.mixId,
+                soloSeed = entry.soloSeed,
                 wasCurrent = index == queue.index,
                 positionMs = controller?.currentPosition ?: 0,
                 wasPlaying = controller?.playWhenReady == true,
@@ -194,6 +204,7 @@ internal class MediaControllerPlaybackController(
                 hasNext = queue.index < queue.size - 1 || (queue.repeatMode != RepeatMode.OFF && queue.size > 0),
                 shuffle = queue.shuffled,
                 repeatMode = queue.repeatMode,
+                refill = queue.refillSignal(),
             )
     }
 

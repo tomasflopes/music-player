@@ -26,6 +26,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SearchHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.PlaybackPosition
@@ -79,6 +80,25 @@ class FakePlaybackController : PlaybackController {
 
     override fun addToQueue(songs: List<SongRef>) {
         addToQueueCalls += songs
+    }
+
+    /** What a refill batch carried: the songs, the seed and epoch it was built for, and its source. */
+    data class AppendedBatch(
+        val songs: List<SongRef>,
+        val seed: RefillSeed,
+        val epoch: Int,
+        val source: PlaySource,
+    )
+
+    val appendedBatches = mutableListOf<AppendedBatch>()
+
+    override fun appendBatch(
+        songs: List<SongRef>,
+        seed: RefillSeed,
+        epoch: Int,
+        source: PlaySource,
+    ) {
+        appendedBatches += AppendedBatch(songs, seed, epoch, source)
     }
 
     override fun togglePlayPause() {

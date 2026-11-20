@@ -6,6 +6,7 @@ import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
+import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 
 /** The session commands the app's own controller sends to the service; the queue lives in the service. */
 internal object PlaybackCommands {
@@ -16,7 +17,9 @@ internal object PlaybackCommands {
     val jumpToQueueIndex = SessionCommand("musicplayer.JUMP_TO_QUEUE_INDEX", Bundle.EMPTY)
     val removeFromQueue = SessionCommand("musicplayer.REMOVE_FROM_QUEUE", Bundle.EMPTY)
     val restoreToQueue = SessionCommand("musicplayer.RESTORE_TO_QUEUE", Bundle.EMPTY)
-    val all = listOf(play, playNext, addToQueue, jumpToUpcoming, jumpToQueueIndex, removeFromQueue, restoreToQueue)
+    val appendBatch = SessionCommand("musicplayer.APPEND_BATCH", Bundle.EMPTY)
+    val all =
+        listOf(play, playNext, addToQueue, jumpToUpcoming, jumpToQueueIndex, removeFromQueue, restoreToQueue, appendBatch)
 
     private const val SONG_IDS = "songIds"
     private const val ARTIST_IDS = "artistIds"
@@ -26,6 +29,10 @@ internal object PlaybackCommands {
     private const val PICKED = "picked"
     private const val PLAYLIST_ID = "playlistId"
     private const val MIX_ID = "mixId"
+    private const val SOLO_SEED = "soloSeed"
+    private const val SEED_IS_MIX = "seedIsMix"
+    private const val SEED_ID = "seedId"
+    private const val EPOCH = "epoch"
     private const val INDEX = "index"
     private const val SONG_ID = "songId"
     private const val ARTIST_ID = "artistId"
@@ -55,6 +62,7 @@ internal object PlaybackCommands {
             putBoolean(PICKED, request.picked)
             request.playlistId?.let { putLong(PLAYLIST_ID, it) }
             request.mixId?.let { putLong(MIX_ID, it) }
+            request.soloSeed?.let { putLong(SOLO_SEED, it) }
         }
 
     fun requestOf(bundle: Bundle) =
@@ -66,7 +74,28 @@ internal object PlaybackCommands {
             picked = bundle.getBoolean(PICKED),
             playlistId = if (bundle.containsKey(PLAYLIST_ID)) bundle.getLong(PLAYLIST_ID) else null,
             mixId = if (bundle.containsKey(MIX_ID)) bundle.getLong(MIX_ID) else null,
+            soloSeed = if (bundle.containsKey(SOLO_SEED)) bundle.getLong(SOLO_SEED) else null,
         )
+
+    /** A refill batch (ADR 0078): the songs, what they extend, the queue epoch they were built for, their source. */
+    fun bundleOf(
+        songs: List<SongRef>,
+        seed: RefillSeed,
+        epoch: Int,
+        source: PlaySource,
+    ) = bundleOf(songs).apply {
+        putBoolean(SEED_IS_MIX, seed is RefillSeed.Mix)
+        putLong(SEED_ID, if (seed is RefillSeed.Mix) seed.id else (seed as RefillSeed.Song).id)
+        putInt(EPOCH, epoch)
+        putString(SOURCE, source.wire)
+    }
+
+    fun seedOf(bundle: Bundle): RefillSeed =
+        bundle.getLong(SEED_ID).let { if (bundle.getBoolean(SEED_IS_MIX)) RefillSeed.Mix(it) else RefillSeed.Song(it) }
+
+    fun epochOf(bundle: Bundle) = bundle.getInt(EPOCH)
+
+    fun sourceOf(bundle: Bundle) = PlaySource.fromWire(bundle.getString(SOURCE) ?: PlaySource.RADIO.wire)
 
     fun bundleOf(index: Int) = Bundle().apply { putInt(INDEX, index) }
 
@@ -87,6 +116,7 @@ internal object PlaybackCommands {
             putBoolean(MANUAL, removed.manual)
             removed.playlistId?.let { putLong(PLAYLIST_ID, it) }
             removed.mixId?.let { putLong(MIX_ID, it) }
+            removed.soloSeed?.let { putLong(SOLO_SEED, it) }
             putBoolean(WAS_CURRENT, removed.wasCurrent)
             putLong(POSITION, removed.positionMs)
             putBoolean(WAS_PLAYING, removed.wasPlaying)
@@ -103,5 +133,6 @@ internal object PlaybackCommands {
             positionMs = bundle.getLong(POSITION),
             wasPlaying = bundle.getBoolean(WAS_PLAYING),
             mixId = if (bundle.containsKey(MIX_ID)) bundle.getLong(MIX_ID) else null,
+            soloSeed = if (bundle.containsKey(SOLO_SEED)) bundle.getLong(SOLO_SEED) else null,
         )
 }

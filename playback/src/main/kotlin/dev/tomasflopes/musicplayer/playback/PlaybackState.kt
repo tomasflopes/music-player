@@ -19,6 +19,8 @@ data class PlaybackState(
     val hasNext: Boolean = false,
     val shuffle: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    /** What the refiller needs; null unless the queue is seeded and repeat is OFF (ADR 0078). */
+    val refill: RefillSignal? = null,
 ) {
     /** Whether the song at [index] of [upcoming] was queued by hand. */
     fun isManualUpcoming(index: Int): Boolean = index in 0 until manualUpcoming

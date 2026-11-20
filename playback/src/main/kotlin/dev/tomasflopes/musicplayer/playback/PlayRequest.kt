@@ -17,4 +17,6 @@ data class PlayRequest(
     val picked: Boolean,
     val playlistId: Long? = null,
     val mixId: Long? = null,
+    /** The song a solo queue extends from (ADR 0078): every entry of the queue carries it. */
+    val soloSeed: Long? = null,
 )
