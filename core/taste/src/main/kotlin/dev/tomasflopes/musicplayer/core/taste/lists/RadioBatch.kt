@@ -26,6 +26,9 @@ internal class RadioBatchBuilder(
     /**
      * @param distanceOf distance of a candidate to the radio's query point (a seed song or an artist centroid).
      * @param recentlyPlayed songs played in the last [RadioConfig.recentDays] days; they rank later but stay.
+     * @param exclude songs already queued (ADR 0078): neither they nor any copy of them (same duplicate key) enter the
+     *   batch, and they do not count towards the per-artist cap.
+     * @param precedingArtists main artists of the songs that play right before the batch, for the artist gap.
      */
     fun build(
         initial: List<Song>,
@@ -33,10 +36,12 @@ internal class RadioBatchBuilder(
         distanceOf: (Candidate) -> Double,
         recentlyPlayed: Set<SongId>,
         random: Random,
+        exclude: Collection<Song> = emptyList(),
+        precedingArtists: List<ArtistId> = emptyList(),
     ): List<Song> {
         val wanted = config.batchSize - initial.size
         val explorationWanted = (wanted * config.explorationShare).roundToInt().coerceIn(0, wanted)
-        val picker = BatchPicker(initial, config.maxPerArtist)
+        val picker = BatchPicker(initial, config.maxPerArtist, exclude)
 
         val ranked = rank(candidates, distanceOf, recentlyPlayed)
         val nearest = picker.take(ranked, wanted - explorationWanted)
@@ -44,7 +49,7 @@ internal class RadioBatchBuilder(
         val band = ranked.take(config.explorationBand).sortedBy { seededUnit(salt, it.song.id.value) }
         val exploration = picker.take(band, explorationWanted)
 
-        return (initial + interleave(nearest, exploration)).spreadByArtist(config.artistGap)
+        return (initial + interleave(nearest, exploration)).spreadByArtist(config.artistGap, precedingArtists)
     }
 
     private fun rank(
@@ -80,12 +85,17 @@ internal class RadioBatchBuilder(
 private class BatchPicker(
     initial: List<Song>,
     private val maxPerArtist: Int,
+    exclude: Collection<Song> = emptyList(),
 ) {
     private val perArtist = HashMap<ArtistId, Int>()
     private val keys = HashSet<String>()
     private val chosen = HashSet<SongId>()
 
     init {
+        exclude.forEach {
+            chosen += it.id
+            keys += it.duplicateKey()
+        }
         initial.forEach { keep(it) }
     }
 

@@ -299,4 +299,72 @@ class RadioPolicyTest {
     fun `the config rejects shares that do not add up`() {
         assertThrows(IllegalArgumentException::class.java) { RadioConfig(nearestShare = 0.5, explorationShare = 0.3) }
     }
+
+    private fun refill(
+        library: List<Song>,
+        space: SoundSpace,
+        seed: Song = library.first(),
+        exclude: List<Song> = listOf(seed),
+        preceding: List<Long> = emptyList(),
+        config: RadioConfig = RadioConfig(batchSize = 5, nearestShare = 1.0, explorationShare = 0.0, artistGap = 0),
+        random: Int = 1,
+    ): List<Song> =
+        RadioPolicy(config).refill(
+            seed,
+            library,
+            space,
+            emptySet(),
+            Random(random),
+            exclude,
+            preceding.map { ArtistId(it) },
+        )
+
+    @Test
+    fun `a refill has the configured size and leaves out the seed`() {
+        val library = (1L..30L).map { by(it) }
+
+        val batch = refill(library, ramp(30))
+
+        assertEquals(listOf(2L, 3L, 4L, 5L, 6L), batch.ids())
+    }
+
+    @Test
+    fun `a refill never picks a song that is already queued`() {
+        val library = (1L..30L).map { by(it) }
+        val queued = library.take(8)
+
+        val batch = refill(library, ramp(30), exclude = queued)
+
+        assertEquals(listOf(9L, 10L, 11L, 12L, 13L), batch.ids())
+    }
+
+    @Test
+    fun `a refill leaves out a copy of a queued recording`() {
+        val library = (1L..30L).map { by(it) }.toMutableList()
+        // Song 3 is the same recording as song 2 under another file name.
+        library[2] =
+            library[2].copy(title = library[1].title, tagArtistName = library[1].tagArtistName, fileName = "x.mp3")
+
+        val batch = refill(library, ramp(30), exclude = listOf(library[0], library[1]))
+
+        assertTrue(3L !in batch.ids())
+    }
+
+    @Test
+    fun `a refill keeps the artist gap against the songs queued before it`() {
+        val library = (1L..30L).map { by(it, artist = if (it == 2L) 99 else it) }
+        val gap = RadioConfig(batchSize = 5, nearestShare = 1.0, explorationShare = 0.0, artistGap = 4)
+
+        val batch = refill(library, ramp(30), preceding = listOf(7L, 8L, 99L), config = gap)
+
+        assertTrue(batch.first().artistId.value != 99L)
+        assertEquals(5, batch.size)
+    }
+
+    @Test
+    fun `a refill from a seed without a point in the space is empty`() {
+        val library = (1L..10L).map { by(it) }
+
+        assertTrue(refill(library, ramp(5), seed = library[8]).isEmpty())
+    }
 }

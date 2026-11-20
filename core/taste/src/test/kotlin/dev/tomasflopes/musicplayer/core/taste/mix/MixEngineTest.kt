@@ -168,4 +168,40 @@ class MixEngineTest {
             pick(listOf(songSeed(1)), library, ramp(300), random = 5).ids(),
         )
     }
+
+    private fun refill(
+        seeds: List<MixSeed>,
+        library: List<Song>,
+        space: SoundSpace,
+        exclude: List<Song> = emptyList(),
+        config: MixConfig = nearestOnly,
+    ): List<Song> =
+        MixEngine(config).refill(seeds, library, space, emptySet(), Random(1), exclude, emptyList())
+
+    @Test
+    fun `a refill never picks a queued song and still fills a whole batch`() {
+        val library = (1L..100L).map { by(it) }
+        val queued = library.take(25)
+
+        val batch = refill(listOf(songSeed(1)), library, ramp(100), exclude = queued)
+
+        assertEquals(25, batch.size)
+        assertTrue(batch.ids().none { it in 1L..25L })
+    }
+
+    @Test
+    fun `a refill has no opening songs`() {
+        // The artist's two songs lie far apart, so its centroid sits among the other songs.
+        val library = (1L..40L).map { by(it, artist = if (it <= 2) 500 else it) }
+        val space =
+            line(*(1..40).map { it.toLong() to (if (it == 1) 0f else if (it == 2) 100f else 31f + it) }.toTypedArray())
+        val artistSeed = MixSeed(MixSeedKind.ARTIST, 500)
+        val config = MixConfig(openingPerArtist = 2, explorationShare = 0.0, artistGap = 0, densityRank = 3)
+
+        val picked = MixEngine(config).pick(listOf(artistSeed), library, space, emptySet(), Random(1))
+        val refilled = refill(listOf(artistSeed), library, space, config = config)
+
+        assertTrue(picked.ids().take(2).all { it <= 2L })
+        assertTrue(refilled.ids().none { it <= 2L })
+    }
 }

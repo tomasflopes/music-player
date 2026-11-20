@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.core.taste.lists
 
+import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.sound.SoundNeighbours
@@ -48,6 +49,29 @@ class RadioPolicy(
         val candidates = candidates(seed, library, space)
         val distanceOf = { candidate: Candidate -> space.distance(seedRow, candidate.row) }
         return builder.build(listOf(seed), candidates, distanceOf, recentlyPlayed, random)
+    }
+
+    /**
+     * The next batch of a queue that is extending from [seed] (ADR 0078, 0080): the same ranking as [pick] with the
+     * seed's own point as the query, but the seed is not in the batch (it is already playing) and nothing in
+     * [exclude] (the songs already queued) or a copy of it is chosen. The batch has [RadioConfig.batchSize] songs; the
+     * artist gap also holds against [precedingArtists], the artists of the last queued songs.
+     */
+    @Suppress("LongParameterList")
+    fun refill(
+        seed: Song,
+        library: List<Song>,
+        space: SoundSpace,
+        recentlyPlayed: Set<SongId>,
+        random: Random,
+        exclude: Collection<Song>,
+        precedingArtists: List<ArtistId>,
+    ): List<Song> {
+        val seedRow = space.indexOf(seed.id.value)
+        if (seedRow < 0) return emptyList()
+        val candidates = candidates(seed, library, space)
+        val distanceOf = { candidate: Candidate -> space.distance(seedRow, candidate.row) }
+        return builder.build(emptyList(), candidates, distanceOf, recentlyPlayed, random, exclude, precedingArtists)
     }
 
     private fun candidates(

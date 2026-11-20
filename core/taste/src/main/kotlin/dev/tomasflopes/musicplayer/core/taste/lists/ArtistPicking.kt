@@ -26,19 +26,26 @@ internal fun List<Song>.cappedPerArtist(
 
 /**
  * Keeps the rank order but no main artist repeats within [gap] songs. When every artist left is inside the gap, the
- * one placed longest ago goes first (the gap relaxes).
+ * one placed longest ago goes first (the gap relaxes). [preceding] are the main artists of songs that play right
+ * before the first one (oldest first), so a refill batch keeps the gap across the seam (ADR 0078).
  */
-internal fun List<Song>.spreadByArtist(gap: Int): List<Song> {
+internal fun List<Song>.spreadByArtist(
+    gap: Int,
+    preceding: List<ArtistId> = emptyList(),
+): List<Song> {
     if (gap == 0) return this
     val rest = toMutableList()
     val placed = ArrayList<Song>(rest.size)
+    val artists = ArrayList<ArtistId>(preceding)
     val lastPlace = HashMap<ArtistId, Int>()
+    artists.forEachIndexed { place, artist -> lastPlace[artist] = place }
     while (rest.isNotEmpty()) {
-        val recent = placed.takeLast(gap).mapTo(HashSet()) { it.artistId }
+        val recent = artists.takeLast(gap).toHashSet()
         val free = rest.indexOfFirst { it.artistId !in recent }
         val index = if (free >= 0) free else rest.indices.minBy { lastPlace.getValue(rest[it].artistId) }
         val song = rest.removeAt(index)
-        lastPlace[song.artistId] = placed.size
+        lastPlace[song.artistId] = artists.size
+        artists += song.artistId
         placed += song
     }
     return placed
