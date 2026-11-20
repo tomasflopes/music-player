@@ -16,23 +16,26 @@ import java.util.zip.CRC32
  * source number and manual flag each), original order (count, then ref numbers), current index, shuffled flag,
  * repeat mode, position, and a CRC-32 of everything before it. Version 2 (ADR 0042) adds the playlist table (count,
  * then the ids) and a playlist number on each entry (-1 for none). Version 3 (ADR 0076) adds the same for mixes: a mix
- * table after the playlist table and a mix number after the playlist number on each entry. Version 1 and 2 files are
- * ignored.
+ * table after the playlist table and a mix number after the playlist number on each entry. Version 4 (ADR 0078) adds
+ * the solo seeds the same way: a table of song ids after the mix table and a number after the mix number on each
+ * entry (-1 for none). A mix seed is not stored: it is the entry's mix id. Version 1 to 3 files are ignored.
  * Anything that does not match decodes to `null`: a state from another [VERSION] is ignored, never guessed at.
  */
 object QueueCodec {
-    const val VERSION = 3
+    const val VERSION = 4
 
     private const val MAGIC = 0x4D505153
     private const val CHECKSUM_BYTES = 4
     private const val COUNT_BYTES = 4
     private const val HEADER_BYTES = 8
     private const val REF_BYTES = 16
-    private const val ENTRY_BYTES = 10
+    private const val ENTRY_BYTES = 12
     private const val NO_PLAYLIST: Short = -1
     private const val NO_MIX: Short = -1
+    private const val NO_SOLO: Short = -1
     private const val PLAYLIST_BYTES = 8
     private const val MIX_BYTES = 8
+    private const val SOLO_BYTES = 8
     private const val ORIGINAL_BYTES = 4
     private const val TAIL_BYTES = 4 + 1 + 1 + 8
 
@@ -45,6 +48,7 @@ object QueueCodec {
         writeSources(buffer, tables.names)
         writeIds(buffer, tables.playlists)
         writeIds(buffer, tables.mixes)
+        writeIds(buffer, tables.solos)
         writeEntries(buffer, snapshot, tables)
         writeTail(buffer, snapshot, saved.positionMs, tables.refs)
         buffer.putInt(checksum(buffer.array(), buffer.position()))
@@ -56,6 +60,7 @@ object QueueCodec {
         val sources: LinkedHashMap<PlaySource, Int>,
         val playlists: LinkedHashMap<Long, Int>,
         val mixes: LinkedHashMap<Long, Int>,
+        val solos: LinkedHashMap<Long, Int>,
         val names: List<ByteArray>,
     )
 
@@ -73,11 +78,16 @@ object QueueCodec {
         snapshot.entries.forEach { entry ->
             entry.mixId?.let { mixes.getOrPut(it) { mixes.size } }
         }
+        val solos = LinkedHashMap<Long, Int>()
+        snapshot.entries.forEach { entry ->
+            entry.soloSeed?.let { solos.getOrPut(it) { solos.size } }
+        }
         return EncodeTables(
             refs,
             sources,
             playlists,
             mixes,
+            solos,
             sources.keys.map { it.wire.toByteArray() },
         )
     }
@@ -88,7 +98,8 @@ object QueueCodec {
     ): Int =
         HEADER_BYTES + COUNT_BYTES + tables.refs.size * REF_BYTES + COUNT_BYTES +
             tables.names.sumOf { 1 + it.size } + COUNT_BYTES + tables.playlists.size * PLAYLIST_BYTES +
-            COUNT_BYTES + tables.mixes.size * MIX_BYTES + COUNT_BYTES + snapshot.entries.size * ENTRY_BYTES +
+            COUNT_BYTES + tables.mixes.size * MIX_BYTES + COUNT_BYTES + tables.solos.size * SOLO_BYTES +
+            COUNT_BYTES + snapshot.entries.size * ENTRY_BYTES +
             COUNT_BYTES + snapshot.originalOrder.size * ORIGINAL_BYTES +
             TAIL_BYTES + CHECKSUM_BYTES
 
@@ -129,6 +140,7 @@ object QueueCodec {
                 .put(flag(entry.manual))
                 .putShort(entry.playlistNumber(tables.playlists))
                 .putShort(entry.mixId?.let { tables.mixes.getValue(it).toShort() } ?: NO_MIX)
+                .putShort(entry.soloSeed?.let { tables.solos.getValue(it).toShort() } ?: NO_SOLO)
         }
     }
 
@@ -164,7 +176,8 @@ object QueueCodec {
         val sources = readSources(buffer)
         val playlists = List(count(buffer, PLAYLIST_BYTES)) { buffer.long }
         val mixes = List(count(buffer, MIX_BYTES)) { buffer.long }
-        val entries = readEntries(buffer, refs, sources, playlists, mixes)
+        val solos = List(count(buffer, SOLO_BYTES)) { buffer.long }
+        val entries = readEntries(buffer, refs, sources, Seeds(playlists, mixes, solos))
         val original = List(count(buffer, ORIGINAL_BYTES)) { refs[buffer.int] }
         val index = buffer.int
         require(index in -1..entries.lastIndex) { "index" }
@@ -188,8 +201,7 @@ object QueueCodec {
         buffer: ByteBuffer,
         refs: List<SongRef>,
         sources: List<PlaySource>,
-        playlists: List<Long>,
-        mixes: List<Long>,
+        seeds: Seeds,
     ): List<QueueEntry> =
         List(count(buffer, ENTRY_BYTES)) {
             val ref = refs[buffer.int]
@@ -197,14 +209,23 @@ object QueueCodec {
             val manual = readFlag(buffer.get())
             val playlist = buffer.short
             val mix = buffer.short
+            val solo = buffer.short
             QueueEntry(
                 ref,
                 source,
                 manual,
-                if (playlist == NO_PLAYLIST) null else playlists[playlist.toInt()],
-                if (mix == NO_MIX) null else mixes[mix.toInt()],
+                if (playlist == NO_PLAYLIST) null else seeds.playlists[playlist.toInt()],
+                if (mix == NO_MIX) null else seeds.mixes[mix.toInt()],
+                if (solo == NO_SOLO) null else seeds.solos[solo.toInt()],
             )
         }
+
+    /** The id tables of a saved queue that entries point into by number. */
+    private class Seeds(
+        val playlists: List<Long>,
+        val mixes: List<Long>,
+        val solos: List<Long>,
+    )
 
     /** A count that the bytes left could hold; a damaged count cannot make a huge list. */
     private fun count(

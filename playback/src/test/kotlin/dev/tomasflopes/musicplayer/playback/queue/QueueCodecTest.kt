@@ -57,8 +57,41 @@ class QueueCodecTest {
     }
 
     @Test
-    fun `a queue saved before mixes were logged is ignored`() {
-        assertEquals(3, QueueCodec.VERSION)
+    fun `a queue saved before solo seeds were stored is ignored`() {
+        assertEquals(4, QueueCodec.VERSION)
+        assertNull(QueueCodec.decode(withVersion(QueueCodec.encode(saved()), 3)))
+    }
+
+    @Test
+    fun `the solo seed survives the round trip on every auto entry and never on a manual one`() {
+        val list = (1L..4L).map(::ref)
+        val entries =
+            listOf(
+                QueueEntry(list[0], PlaySource.SEARCH, manual = false, soloSeed = 77L),
+                QueueEntry(list[1], PlaySource.QUEUE, manual = true),
+                QueueEntry(list[2], PlaySource.RADIO, manual = false, soloSeed = 77L),
+                QueueEntry(list[3], PlaySource.RADIO, manual = false, soloSeed = 1_000_000_000_000L),
+            )
+        val original = SavedQueue(QueueSnapshot(entries, list, 0, shuffled = false, repeatMode = RepeatMode.OFF), 5L)
+
+        val decoded = QueueCodec.decode(QueueCodec.encode(original))
+
+        assertEquals(original, decoded)
+        assertEquals(listOf(77L, null, 77L, 1_000_000_000_000L), decoded?.snapshot?.entries?.map { it.soloSeed })
+    }
+
+    @Test
+    fun `mix and solo seeds and a playlist can share a queue`() {
+        val list = (1L..3L).map(::ref)
+        val entries =
+            listOf(
+                QueueEntry(list[0], PlaySource.MIX, manual = false, mixId = 3L),
+                QueueEntry(list[1], PlaySource.RADIO, manual = false, soloSeed = 8L),
+                QueueEntry(list[2], PlaySource.PLAYLIST, manual = false, playlistId = 9L),
+            )
+        val original = SavedQueue(QueueSnapshot(entries, list, 2, shuffled = false, repeatMode = RepeatMode.OFF), 0L)
+
+        assertEquals(original, QueueCodec.decode(QueueCodec.encode(original)))
     }
 
     @Test
