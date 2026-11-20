@@ -140,8 +140,7 @@ class PlayQueue(
      * with no auto songs left still extends the queue.
      */
     fun refillSignal(): RefillSignal? {
-        if (entries.isEmpty() || repeatMode != RepeatMode.OFF) return null
-        val seed = entries.lastOrNull { !it.manual }?.refillSeed ?: return null
+        val seed = refillSeed() ?: return null
         return RefillSignal(
             seed = seed,
             nonManualAhead = upcoming().count { !it.manual },
@@ -150,6 +149,9 @@ class PlayQueue(
             epoch = epoch,
         )
     }
+
+    private fun refillSeed(): RefillSeed? =
+        if (entries.isEmpty() || repeatMode != RepeatMode.OFF) null else entries.lastOrNull { !it.manual }?.refillSeed
 
     /** The user pressed next. Under repeat ONE this still moves on, and wraps at the end (ADR 0010). */
     fun next(): QueueEntry? = step(forward = true, wraps = repeatMode != RepeatMode.OFF)

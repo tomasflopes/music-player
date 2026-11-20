@@ -16,7 +16,10 @@ class PlaybackEngineRefillTest {
     /** A queue of [names] extended from song 9, as a solo play leaves it. */
     private fun seeded(names: String): EngineHarness =
         EngineHarness(names).also {
-            it.queue.replace(refs(names), 0, PlaySource.SEARCH, false, soloSeed = 9L)
+            // Through the engine, like a real play, so the player's window is set up as in the app.
+            it.engine.play(
+                PlayRequest(refs(names), 0, shuffle = false, PlaySource.SEARCH, picked = true, soloSeed = 9L),
+            )
         }
 
     private fun EngineHarness.append(
@@ -86,6 +89,7 @@ class PlaybackEngineRefillTest {
     @Test
     fun `an append announces itself so the state republishes`() {
         val harness = seeded("AB")
+        harness.startPlaying()
         var announced = 0
         harness.engine.exposed.addListener(
             object : Player.Listener {
@@ -107,7 +111,13 @@ class PlaybackEngineRefillTest {
         harness.engine.play(PlayRequest(refs("A"), 0, shuffle = false, PlaySource.SEARCH, picked = true, soloSeed = 9L))
 
         assertEquals(seed, harness.queue.refillSignal()?.seed)
-        assertEquals(listOf<Long?>(9L), harness.queue.snapshot().entries.map { it.soloSeed })
+        assertEquals(
+            listOf<Long?>(9L),
+            harness.queue
+                .snapshot()
+                .entries
+                .map { it.soloSeed },
+        )
     }
 
     @Test

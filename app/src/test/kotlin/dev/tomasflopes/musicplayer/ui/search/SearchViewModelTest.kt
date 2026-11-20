@@ -91,6 +91,7 @@ class SearchViewModelTest {
     private val artistReader = FakeArtistReader(listOf(ed, eddie, kendrick, jayZ, sample))
     private val albumReader = FakeAlbumReader(listOf(education))
     private val featureReader = FakeSongFeatureReader(mapOf(night.id to listOf("Ed")))
+
     private fun soloRequest(song: Song) =
         PlayRequest(listOf(song.ref), 0, shuffle = false, PlaySource.SEARCH, picked = true, soloSeed = song.id.value)
 

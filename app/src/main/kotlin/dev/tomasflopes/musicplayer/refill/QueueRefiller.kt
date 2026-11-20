@@ -38,14 +38,20 @@ class QueueRefiller(
     }
 
     private suspend fun refill(signal: RefillSignal) {
-        if (gaveNothing == signal.seed to signal.epoch) return
-        val source = sources().firstOrNull { it.handles(signal.seed) } ?: return
-        if (signal.nonManualAhead > source.lowWater || !source.enabled()) return
+        val source = dueSource(signal) ?: return
         val batch = source.batch(signal)
         if (batch.songs.isEmpty()) {
             gaveNothing = signal.seed to signal.epoch
-            return
+        } else {
+            playback.appendBatch(batch.songs.map(Song::ref), signal.seed, signal.epoch, batch.source)
         }
-        playback.appendBatch(batch.songs.map(Song::ref), signal.seed, signal.epoch, batch.source)
+    }
+
+    /** The source that should extend the queue for [signal], or null when none is due. */
+    private suspend fun dueSource(signal: RefillSignal): RefillSource? {
+        if (gaveNothing == signal.seed to signal.epoch) return null
+        return sources()
+            .firstOrNull { it.handles(signal.seed) }
+            ?.takeIf { signal.nonManualAhead <= it.lowWater && it.enabled() }
     }
 }

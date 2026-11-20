@@ -91,7 +91,7 @@ class MixEngineTest {
                 listOf(MixSeed(MixSeedKind.ARTIST, 7)),
                 library,
                 ramp(40),
-                config = nearestOnly.copy(batchSize = 3, explorationBand = 3),
+                config = nearestOnly.copy(batchSize = 3, explorationBand = 3, refillLowWater = 1),
             )
 
         assertEquals(20L, batch.first().id.value)
@@ -175,8 +175,7 @@ class MixEngineTest {
         space: SoundSpace,
         exclude: List<Song> = emptyList(),
         config: MixConfig = nearestOnly,
-    ): List<Song> =
-        MixEngine(config).refill(seeds, library, space, emptySet(), Random(1), exclude, emptyList())
+    ): List<Song> = MixEngine(config).refill(seeds, library, space, emptySet(), Random(1), exclude, emptyList())
 
     @Test
     fun `a refill never picks a queued song and still fills a whole batch`() {
@@ -194,7 +193,20 @@ class MixEngineTest {
         // The artist's two songs lie far apart, so its centroid sits among the other songs.
         val library = (1L..40L).map { by(it, artist = if (it <= 2) 500 else it) }
         val space =
-            line(*(1..40).map { it.toLong() to (if (it == 1) 0f else if (it == 2) 100f else 31f + it) }.toTypedArray())
+            line(
+                *(1..40)
+                    .map {
+                        it.toLong() to (
+                            if (it == 1) {
+                                0f
+                            } else if (it == 2) {
+                                100f
+                            } else {
+                                31f + it
+                            }
+                        )
+                    }.toTypedArray(),
+            )
         val artistSeed = MixSeed(MixSeedKind.ARTIST, 500)
         val config = MixConfig(openingPerArtist = 2, explorationShare = 0.0, artistGap = 0, densityRank = 3)
 

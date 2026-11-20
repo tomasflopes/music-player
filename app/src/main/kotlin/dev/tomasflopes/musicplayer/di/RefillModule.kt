@@ -44,7 +44,8 @@ object RefillModule {
         clock: Clock,
     ) = RefillLibrary(songs, played, clock)
 
-    @Provides @IntoSet fun mixRefillSource(
+    @Provides @IntoSet
+    fun mixRefillSource(
         mixes: MixReader,
         vectors: SoundVectorSource,
         library: RefillLibrary,
@@ -52,7 +53,8 @@ object RefillModule {
         config: MixConfig,
     ): RefillSource = MixRefillSource(mixes, vectors, library, engine, config)
 
-    @Provides @IntoSet fun soloRefillSource(
+    @Provides @IntoSet
+    fun soloRefillSource(
         settings: SettingsRepository,
         vectors: SoundVectorSource,
         library: RefillLibrary,
@@ -60,7 +62,8 @@ object RefillModule {
         radio: RadioConfig,
     ): RefillSource = SoloRefillSource(settings, vectors, library, RadioPolicy(solo.radioConfig(radio)), solo, radio)
 
-    @Provides @Singleton fun queueRefiller(
+    @Provides @Singleton
+    fun queueRefiller(
         playback: PlaybackController,
         sources: Lazy<Set<@JvmSuppressWildcards RefillSource>>,
     ) = QueueRefiller(
