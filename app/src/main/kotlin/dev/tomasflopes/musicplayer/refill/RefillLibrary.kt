@@ -12,7 +12,7 @@ import java.time.Clock
 private const val MS_PER_DAY = 86_400_000L
 
 /** What a refill reads, shared by the sources: every call must be made from `Dispatchers.Default` (finding D3). */
-internal class RefillLibrary(
+class RefillLibrary(
     private val songs: SongReader,
     private val played: PlayedSinceSource,
     private val clock: Clock,

@@ -18,7 +18,7 @@ import kotlin.random.Random
  * it, from [RadioPolicy.refill], logged as `radio` and never picked. The anchor stays the chosen song for the whole
  * queue. A song with no sound profile gives nothing, silently. Off when "Extend single songs" is off.
  */
-internal class SoloRefillSource(
+class SoloRefillSource(
     private val settings: SettingsRepository,
     private val vectors: SoundVectorSource,
     private val library: RefillLibrary,

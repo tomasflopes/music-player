@@ -16,7 +16,7 @@ import kotlin.random.Random
  * Refills a playing mix (design §7.6, ADR 0078): the next [MixConfig.batchSize] songs from [MixEngine.refill], logged
  * as `mix`. The mix is read again at each refill, so an edit applies at the next one and a deleted mix gives nothing.
  */
-internal class MixRefillSource(
+class MixRefillSource(
     private val mixes: MixReader,
     private val vectors: SoundVectorSource,
     private val library: RefillLibrary,
