@@ -216,6 +216,12 @@ class PlaybackService : MediaSessionService() {
                 PlaybackCommands.removeFromQueue ->
                     engine.removeFromQueue(PlaybackCommands.indexOf(args), PlaybackCommands.songIdOf(args))
                 PlaybackCommands.restoreToQueue -> engine.restoreToQueue(PlaybackCommands.removedOf(args))
+                PlaybackCommands.moveInQueue ->
+                    engine.moveInQueue(
+                        PlaybackCommands.indexOf(args),
+                        PlaybackCommands.toOf(args),
+                        PlaybackCommands.songIdOf(args),
+                    )
                 PlaybackCommands.appendBatch ->
                     engine.appendBatch(
                         PlaybackCommands.refsOf(args),

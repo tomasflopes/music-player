@@ -6,9 +6,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -16,7 +21,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -36,6 +43,9 @@ import dev.tomasflopes.musicplayer.ui.components.UndoSnackbarHost
 import dev.tomasflopes.musicplayer.ui.playlists.SaveAsPlaylistButton
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import kotlinx.coroutines.flow.Flow
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.ReorderableLazyListState
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /** Now Playing (design 8.2): a bottom sheet over whichever tab is showing, opened from the mini-player. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +75,7 @@ fun NowPlayingSheet(
                         onJumpToUpcoming = viewModel::jumpToUpcoming,
                         onJumpTo = viewModel::jumpTo,
                         onRemove = viewModel::remove,
+                        onMove = viewModel::move,
                         onStartRadio = radio::start,
                     ),
             )
@@ -85,6 +96,8 @@ internal data class NowPlayingActions(
     val onJumpToUpcoming: (Int) -> Unit,
     val onJumpTo: (Int, Song) -> Unit,
     val onRemove: (Int, Song) -> Unit,
+    /** Drags the Up next row at the first row number to the second (ADR 0081). */
+    val onMove: (Int, Int) -> Unit,
     val onStartRadio: (SongId) -> Unit,
 )
 
@@ -117,6 +130,8 @@ private fun QueueList(
         if (headerScroll.shouldScrollTo(song.id)) listState.animateScrollToItem(headerIndex)
     }
     val keepScroll = remember { KeepScrollInList() }
+    val upRows = remember(state.upcoming, state.upcomingIndices, state.manualUpcoming) { upRowsOf(state) }
+    val drag = rememberUpNextDrag(upRows, listState, actions.onMove)
     LazyColumn(
         Modifier.fillMaxWidth().nestedScroll(keepScroll),
         state = listState,
@@ -125,8 +140,71 @@ private fun QueueList(
         playedRows(state, actions)
         item(key = "now-playing") { NowPlayingHeader(state, position, song, actions) }
         item(key = "save") { SaveAsPlaylistButton("Queue", enabled = true) { saveQueue(it) } }
-        upNextRows(state, actions)
+        upNextRows(drag, actions)
     }
+}
+
+/** One Up next row: its place in the queue (-1 when repeat ALL wrapped it round) and whether it was queued by hand. */
+private data class UpRow(
+    val song: Song,
+    val index: Int,
+    val manual: Boolean,
+    val row: Int,
+) {
+    /** A row passes over rows of its own group only, and never over one that repeat ALL wrapped round. */
+    fun canPassOver(other: UpRow): Boolean = manual == other.manual && other.index >= 0
+
+    /** Stable while a row is dragged; a song can be queued twice, and a wrapped row has no place of its own. */
+    val key: String get() = "up-${if (index >= 0) "$index" else "wrapped$row"}-${song.id.value}"
+}
+
+private fun upRowsOf(state: PlaybackState) =
+    state.upcoming.mapIndexed { i, song ->
+        UpRow(song, state.upcomingIndices.getOrElse(i) { -1 }, state.isManualUpcoming(i), i)
+    }
+
+/**
+ * The Up next list while it is dragged: a local copy that follows the finger, committed with one move on drop, as
+ * the playlist page does (ADR 0043). A row cannot be dragged over the other group, so manual songs stay before auto
+ * ones (ADR 0081). A new queue state from the player replaces the copy.
+ */
+private class UpNextDrag(
+    val rows: List<UpRow>,
+    val reorder: ReorderableLazyListState,
+    val onDragStarted: (String) -> Unit,
+    val onDragStopped: () -> Unit,
+)
+
+@Composable
+private fun rememberUpNextDrag(
+    upRows: List<UpRow>,
+    listState: LazyListState,
+    onMove: (Int, Int) -> Unit,
+): UpNextDrag {
+    var shown by remember(upRows) { mutableStateOf(upRows) }
+    var dragged by remember { mutableStateOf<String?>(null) }
+    val reorder =
+        rememberReorderableLazyListState(listState) { from, to ->
+            val list = shown.toMutableList()
+            val a = list.indexOfFirst { it.key == from.key }
+            val b = list.indexOfFirst { it.key == to.key }
+            if (a >= 0 && b >= 0 && list[a].canPassOver(list[b])) {
+                list.add(b, list.removeAt(a))
+                shown = list
+            }
+        }
+    return UpNextDrag(
+        rows = shown,
+        reorder = reorder,
+        onDragStarted = { dragged = it },
+        onDragStopped = {
+            val key = dragged
+            val from = upRows.indexOfFirst { it.key == key }
+            val to = shown.indexOfFirst { it.key == key }
+            if (from >= 0 && to >= 0 && from != to) onMove(from, to)
+            dragged = null
+        },
+    )
 }
 
 // Keyed by place in the queue and song: a song can be queued twice, and a removal moves the rows after it.
@@ -152,39 +230,49 @@ private fun LazyListScope.playedRows(
 }
 
 private fun LazyListScope.upNextRows(
-    state: PlaybackState,
+    drag: UpNextDrag,
     actions: NowPlayingActions,
 ) {
     item(key = "up-next") { SectionHeader("Up next") }
-    if (state.upcoming.isEmpty()) {
+    if (drag.rows.isEmpty()) {
         item(key = "nothing-up-next") { NothingUpNext() }
     }
-    itemsIndexed(state.upcoming, key = { i, up -> "up-${upcomingKey(state, i)}-${up.id.value}" }) { i, upcoming ->
-        val index = state.upcomingIndices.getOrElse(i) { -1 }
-        val row: @Composable () -> Unit = {
-            SongRow(
-                song = upcoming,
-                onClick = { if (index >= 0) actions.onJumpTo(index, upcoming) else actions.onJumpToUpcoming(i) },
-                trailing = if (state.isManualUpcoming(i)) ({ QueuedMark() }) else null,
-            )
-        }
-        // A row that repeat ALL wrapped round has no place of its own, so it cannot be removed.
-        if (index >= 0) {
-            SwipeToRemove(
-                onRemove = { actions.onRemove(index, upcoming) },
-                resetKey = index,
-                content = row,
-            )
+    items(drag.rows, key = { it.key }) { row ->
+        if (row.index >= 0) {
+            // Only upcoming songs have a drag handle; played songs and the current one do not move (ADR 0081).
+            ReorderableItem(drag.reorder, key = row.key) {
+                SwipeToRemove(
+                    onRemove = { actions.onRemove(row.index, row.song) },
+                    resetKey = row.index,
+                ) {
+                    SongRow(
+                        song = row.song,
+                        onClick = { actions.onJumpTo(row.index, row.song) },
+                        trailing = {
+                            if (row.manual) QueuedMark()
+                            Icon(
+                                Icons.Filled.DragHandle,
+                                contentDescription = "Drag to reorder",
+                                modifier =
+                                    Modifier.draggableHandle(
+                                        onDragStarted = { drag.onDragStarted(row.key) },
+                                        onDragStopped = { drag.onDragStopped() },
+                                    ),
+                            )
+                        },
+                    )
+                }
+            }
         } else {
-            row()
+            // A row that repeat ALL wrapped round has no place of its own, so it cannot be removed or moved.
+            SongRow(
+                song = row.song,
+                onClick = { actions.onJumpToUpcoming(row.row) },
+                trailing = if (row.manual) ({ QueuedMark() }) else null,
+            )
         }
     }
 }
-
-private fun upcomingKey(
-    state: PlaybackState,
-    i: Int,
-): String = state.upcomingIndices.getOrElse(i) { -1 }.let { if (it >= 0) "$it" else "wrapped$i" }
 
 /** Played songs are dimmed so they are easy to tell from the ones still to come. */
 private const val PLAYED_ALPHA = 0.5f

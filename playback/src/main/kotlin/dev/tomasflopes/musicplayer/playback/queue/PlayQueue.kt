@@ -208,6 +208,53 @@ class PlayQueue(
     fun entryAt(index: Int): QueueEntry? = entries.getOrNull(index)
 
     /**
+     * Where an upcoming entry at [from] would land when dragged to [to] (ADR 0081), or null when it cannot move: the
+     * current entry, played ones and unknown places stay put, and no move to the same place counts. Manual entries come
+     * before auto ones, so a drag stops at the edge of its own group.
+     */
+    fun moveTarget(
+        from: Int,
+        to: Int,
+    ): Int? {
+        if (from <= currentIndex || from !in entries.indices) return null
+        val manual = entries[from].manual
+        var low = from
+        while (low - 1 > currentIndex && entries[low - 1].manual == manual) low--
+        var high = from
+        while (high + 1 <= entries.lastIndex && entries[high + 1].manual == manual) high++
+        return to.coerceIn(low, high).takeIf { it != from }
+    }
+
+    /**
+     * Drags the upcoming entry at [from] to [to] (clamped by [moveTarget]); false when nothing moved. A reordered auto
+     * song also changes its slot in the original order, so turning shuffle off keeps the reorder (ADR 0081, as 0038).
+     */
+    fun move(
+        from: Int,
+        to: Int,
+    ): Boolean {
+        val target = moveTarget(from, to) ?: return false
+        val manual = entries[from].manual
+        val before = if (manual) emptyList() else upcoming().filter { !it.manual }.map { it.ref }
+        entries.add(target, entries.removeAt(from))
+        if (!manual) reassignOriginalSlots(before, upcoming().filter { !it.manual }.map { it.ref })
+        return true
+    }
+
+    /** The slots [before] held in the original order go to [after], in that order; nothing changes if they differ. */
+    private fun reassignOriginalSlots(
+        before: List<SongRef>,
+        after: List<SongRef>,
+    ) {
+        val moved = before.toHashSet()
+        val slots = originalOrder.indices.filter { originalOrder[it] in moved }
+        if (slots.size != after.size) return
+        val rewritten = originalOrder.toMutableList()
+        slots.zip(after).forEach { (slot, ref) -> rewritten[slot] = ref }
+        originalOrder = rewritten
+    }
+
+    /**
      * Takes the entry at [index] out, current one included (ADR 0047). The current index follows: an earlier entry
      * moves it back by one, and when the current entry itself goes, the entry after it becomes current (or the one
      * before it when it was the last; -1 when nothing is left).

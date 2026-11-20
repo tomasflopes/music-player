@@ -18,8 +18,19 @@ internal object PlaybackCommands {
     val removeFromQueue = SessionCommand("musicplayer.REMOVE_FROM_QUEUE", Bundle.EMPTY)
     val restoreToQueue = SessionCommand("musicplayer.RESTORE_TO_QUEUE", Bundle.EMPTY)
     val appendBatch = SessionCommand("musicplayer.APPEND_BATCH", Bundle.EMPTY)
+    val moveInQueue = SessionCommand("musicplayer.MOVE_IN_QUEUE", Bundle.EMPTY)
     val all =
-        listOf(play, playNext, addToQueue, jumpToUpcoming, jumpToQueueIndex, removeFromQueue, restoreToQueue, appendBatch)
+        listOf(
+            play,
+            playNext,
+            addToQueue,
+            jumpToUpcoming,
+            jumpToQueueIndex,
+            removeFromQueue,
+            restoreToQueue,
+            appendBatch,
+            moveInQueue,
+        )
 
     private const val SONG_IDS = "songIds"
     private const val ARTIST_IDS = "artistIds"
@@ -34,6 +45,7 @@ internal object PlaybackCommands {
     private const val SEED_ID = "seedId"
     private const val EPOCH = "epoch"
     private const val INDEX = "index"
+    private const val TO = "to"
     private const val SONG_ID = "songId"
     private const val ARTIST_ID = "artistId"
     private const val MANUAL = "manual"
@@ -108,6 +120,15 @@ internal object PlaybackCommands {
     ) = bundleOf(index).apply { putLong(SONG_ID, songId.value) }
 
     fun songIdOf(bundle: Bundle) = SongId(bundle.getLong(SONG_ID))
+
+    /** A reorder (ADR 0081): the place the song is at, the place it is dragged to, and the song. */
+    fun bundleOf(
+        from: Int,
+        to: Int,
+        songId: SongId,
+    ) = bundleOf(from, songId).apply { putInt(TO, to) }
+
+    fun toOf(bundle: Bundle) = bundle.getInt(TO)
 
     fun bundleOf(removed: RemovedQueueEntry) =
         bundleOf(removed.index, removed.ref.songId).apply {

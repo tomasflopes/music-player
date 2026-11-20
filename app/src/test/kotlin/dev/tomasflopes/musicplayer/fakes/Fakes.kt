@@ -154,6 +154,23 @@ class FakePlaybackController : PlaybackController {
         restored += entry
     }
 
+    /** Every reorder asked for (ADR 0081): the places in the whole queue and the song that was dragged. */
+    data class Move(
+        val from: Int,
+        val to: Int,
+        val songId: SongId,
+    )
+
+    val moves = mutableListOf<Move>()
+
+    override fun moveInQueue(
+        from: Int,
+        to: Int,
+        songId: SongId,
+    ) {
+        moves += Move(from, to, songId)
+    }
+
     override fun setShuffle(on: Boolean) {
         shuffleCalls += on
     }

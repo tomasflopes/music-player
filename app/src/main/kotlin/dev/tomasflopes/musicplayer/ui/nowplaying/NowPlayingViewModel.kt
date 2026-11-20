@@ -52,6 +52,31 @@ class NowPlayingViewModel
             undo.offer("Removed \"${song.title}\" from the queue") { playback.restoreToQueue(removed) }
         }
 
+        /**
+         * Drags the Up next row [fromRow] to [toRow] (rows of [PlaybackState.upcoming]) and offers the shared undo,
+         * which drags it back (ADR 0081, 0046). A drag stops at the edge of its own group: manual songs stay before
+         * auto songs. Rows that repeat ALL wrapped round have no place and do not move.
+         */
+        fun move(
+            fromRow: Int,
+            toRow: Int,
+        ) {
+            val shown = state.value
+            val song = shown.upcoming.getOrNull(fromRow) ?: return
+            val group =
+                if (fromRow < shown.manualUpcoming) {
+                    0 until shown.manualUpcoming
+                } else {
+                    shown.manualUpcoming until shown.upcoming.size
+                }
+            val target = toRow.coerceIn(group.first, group.last)
+            val from = shown.upcomingIndices.getOrElse(fromRow) { -1 }
+            val to = shown.upcomingIndices.getOrElse(target) { -1 }
+            if (target == fromRow || minOf(from, to) < 0) return
+            playback.moveInQueue(from, to, song.id)
+            undo.offer("Moved \"${song.title}\" in the queue") { playback.moveInQueue(to, from, song.id) }
+        }
+
         fun toggleShuffle() = playback.setShuffle(!state.value.shuffle)
 
         fun cycleRepeatMode() = playback.cycleRepeatMode()

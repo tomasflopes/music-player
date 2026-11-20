@@ -170,4 +170,94 @@ class NowPlayingViewModelTest {
 
             assertEquals(listOf(5), playback.restored.map { it.index })
         }
+
+    /** Current song 1 at place 0, then songs 2..6 at places 1..5; the first [manual] of them were queued by hand. */
+    private fun queued(manual: Int = 0) {
+        playback.playbackState.value =
+            PlaybackState(
+                current = testSong(1),
+                currentIndex = 0,
+                upcoming = (2L..6L).map { testSong(it) },
+                upcomingIndices = (1..5).toList(),
+                manualUpcoming = manual,
+            )
+    }
+
+    @Test
+    fun `dragging an up next row asks the player to move that place`() {
+        queued()
+
+        viewModel.move(fromRow = 3, toRow = 1)
+
+        assertEquals(listOf(FakePlaybackController.Move(4, 2, testSong(5).id)), playback.moves)
+    }
+
+    @Test
+    fun `a move offers an undo that moves the song back`() =
+        kotlinx.coroutines.runBlocking {
+            queued()
+            viewModel.move(fromRow = 3, toRow = 1)
+            assertEquals("Moved \"${testSong(5).title}\" in the queue", undo.pending.value?.message)
+
+            undo.undo(undo.pending.value!!.id)
+
+            assertEquals(
+                listOf(
+                    FakePlaybackController.Move(4, 2, testSong(5).id),
+                    FakePlaybackController.Move(2, 4, testSong(5).id),
+                ),
+                playback.moves,
+            )
+        }
+
+    @Test
+    fun `a manual row stops at the last manual row, an auto row at the first auto row`() {
+        queued(manual = 2)
+
+        viewModel.move(fromRow = 0, toRow = 4)
+        viewModel.move(fromRow = 3, toRow = 0)
+
+        assertEquals(
+            listOf(
+                FakePlaybackController.Move(1, 2, testSong(2).id),
+                FakePlaybackController.Move(4, 3, testSong(5).id),
+            ),
+            playback.moves,
+        )
+    }
+
+    @Test
+    fun `dropping a row where it was asks for nothing and offers no undo`() {
+        queued()
+
+        viewModel.move(fromRow = 2, toRow = 2)
+
+        assertEquals(emptyList<FakePlaybackController.Move>(), playback.moves)
+        assertEquals(null, undo.pending.value)
+    }
+
+    @Test
+    fun `a row that repeat ALL wrapped round has no place and cannot move`() {
+        playback.playbackState.value =
+            PlaybackState(
+                current = testSong(1),
+                currentIndex = 0,
+                upcoming = (2L..3L).map { testSong(it) },
+                upcomingIndices = listOf(1, -1),
+            )
+
+        viewModel.move(fromRow = 1, toRow = 0)
+        viewModel.move(fromRow = 0, toRow = 1)
+
+        assertEquals(emptyList<FakePlaybackController.Move>(), playback.moves)
+    }
+
+    @Test
+    fun `a row that is not in the list moves nothing`() {
+        queued()
+
+        viewModel.move(fromRow = 9, toRow = 0)
+
+        assertEquals(emptyList<FakePlaybackController.Move>(), playback.moves)
+    }
 }

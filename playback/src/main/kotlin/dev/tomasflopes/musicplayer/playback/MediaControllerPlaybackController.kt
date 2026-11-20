@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
  * The app's side of playback: a MediaController to the service, the same kind a car or headset uses. Queue
  * contents are read from the [PlayQueue] (service and app share a process) and turned into [PlaybackState].
  */
+@Suppress("TooManyFunctions")
 internal class MediaControllerPlaybackController(
     context: Context,
     private val queue: PlayQueue,
@@ -130,6 +131,12 @@ internal class MediaControllerPlaybackController(
         send(PlaybackCommands.removeFromQueue, PlaybackCommands.bundleOf(index, songId))
         return removed
     }
+
+    override fun moveInQueue(
+        from: Int,
+        to: Int,
+        songId: SongId,
+    ) = send(PlaybackCommands.moveInQueue, PlaybackCommands.bundleOf(from, to, songId))
 
     override fun restoreToQueue(entry: RemovedQueueEntry) =
         send(PlaybackCommands.restoreToQueue, PlaybackCommands.bundleOf(entry))

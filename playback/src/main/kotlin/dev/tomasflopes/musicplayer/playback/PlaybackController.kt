@@ -63,6 +63,17 @@ interface PlaybackController {
         songId: SongId,
     ): RemovedQueueEntry?
 
+    /**
+     * Drags the upcoming song at [from] to the place [to] of the whole queue (ADR 0081). Ignored when [songId] is not
+     * at [from] any more, or when the song is the current or a played one. A manual song stops among the manual songs,
+     * an auto song among the auto songs.
+     */
+    fun moveInQueue(
+        from: Int,
+        to: Int,
+        songId: SongId,
+    )
+
     /** Puts a removed entry back at its place; a removed current song becomes current again, where it was. */
     fun restoreToQueue(entry: RemovedQueueEntry)
 

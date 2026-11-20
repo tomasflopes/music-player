@@ -337,6 +337,22 @@ internal class PlaybackEngine(
         queueChanged()
     }
 
+    /**
+     * Drags one upcoming entry to another place (ADR 0081). Named by place and song, so a stale place changes nothing.
+     * The edit goes through the serialised path like Play next, and announces itself because a move beyond the
+     * player's window changes no player item (ADR 0077). Nothing is logged: no song starts or ends.
+     */
+    fun moveInQueue(
+        from: Int,
+        to: Int,
+        songId: SongId,
+    ) = serial {
+        if (queue.entryAt(from)?.ref?.songId != songId) return@serial
+        val target = queue.moveTarget(from, to) ?: return@serial
+        edit { queue.move(from, target) }
+        exposed.notifyModes()
+    }
+
     /** Puts a removed entry back (undo). A removed current song becomes current again, at its position. */
     fun restoreToQueue(removed: RemovedQueueEntry) =
         serial {
