@@ -8,10 +8,13 @@ import dev.tomasflopes.musicplayer.core.model.mixes.MixSeedKind
 import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
 import dev.tomasflopes.musicplayer.core.taste.mix.MixEngine
+import dev.tomasflopes.musicplayer.core.taste.mix.MixLearning
+import dev.tomasflopes.musicplayer.fakes.FakeMixScoreBoard
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class MixRefillSourceTest {
     private val id = MixId(3)
@@ -21,8 +24,10 @@ class MixRefillSourceTest {
 
     private fun mix(vararg songIds: Long) = Mix(id, "Run", songIds.map { MixSeed(MixSeedKind.SONG, it) }, 1, 1)
 
+    private val board = FakeMixScoreBoard()
+
     private fun source(mixes: FakeMixReader) =
-        MixRefillSource(mixes, FixedVectors(spaceOf()), refillLibrary(), MixEngine(config), config)
+        MixRefillSource(mixes, FixedVectors(spaceOf()), refillLibrary(), board, MixEngine(config), config)
 
     @Test
     fun `it handles mix seeds only and refills at 5 or fewer left`() {
@@ -71,7 +76,8 @@ class MixRefillSourceTest {
     fun `a mix whose seeds have no profile gives nothing`() =
         runTest {
             val vectors = FixedVectors(spaceOf(listOf(5, 6, 7)))
-            val source = MixRefillSource(FakeMixReader(mix(1)), vectors, refillLibrary(), MixEngine(config), config)
+            val source =
+                MixRefillSource(FakeMixReader(mix(1)), vectors, refillLibrary(), board, MixEngine(config), config)
 
             assertTrue(source.batch(signal(seed, refs(1))).songs.isEmpty())
         }
@@ -80,5 +86,27 @@ class MixRefillSourceTest {
     fun `it is always enabled`() =
         runTest {
             assertTrue(source(FakeMixReader(mix(1))).enabled())
+        }
+
+    @Test
+    fun `asks the score board about this mix and the current time`() =
+        runTest {
+            source(FakeMixReader(mix(1))).batch(signal(seed, refs(1)))
+
+            val now = Instant.parse("2026-11-20T12:00:00Z").toEpochMilli()
+            assertEquals(listOf(id to now), board.asked)
+        }
+
+    @Test
+    fun `banned songs are left out of the batch`() =
+        runTest {
+            val source = source(FakeMixReader(mix(1)))
+            val plain = source.batch(signal(seed, refs(1))).songs.map { it.id }
+            board.learning = MixLearning(banned = plain.take(3).toSet())
+
+            val batch = source.batch(signal(seed, refs(1))).songs.map { it.id }
+
+            assertEquals(25, batch.size)
+            assertTrue(batch.none { it in plain.take(3) })
         }
 }

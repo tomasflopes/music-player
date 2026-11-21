@@ -36,4 +36,62 @@ class MixConfigTest {
         assertEquals(5, MixConfig().refillLowWater)
         assertThrows(IllegalArgumentException::class.java) { MixConfig(refillLowWater = 25) }
     }
+
+    @Test
+    fun `learning defaults`() {
+        val config = MixConfig()
+
+        assertEquals(0.5, config.likedMinScore)
+        assertEquals(15, config.likedMax)
+        assertEquals(1.5, config.likedGate)
+        assertEquals(-3.0, config.bannedScore)
+        assertEquals(14, config.mixRepeatDays)
+        assertEquals(1.0, config.mixRepeatPenalty)
+        assertEquals(0.10, config.explorationFloor)
+        assertEquals(200, config.explorationRows)
+    }
+
+    @Test
+    fun `exploration falls from 30 percent to 10 percent over 200 informative rows and stays there`() {
+        val config = MixConfig()
+
+        assertEquals(0.30, config.explorationShareFor(0), 1e-9)
+        assertEquals(0.20, config.explorationShareFor(100), 1e-9)
+        assertEquals(0.10, config.explorationShareFor(200), 1e-9)
+        assertEquals(0.10, config.explorationShareFor(5_000), 1e-9)
+    }
+
+    @Test
+    fun `a mix configured with less exploration than the floor never rises above its share`() {
+        val config = MixConfig(explorationShare = 0.0)
+
+        assertEquals(0.0, config.explorationShareFor(0))
+        assertEquals(0.0, config.explorationShareFor(200))
+    }
+
+    @Test
+    fun `the builder config can carry a share other than the start share`() {
+        val builder = MixConfig().builderConfig(explorationShare = 0.1)
+
+        assertEquals(0.1, builder.explorationShare)
+        assertEquals(0.9, builder.nearestShare, 1e-9)
+    }
+
+    @Test
+    fun `learning numbers that make no sense are refused`() {
+        fun refused(build: () -> Any) = assertThrows(IllegalArgumentException::class.java) { build() }
+        refused { MixConfig(likedMinScore = 0.0) }
+        refused { MixConfig(likedMinScore = Double.NaN) }
+        refused { MixConfig(likedMax = -1) }
+        refused { MixConfig(likedGate = 0.0) }
+        refused { MixConfig(likedGate = Double.POSITIVE_INFINITY) }
+        refused { MixConfig(bannedScore = 0.0) }
+        refused { MixConfig(bannedScore = Double.NaN) }
+        refused { MixConfig(mixRepeatDays = -1) }
+        refused { MixConfig(mixRepeatPenalty = -0.1) }
+        refused { MixConfig(mixRepeatPenalty = Double.NaN) }
+        refused { MixConfig(explorationFloor = -0.1) }
+        refused { MixConfig(explorationFloor = 1.1) }
+        refused { MixConfig(explorationRows = 0) }
+    }
 }

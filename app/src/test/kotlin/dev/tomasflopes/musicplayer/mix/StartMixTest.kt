@@ -12,6 +12,8 @@ import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
 import dev.tomasflopes.musicplayer.core.taste.mix.MixEngine
+import dev.tomasflopes.musicplayer.core.taste.mix.MixLearning
+import dev.tomasflopes.musicplayer.fakes.FakeMixScoreBoard
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.FakeSongReader
 import dev.tomasflopes.musicplayer.fakes.testSong
@@ -63,6 +65,7 @@ class StartMixTest {
     private val playback = FakePlaybackController()
     private val messages = RecordingMessages()
     private val played = FakePlayedSince()
+    private val board = FakeMixScoreBoard()
     private val now = Instant.parse("2026-11-16T12:00:00Z")
     private val config = MixConfig(seed = 7)
     private val songs = (1L..60L).map { testSong(it, artistId = it, title = "Title $it", artistName = "Artist $it") }
@@ -74,11 +77,13 @@ class StartMixTest {
         seeds: List<MixSeed>,
         profiled: List<Long> = songs.map { it.id.value },
         exists: Boolean = true,
+        learning: MixLearning = MixLearning.EMPTY,
     ) = StartMix(
         mixes = FakeMixes(if (exists) Mix(id, "Run", seeds, 1, 1) else null),
         songs = FakeSongReader(songs = songs),
         vectors = FakeVectors(SoundSpace(profiled.toLongArray(), 1, profiled.map { it.toFloat() }.toFloatArray())),
         played = played,
+        scores = board.also { it.learning = learning },
         playback = playback,
         messages = messages,
         engine = MixEngine(config),
@@ -135,5 +140,46 @@ class StartMixTest {
 
             assertTrue(playback.requests.isEmpty())
             assertTrue(messages.shown.isEmpty())
+        }
+
+    @Test
+    fun `asks the score board about this mix and the current time`() =
+        runTest {
+            start(seeds(5, 30, 50))(id)
+
+            assertEquals(listOf(id to now.toEpochMilli()), board.asked)
+        }
+
+    @Test
+    fun `an empty learning gives the same batch as before learning existed`() =
+        runTest {
+            start(seeds(5, 30, 50))(id)
+            start(seeds(5, 30, 50), learning = MixLearning())(id)
+
+            val (first, second) = playback.requests.map { request -> request.songs.map { it.songId } }
+            assertEquals(first, second)
+        }
+
+    @Test
+    fun `banned songs are not played, the opening ones included`() =
+        runTest {
+            start(seeds(5, 30, 50))(id)
+            val before =
+                playback.requests
+                    .single()
+                    .songs
+                    .map { it.songId }
+            val banned = setOf(before[0], before[1], before[2])
+            playback.requests.clear()
+
+            start(seeds(5, 30, 50), learning = MixLearning(banned = banned))(id)
+
+            val after =
+                playback.requests
+                    .single()
+                    .songs
+                    .map { it.songId }
+            assertEquals(25, after.size)
+            assertTrue(after.none { it in banned })
         }
 }

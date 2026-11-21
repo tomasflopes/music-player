@@ -22,13 +22,15 @@ internal object MixAnchors {
         }
         return seeds.mapNotNull { seed ->
             when (seed.kind) {
-                MixSeedKind.SONG ->
-                    space
-                        .indexOf(seed.refId)
-                        .takeIf { it >= 0 }
-                        ?.let { row -> DoubleArray(space.dim) { d -> space.values[row * space.dim + d].toDouble() } }
+                MixSeedKind.SONG -> space.indexOf(seed.refId).takeIf { it >= 0 }?.let { pointOf(space, it) }
                 MixSeedKind.ARTIST -> rowsByArtist[seed.refId]?.let(space::centroid)
             }
         }
     }
+
+    /** The point of the song at [row] of the space, as an anchor. */
+    fun pointOf(
+        space: SoundSpace,
+        row: Int,
+    ): DoubleArray = DoubleArray(space.dim) { d -> space.values[row * space.dim + d].toDouble() }
 }

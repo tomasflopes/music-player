@@ -17,6 +17,9 @@ class RefillLibrary(
     private val played: PlayedSinceSource,
     private val clock: Clock,
 ) {
+    /** The clock the refill sources use, so what a mix learned is read as of the same moment. */
+    fun now(): Long = clock.millis()
+
     suspend fun library(): List<Song> = songs.observeSongs().first()
 
     suspend fun recentlyPlayed(recentDays: Int): Set<SongId> =

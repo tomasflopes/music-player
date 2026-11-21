@@ -17,6 +17,7 @@ import dev.tomasflopes.musicplayer.core.taste.config.RadioConfig
 import dev.tomasflopes.musicplayer.core.taste.config.SoloExtensionConfig
 import dev.tomasflopes.musicplayer.core.taste.lists.RadioPolicy
 import dev.tomasflopes.musicplayer.core.taste.mix.MixEngine
+import dev.tomasflopes.musicplayer.core.taste.mix.MixScoreBoard
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.refill.MixRefillSource
 import dev.tomasflopes.musicplayer.refill.QueueRefiller
@@ -53,9 +54,10 @@ object RefillModule {
         mixes: MixReader,
         vectors: SoundVectorSource,
         library: RefillLibrary,
+        scores: MixScoreBoard,
         engine: MixEngine,
         config: MixConfig,
-    ): RefillSource = MixRefillSource(mixes, vectors, library, engine, config)
+    ): RefillSource = MixRefillSource(mixes, vectors, library, scores, engine, config)
 
     @Provides @IntoSet
     fun soloRefillSource(
