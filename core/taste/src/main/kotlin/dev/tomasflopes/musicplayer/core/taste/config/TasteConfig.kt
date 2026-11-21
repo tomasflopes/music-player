@@ -11,7 +11,16 @@ data class TasteConfig(
     val top: TopListRule = TopListRule(),
     val artist: ArtistRule = ArtistRule(),
     val search: SearchRule = SearchRule(),
-)
+    /**
+     * Share of a skip's weight that counts when the app chose the song (mix and radio rows, ADR 0084). 1.0 scores
+     * them at full weight, as a mix's own score board does. Only negative contributions are scaled.
+     */
+    val skipShare: Double = 0.3,
+) {
+    init {
+        require(skipShare.isFinite() && skipShare in 0.0..1.0) { "skipShare must be in 0..1: $skipShare" }
+    }
+}
 
 /** What one play is worth. Skips are negative; the fractions are of the song's duration. */
 data class SignalWeights(

@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.core.taste.config
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
@@ -57,6 +58,21 @@ class TasteConfigAuditTest {
         refused { SearchRule(song = Double.NaN) }
         refused { SearchRule(artist = Double.POSITIVE_INFINITY) }
         refused { SignalWeights(addedToPlaylist = Double.NaN) }
+    }
+
+    @Test
+    fun `skip share must be finite and between 0 and 1`() {
+        refused { TasteConfig(skipShare = -0.1) }
+        refused { TasteConfig(skipShare = 1.1) }
+        refused { TasteConfig(skipShare = Double.NaN) }
+        refused { TasteConfig(skipShare = Double.POSITIVE_INFINITY) }
+        TasteConfig(skipShare = 0.0)
+        TasteConfig(skipShare = 1.0)
+    }
+
+    @Test
+    fun `the skip share defaults to 0_3`() {
+        assertEquals(0.3, TasteConfig().skipShare)
     }
 
     @Test

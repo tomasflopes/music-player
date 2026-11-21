@@ -57,6 +57,13 @@ class SignalRules(
 
     private companion object {
         /** Finishing a song is a vote only when the app chose it: under shuffle or from a mix (design §7.4). */
-        val COMPLETION_COUNTS_FOR = setOf(PlaySource.MIX, PlaySource.RADIO)
+        val COMPLETION_COUNTS_FOR = APP_CHOSEN_SOURCES
     }
 }
+
+/**
+ * The sources whose songs the app picked, not the owner (ADR 0084): a completed play counts as a vote here, and a
+ * skip counts only [dev.tomasflopes.musicplayer.core.taste.config.TasteConfig.skipShare] of its weight. Shuffle is
+ * not in the set: the owner chose to shuffle (ADR 0008).
+ */
+internal val APP_CHOSEN_SOURCES: Set<PlaySource> = setOf(PlaySource.MIX, PlaySource.RADIO)

@@ -18,6 +18,7 @@ class TasteScorer(
     private val bursts = BrowsingBursts(config.burst)
     private val decay = Decay(config.decay)
     private val softening = config.burst.softening
+    private val skipShare = config.skipShare
     private val weights = config.weights
     private val artistRule = config.artist
     private val searchRule = config.search
@@ -82,7 +83,7 @@ class TasteScorer(
             // and the end weight are tallied apart, so the -1 of a picked song skipped mid-way is forgiven too.
             if (outcomes[index] == PlayOutcome.COMPLETED) tally.negative = 0.0
             tally.add(rules.startBonusOf(event, outcomes[index]) * factor)
-            tally.add(rules.endWeightOf(event, outcomes[index]) * factor)
+            tally.add(appChosenShare(event, rules.endWeightOf(event, outcomes[index]) * factor))
             tally.lastPlayedAtEpochMs = maxOf(tally.lastPlayedAtEpochMs, event.startedAtEpochMs)
         }
         signals.playlistAdds.forEach { add ->
@@ -101,6 +102,12 @@ class TasteScorer(
             .map { (songId, tally) -> SongScore(songId, tally.positive + tally.negative, tally.lastPlayedAtEpochMs) }
             .sortedWith(RANKING)
     }
+
+    /** A skip of a song the app chose counts [skipShare] of its weight (ADR 0084); positives pass unchanged. */
+    private fun appChosenShare(
+        event: PlayEvent,
+        contribution: Double,
+    ): Double = if (contribution < 0 && event.source in APP_CHOSEN_SOURCES) contribution * skipShare else contribution
 
     private class Tally(
         var positive: Double = 0.0,
