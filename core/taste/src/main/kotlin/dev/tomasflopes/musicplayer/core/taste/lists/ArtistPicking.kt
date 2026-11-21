@@ -51,6 +51,25 @@ internal fun List<Song>.spreadByArtist(
     return placed
 }
 
+/**
+ * Puts the [exploration] songs at even places among the [nearest] ones, keeping the order inside each part (the radio
+ * of ADR 0072 and sound-aware Discover of ADR 0071 share it).
+ */
+internal fun interleaveEvenly(
+    nearest: List<Song>,
+    exploration: List<Song>,
+): List<Song> {
+    val total = nearest.size + exploration.size
+    val merged = ArrayList<Song>(total)
+    var nearIndex = 0
+    var exploreIndex = 0
+    for (place in 1..total) {
+        val due = exploreIndex < exploration.size && place * exploration.size >= (exploreIndex + 1) * total
+        merged += if (due || nearIndex >= nearest.size) exploration[exploreIndex++] else nearest[nearIndex++]
+    }
+    return merged
+}
+
 private const val GOLDEN = -7_046_029_254_386_353_131L
 private const val MIX_1 = -4_658_895_280_553_007_687L
 private const val MIX_2 = -7_723_592_293_110_705_685L

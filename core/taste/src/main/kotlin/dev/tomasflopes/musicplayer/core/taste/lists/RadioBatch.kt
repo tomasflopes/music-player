@@ -49,7 +49,7 @@ internal class RadioBatchBuilder(
         val band = ranked.take(config.explorationBand).sortedBy { seededUnit(salt, it.song.id.value) }
         val exploration = picker.take(band, explorationWanted)
 
-        return (initial + interleave(nearest, exploration)).spreadByArtist(config.artistGap, precedingArtists)
+        return (initial + interleaveEvenly(nearest, exploration)).spreadByArtist(config.artistGap, precedingArtists)
     }
 
     private fun rank(
@@ -63,22 +63,6 @@ internal class RadioBatchBuilder(
                 candidate to distanceOf(candidate) + penalty
             }.sortedWith(compareBy<Pair<Candidate, Double>> { it.second }.thenBy { it.first.song.id.value })
             .map { it.first }
-
-    /** Puts the exploration songs at even places among the nearest ones, keeping the order inside each part. */
-    private fun interleave(
-        nearest: List<Song>,
-        exploration: List<Song>,
-    ): List<Song> {
-        val total = nearest.size + exploration.size
-        val merged = ArrayList<Song>(total)
-        var nearIndex = 0
-        var exploreIndex = 0
-        for (place in 1..total) {
-            val due = exploreIndex < exploration.size && place * exploration.size >= (exploreIndex + 1) * total
-            merged += if (due || nearIndex >= nearest.size) exploration[exploreIndex++] else nearest[nearIndex++]
-        }
-        return merged
-    }
 }
 
 /** Holds what the batch has so far, so both parts share one per-artist cap and one duplicate rule. */

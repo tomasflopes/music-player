@@ -6,8 +6,11 @@ import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.lists.DynamicListProvider
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.PlayedSongSource
+import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
+import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.DiscoverConfig
 import dev.tomasflopes.musicplayer.core.taste.score.ArtistScore
+import dev.tomasflopes.musicplayer.core.taste.score.SongScore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -91,6 +94,42 @@ class DiscoverProviderTest : DynamicListProviderContract() {
             assertEquals(providerOf(library, seed = 3).ids(), providerOf(library, seed = 3).ids())
             assertNotEquals(providerOf(library, seed = 3).ids(), providerOf(library, seed = 4).ids())
         }
+
+    @Test
+    fun `the sound-aware rule lifts an unscored song that sounds like a liked one`() =
+        runTest {
+            val liked = song(900, 0).copy(artistId = ArtistId(900))
+            val library = soloists(3) + liked
+            val space = SoundSpace(longArrayOf(1, 2, 3, 900), 1, floatArrayOf(90f, 0.5f, 60f, 0f))
+            val vectors =
+                object : SoundVectorSource {
+                    override suspend fun space(): SoundSpace = space
+                }
+            val provider =
+                DiscoverProvider(
+                    FakeSongReader(library),
+                    FakePlayed(setOf(900)),
+                    FakeScoreBoard(listOf(SongScore(SongId(900), 5.0, 1L))),
+                    SoundAwareDiscoverPolicy(DiscoverConfig(explorationShare = 0.0)),
+                    seed = 1,
+                    vectors = vectors,
+                )
+
+            assertEquals(2L, provider.ids().first())
+        }
+
+    @Test
+    fun `without a sound space the sound-aware rule gives the artist-only list`() =
+        runTest {
+            val config = DiscoverConfig()
+            val sound = providerWith(SoundAwareDiscoverPolicy(config))
+            val old = providerWith(DiscoverPolicy(config))
+
+            assertEquals(old.ids(), sound.ids())
+        }
+
+    private fun providerWith(rule: DiscoverRule) =
+        DiscoverProvider(FakeSongReader(soloists(60)), FakePlayed(), FakeScoreBoard(emptyList()), rule, seed = 9)
 
     @Test
     fun `an empty library gives an empty list`() =

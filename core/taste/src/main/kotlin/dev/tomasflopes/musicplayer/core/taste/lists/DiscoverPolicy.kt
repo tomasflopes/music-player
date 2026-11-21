@@ -24,7 +24,13 @@ import kotlin.random.Random
  */
 class DiscoverPolicy(
     private val config: DiscoverConfig = DiscoverConfig(),
-) {
+) : DiscoverRule {
+    /** The [DiscoverRule] form (ADR 0071): this policy reads only the library, the played set and artist scores. */
+    override fun pick(
+        input: DiscoverInput,
+        random: Random,
+    ): List<Song> = pick(input.library, input.played, input.artistScores, random)
+
     /**
      * @param library every song in the library.
      * @param played songs that have any log row, of any age or outcome.
