@@ -2,8 +2,11 @@ package dev.tomasflopes.musicplayer.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionToken
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
@@ -33,6 +36,10 @@ import kotlinx.coroutines.launch
 /**
  * The app's side of playback: a MediaController to the service, the same kind a car or headset uses. Queue
  * contents are read from the [PlayQueue] (service and app share a process) and turned into [PlaybackState].
+ *
+ * Media3 requires a MediaController to be called on its application thread, so every command hops to the main looper
+ * (or runs inline when already on it): any thread may call the commands (ADR 0083). [controller] and [waiting] are
+ * only touched on that looper.
  */
 @Suppress("TooManyFunctions")
 internal class MediaControllerPlaybackController(
@@ -41,12 +48,17 @@ internal class MediaControllerPlaybackController(
     private val songs: SongReader,
     private val config: PlaybackConfig,
     private val scope: CoroutineScope,
+    service: Class<out MediaSessionService> = PlaybackService::class.java,
 ) : PlaybackController,
     Player.Listener {
     private val _state = MutableStateFlow(PlaybackState())
     override val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
     private val refresh = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val mainLooper = Looper.getMainLooper()
+    private val main = Handler(mainLooper)
+
+    // Main looper only.
     private var controller: MediaController? = null
     private val waiting = mutableListOf<(MediaController) -> Unit>()
 
@@ -74,8 +86,8 @@ internal class MediaControllerPlaybackController(
             }.distinctUntilChanged()
 
     init {
-        val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val future = MediaController.Builder(context, token).buildAsync()
+        val token = SessionToken(context, ComponentName(context, service))
+        val future = MediaController.Builder(context, token).setApplicationLooper(mainLooper).buildAsync()
         future.addListener({
             val connected = future.get()
             connected.addListener(this)
@@ -84,7 +96,7 @@ internal class MediaControllerPlaybackController(
             waiting.clear()
             refresh.tryEmit(Unit)
             positionNudges.tryEmit(Unit)
-        }, Runnable::run)
+        }, main::post)
         scope.launch { refresh.conflate().collect { publish() } }
     }
 
@@ -174,7 +186,12 @@ internal class MediaControllerPlaybackController(
         args: android.os.Bundle,
     ) = withController { it.sendCustomCommand(command, args) }
 
+    /** Runs [action] on the main looper: inline when already there, posted otherwise. Queued until connected. */
     private fun withController(action: (MediaController) -> Unit) {
+        if (Looper.myLooper() == mainLooper) runOnMain(action) else main.post { runOnMain(action) }
+    }
+
+    private fun runOnMain(action: (MediaController) -> Unit) {
         controller?.let(action) ?: waiting.add(action)
     }
 

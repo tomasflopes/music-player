@@ -5,6 +5,7 @@ import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.core.model.ref
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.RefillSignal
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
@@ -22,12 +23,15 @@ import kotlinx.coroutines.launch
  *
  * @param signals the engine's refill signal, `null` when the queue is not seeded or repeat is on.
  * @param sources the sources, resolved lazily (their dependencies read the library).
+ * @param onFailure told when building or sending a batch threw; the refiller carries on with the next signal, so one
+ *   failed refill never stops refilling or takes the process down.
  */
 class QueueRefiller(
     private val signals: Flow<RefillSignal?>,
     private val sources: () -> Set<RefillSource>,
     private val playback: PlaybackController,
     private val scope: CoroutineScope,
+    private val onFailure: (RefillSignal, Throwable) -> Unit = { _, _ -> },
 ) {
     private var gaveNothing: Pair<RefillSeed, Int>? = null
 
@@ -38,12 +42,20 @@ class QueueRefiller(
     }
 
     private suspend fun refill(signal: RefillSignal) {
-        val source = dueSource(signal) ?: return
-        val batch = source.batch(signal)
-        if (batch.songs.isEmpty()) {
-            gaveNothing = signal.seed to signal.epoch
-        } else {
-            playback.appendBatch(batch.songs.map(Song::ref), signal.seed, signal.epoch, batch.source)
+        try {
+            val source = dueSource(signal) ?: return
+            val batch = source.batch(signal)
+            if (batch.songs.isEmpty()) {
+                gaveNothing = signal.seed to signal.epoch
+            } else {
+                playback.appendBatch(batch.songs.map(Song::ref), signal.seed, signal.epoch, batch.source)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
+            onFailure(signal, e)
         }
     }
 

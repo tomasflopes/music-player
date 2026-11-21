@@ -30,6 +30,7 @@ class QueueRefillerTest {
     ) : RefillSource {
         var batchCalls = 0
         var gate: CompletableDeferred<Unit>? = null
+        var failures = 0
 
         override fun handles(seed: RefillSeed) = seed::class == kind::class
 
@@ -38,6 +39,10 @@ class QueueRefillerTest {
         override suspend fun batch(signal: RefillSignal): RefillBatch {
             batchCalls++
             gate?.await()
+            if (failures > 0) {
+                failures--
+                error("batch failed")
+            }
             return RefillBatch(songsToGive.map { testSong(it) }, source)
         }
     }
@@ -49,6 +54,22 @@ class QueueRefillerTest {
         onResolve()
         sources.toSet()
     }, playback, backgroundScope).also { it.start() }
+
+    @Test
+    fun `a failed batch is not fatal and the next signal is refilled`() =
+        runTest {
+            val source = FakeSource(seed).apply { failures = 1 }
+            refiller(source)
+
+            signals.value = signal(seed, refs(1), nonManualAhead = 2, epoch = 4)
+            runCurrent()
+            assertTrue(playback.appendedBatches.isEmpty())
+
+            signals.value = signal(seed, refs(1, 2), nonManualAhead = 1, epoch = 4)
+            runCurrent()
+
+            assertEquals(1, playback.appendedBatches.size)
+        }
 
     @Test
     fun `it does nothing without a signal and never resolves the sources`() =

@@ -7,7 +7,14 @@ import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-/** What screens use to play music. Nothing outside `:playback` touches Media3. */
+/**
+ * What screens use to play music. Nothing outside `:playback` touches Media3.
+ *
+ * Commands (`play`, `playNext`, `addToQueue`, `appendBatch`, `togglePlayPause`, `next`, `previous`, `seekTo`,
+ * `jumpTo…`, `moveInQueue`, `restoreToQueue`, `setShuffle`, `cycleRepeatMode`) may be called from any thread: the
+ * Media3 adapter hops to the controller's looper (ADR 0083). The members that read the player and return a value
+ * ([removeFromQueue], [position], [queueContent]) must be called on the main thread.
+ */
 interface PlaybackController {
     val state: StateFlow<PlaybackState>
 
@@ -56,7 +63,8 @@ interface PlaybackController {
 
     /**
      * Takes the entry at [index] out of the queue (ADR 0047). `null` when nothing is there or it is not [songId]
-     * any more, so a stale screen removes nothing. Removing the current song moves on to the next one.
+     * any more, so a stale screen removes nothing. Removing the current song moves on to the next one. Main thread
+     * only: it reads the player's position before sending the command.
      */
     fun removeFromQueue(
         index: Int,

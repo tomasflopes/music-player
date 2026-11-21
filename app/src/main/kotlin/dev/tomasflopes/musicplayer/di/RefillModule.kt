@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.di
 
+import android.util.Log
 import dagger.Lazy
 import dagger.Module
 import dagger.Provides
@@ -22,6 +23,7 @@ import dev.tomasflopes.musicplayer.refill.QueueRefiller
 import dev.tomasflopes.musicplayer.refill.RefillLibrary
 import dev.tomasflopes.musicplayer.refill.RefillSource
 import dev.tomasflopes.musicplayer.refill.SoloRefillSource
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +33,9 @@ import javax.inject.Singleton
 
 /**
  * Refill (ADR 0078, 0080): one source per kind of seed in a Hilt set, so a new kind is one more `@IntoSet` line. The
- * refiller runs on its own Default scope for the life of the process and reads its sources lazily.
+ * refiller runs on its own Default scope for the life of the process and reads its sources lazily. A failed refill is
+ * logged and dropped, never fatal: the refiller reports it with its seed and epoch, and the scope's handler is the
+ * last line for anything else.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -70,6 +74,13 @@ object RefillModule {
         signals = playback.state.map { it.refill },
         sources = { sources.get() },
         playback = playback,
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Default +
+                    CoroutineExceptionHandler { _, e -> Log.w(TAG, "Queue refiller failed", e) },
+            ),
+        onFailure = { signal, e -> Log.w(TAG, "Refill failed (seed=${signal.seed}, epoch=${signal.epoch})", e) },
     )
+
+    private const val TAG = "QueueRefiller"
 }
