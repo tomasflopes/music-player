@@ -1,0 +1,199 @@
+{
+ "variant": "ADR 0087 (V4)",
+ "source": "MusicPhoneProfiles.jsonl, 14,165 songs, profiler_version 1",
+ "rule": "pass when each seed keeps at least 9 of its 10 songs",
+ "seeds": [
+  {
+   "seed": "Yung Juse - Paranóia",
+   "guard": true,
+   "top10": [
+    "Joey Bada$$ - Hardknock feat. CJ Fly",
+    "NF - Reality",
+    "Apollo G - Xinti Maguado",
+    "Phoenix RDC - Medo",
+    "Karetus - Maluco feat. Wet Bed Gang",
+    "Plutonio - Última Vez",
+    "Força Suprema - O Que Seria De Mim",
+    "Yung Juse - Obra Prima",
+    "Yung Juse - Mister Farioli Remix feat. Joint One Botje",
+    "Joint One - Money Puxa Money feat. Yung Juse"
+   ]
+  },
+  {
+   "seed": "Valete - Fim Da Ditadura",
+   "guard": false,
+   "top10": [
+    "Conhaque - Big Business feat. Sombra",
+    "Chullage - Knowledge & Kontrol",
+    "Logic - Vinyl Days feat. DJ Premier",
+    "PTM - Jingletm Remix feat. Lon3r Johny Richie Campbell Plutonio ProfJam Van Zee Lhast",
+    "Joey Bada$$ - Waves",
+    "DJ Sims - Como Ganhar Dinheiro feat. Blasph",
+    "Buster - Abram Garrafas",
+    "GSon - I Love You Too feat. Soraia Ramos",
+    "Uno - Acordei Enterrado feat. O Partido DJ Risclado",
+    "Satiro - 283"
+   ]
+  },
+  {
+   "seed": "Plutonio - Tirar Bilhete",
+   "guard": false,
+   "top10": [
+    "Mind Da Gap - Sente",
+    "Maudito - Zimbó",
+    "Dillaz - Cantona",
+    "Zeca - Tá Calado",
+    "Giovanni - Lifestyle",
+    "Chippie - Xiu",
+    "A Boogie Wit Da Hoodie - Need A Best Friend feat. Lil Quee Quando Rondo",
+    "JonCosta - Dr Editro Sr Dreamer feat. JaoWasTaken",
+    "Zara G - P.M.W feat. Dero Vibez Giovanni",
+    "Logic - 44 More"
+   ]
+  },
+  {
+   "seed": "X-Tense - 22-22",
+   "guard": false,
+   "top10": [
+    "DEAU - Simples",
+    "Kappa Jotta - Pétalas feat. Leo2745",
+    "Druh AM - Laia",
+    "Larry June - Left No Evidence feat. Evidence",
+    "Papillon - Sais e Minerais",
+    "Benji Price - Ser Como Sou",
+    "Larry June - Treasure Island",
+    "GriLocks - Eco",
+    "Lil Tjay - Beat The Odds Part 2 feat. Polo G",
+    "Joe Sina - Só Colaboras"
+   ]
+  },
+  {
+   "seed": "X-Tense - EQlibrio",
+   "guard": false,
+   "top10": [
+    "GoodFellas - Partitura",
+    "X-Tense - Hambre",
+    "DEAU - O Próximo",
+    "Deezy - Na Cabeça feat. Ori G",
+    "Orochi - Iluminado feat. Trippie Red",
+    "Plutonio - 28 Fev 2025 (Meo Arena)",
+    "X-Tense - Kela Bullshit",
+    "Regula - Wake'n'Bake feat. Dillaz",
+    "Central Cee - CRG feat. Dave",
+    "Larry June - Organic Respect"
+   ]
+  },
+  {
+   "seed": "6Lack - Disconnect",
+   "guard": false,
+   "top10": [
+    "6Lack - Been A While",
+    "Papillon - Desperta",
+    "Kid Cudi - Cleveland Is The Reason",
+    "Phora - Numb Pt. 2",
+    "J. Cole - Chaining Day",
+    "Harold - Pontas feat. XTinto",
+    "Mac Miller - Friendly Hallucinations",
+    "Larry June - Orange Village feat. Slum Village",
+    "XTinto - Noé",
+    "Holympo - Maçã de Éden"
+   ]
+  },
+  {
+   "seed": "Dillaz - Copo De Balão",
+   "guard": true,
+   "top10": [
+    "Mac Miller - Surf",
+    "NastyFactor - Lama",
+    "Jack Harlow - Living Alone",
+    "Archie - Séu",
+    "Cesar Mc - Melhor Assim feat. Dudu Mc Noventa",
+    "HMSI - Não Dá",
+    "Mac Miller - Hand Me Downs",
+    "Dillaz - Cria Actividade",
+    "Dillaz - Portugal",
+    "Dillaz - Se Olhares Para O Caminho"
+   ]
+  },
+  {
+   "seed": "Smorra - Ruff Baby",
+   "guard": false,
+   "top10": [
+    "DPÊ - Vaivém",
+    "Força Suprema - Áudio Narcóticos",
+    "Harold - Safari",
+    "Smorra - Binde Pa Festa",
+    "GriLocks - Barro Libert'art feat. Glass!c",
+    "Bob Da Rage Sense - O Meu Lugar No Mundo",
+    "Nas - Take It In Blood",
+    "Lil Tjay - Beat the Odds",
+    "Mike El Nite - Type R feat. Benji Price",
+    "Logic - The Adventures of Stoney Bob feat. Kajo Slaydro Big Lenbo"
+   ]
+  },
+  {
+   "seed": "Sam The Kid - Homem Do Meio feat. Regula",
+   "guard": false,
+   "top10": [
+    "Piruka - Há De Chegar O Dia",
+    "Kanye West - Big Brother",
+    "DEAU - Traça A Linha",
+    "Russ - The Game",
+    "Kanye West - Life Of The Party",
+    "Nerve - Pobre De Mim",
+    "Burna Boy - Monsters You Made",
+    "X-Tense - Neon",
+    "HipnoD - Bravos",
+    "HipnoD - Bravos"
+   ]
+  },
+  {
+   "seed": "Xeg - Caminho Inverso",
+   "guard": false,
+   "top10": [
+    "Sad - i miss the old u",
+    "Nas - I Gave You Power",
+    "Chullage - Princípio Do Meu Fim",
+    "Pop Smoke - Hawk Em",
+    "Chippie - Manter Alone",
+    "Valete - Os Meus.Mp3",
+    "Tilt - Constraste",
+    "Kid Cudi - Ofter I Have These Dreamz feat. DJ Drama",
+    "Jackpot BCV - Njali Yange",
+    "ATJ - Grind"
+   ]
+  },
+  {
+   "seed": "Lhast - Guava",
+   "guard": false,
+   "top10": [
+    "XXXTentacion - Moonlight",
+    "Beatzao - Dreams Money Can Buy",
+    "Dez - Sei Lá feat. XTinto",
+    "Mike El Nite - A Justa",
+    "Spliff - Tou Up",
+    "Teto - Leite Derramado",
+    "YoungBoy Never Broke Again - Still Waiting",
+    "Travis Scott - Astrothunder",
+    "T-Rex - Donde",
+    "Buh Buh - Tou Na Mesma"
+   ]
+  },
+  {
+   "seed": "Ed - Tua Falta feat. Lhast",
+   "guard": false,
+   "top10": [
+    "EMMVR - Eu Vou",
+    "2nd Mind - Faz Por Ti",
+    "In3gah - Fala Comigo",
+    "Drake - Members Only feat. PARTYNEXTDOOR",
+    "ATJ - Novidades",
+    "Kendrick Lamar - Complexion (A Zulu Love)",
+    "Post Malone - Cooped Up feat. Roddy Ricch",
+    "Leo2745 - Ela Queria Mais",
+    "A Boogie Wit Da Hoodie - Friends With Benefits",
+    "Cálculo - Sem Ti feat. B-Quest"
+   ]
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 # 0068: Sound vectors are five normalised, weighted features under Euclidean distance
 
-Date: 2026-11-15 · Status: proposed · Extends 0065; replaces the ranking idea of 0063
+Date: 2026-11-15 · Status: superseded by 0087 · Extends 0065; replaces the ranking idea of 0063
 
 **Context.** ADR 0065 stores raw features and leaves normalising to phase 4. Discover v1 needs one number per pair of songs that says how alike they sound. Owner decision from the 2026-11-15 brainstorm; no profiler change, so no new Mac run.
 
