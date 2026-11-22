@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
+import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
 import dev.tomasflopes.musicplayer.ui.theme.Spacing
 import javax.inject.Inject
 import kotlin.math.roundToInt
@@ -36,7 +38,7 @@ class CrossfadeSettingsEntry
         override fun Content() {
             val viewModel: CrossfadeSettingsViewModel = hiltViewModel()
             val settings by viewModel.state.collectAsStateWithLifecycle()
-            CrossfadeRow(settings, viewModel::onEnabled, viewModel::onDurationSeconds)
+            CrossfadeRow(settings, viewModel::onEnabled, viewModel::onDurationSeconds, viewModel::onStyle)
         }
 
         private companion object {
@@ -50,6 +52,7 @@ private fun CrossfadeRow(
     settings: CrossfadeSettings,
     onEnabled: (Boolean) -> Unit,
     onDurationSeconds: (Int) -> Unit,
+    onStyle: (TransitionStyle) -> Unit,
 ) {
     val savedSeconds = settings.durationMs / MS_PER_SECOND
     var dragging by remember(savedSeconds) { mutableFloatStateOf(savedSeconds) }
@@ -79,6 +82,27 @@ private fun CrossfadeRow(
                 valueRange = secondsRange,
                 steps = (secondsRange.endInclusive - secondsRange.start).roundToInt() - 1,
             )
+            StyleChips(settings.style, onStyle)
         }
+    }
+}
+
+/** The style of a transition: the phase 6 crossfade, or beat-matched DJ mixes that fall back to the crossfade. */
+@Composable
+private fun StyleChips(
+    style: TransitionStyle,
+    onStyle: (TransitionStyle) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        FilterChip(
+            selected = style == TransitionStyle.CROSSFADE,
+            onClick = { onStyle(TransitionStyle.CROSSFADE) },
+            label = { Text("Crossfade") },
+        )
+        FilterChip(
+            selected = style == TransitionStyle.DJ_MIX,
+            onClick = { onStyle(TransitionStyle.DJ_MIX) },
+            label = { Text("DJ mix") },
+        )
     }
 }

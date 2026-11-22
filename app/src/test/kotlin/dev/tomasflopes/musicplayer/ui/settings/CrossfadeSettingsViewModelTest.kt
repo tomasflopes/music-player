@@ -1,6 +1,7 @@
 package dev.tomasflopes.musicplayer.ui.settings
 
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
+import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
 import dev.tomasflopes.musicplayer.fakes.FakeSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -64,5 +65,21 @@ class CrossfadeSettingsViewModelTest {
 
             viewModel.onDurationSeconds(0)
             assertEquals(1_000L, settings.crossfadeSettings.value.durationMs)
+        }
+
+    @Test
+    fun `the style is Crossfade until chosen and the choice keeps the other settings`() =
+        runTest {
+            val viewModel = CrossfadeSettingsViewModel(settings)
+            assertEquals(TransitionStyle.CROSSFADE, viewModel.state.value.style)
+            viewModel.onEnabled(true)
+            viewModel.onDurationSeconds(6)
+
+            viewModel.onStyle(TransitionStyle.DJ_MIX)
+
+            assertEquals(
+                CrossfadeSettings(enabled = true, durationMs = 6_000, style = TransitionStyle.DJ_MIX),
+                settings.crossfadeSettings.value,
+            )
         }
 }
