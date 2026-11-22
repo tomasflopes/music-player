@@ -1,21 +1,70 @@
 #!/bin/sh
-# Parity and review runs of ADR 0073 / 0068. The first two seeds are compared with the reference lists (top 5, same
-# set, near ties may swap); the rest are printed with their top 10 for the owner. A seed that matches several songs
-# prints the list of matches instead; rerun it with a longer part of the path.
+# Parity of ADR 0087 (sound vectors v2 and the outlier guard): runs `analyser similar` with k=10 for every seed of
+# testdata/similarity/v4-reference-lists.json (it holds "Yung Juse - Paranóia" first) and prints PASS or FAIL per
+# seed. A seed passes when at least 9 of its 10 reference songs are in the list; a FAIL prints the songs that
+# differ. Kotlin uses float32 and the reference numpy float64 with a random 1,500-song sample for the guard
+# threshold, so a near tie or a borderline guard seed can differ by a song or two: report it, do not tune weights.
+# A seed that matches several songs prints the matches and counts as FAIL; give it a longer part of the path in
+# LONGER below (the reference file keeps the plain names).
 # usage: scripts/similar-parity [profiles.jsonl]      (default ~/MusicPhoneProfiles.jsonl)
 set -u
 cd "$(dirname "$0")/.."
 PROFILES="${1:-$HOME/MusicPhoneProfiles.jsonl}"
+REFERENCE=testdata/similarity/v4-reference-lists.json
 ./gradlew -q :tools:analyser:installDist || exit 1
 BIN=tools/analyser/build/install/analyser/bin/analyser
-run() {
-  echo "=== $1 (k=$2)"
-  "$BIN" similar --profiles "$PROFILES" --seed "$1" --k "$2" 2>&1
-  echo
-}
-run "HH/Valete/Valete - Fim Da Ditadura" 5
-run "HH/Plutonio/Plutonio - Tirar Bilhete" 5
-for seed in "X-Tense - 22-22" "X-Tense - EQlibrio" "6Lack - Disconnect" "HH/Dillaz/Dillaz - Copo De Balão" \
-  "Smorra - Ruff Baby" "Sam The Kid - Homem Do Meio" "Xeg - Caminho Inverso" "Lhast - Guava" "Ed - Tua Falta"; do
-  run "$seed" 10
-done
+exec python3 -I - "$BIN" "$PROFILES" "$REFERENCE" <<'PY'
+import json
+import re
+import subprocess
+import sys
+import unicodedata
+
+binary, profiles, reference = sys.argv[1:4]
+K = 10
+MIN_SHARED = 9
+# Seeds that match two files (a copy in another folder): the part of the path that picks the right one.
+LONGER = {"Dillaz - Copo De Balão": "HH/Dillaz/Dillaz - Copo De Balão"}
+ROW = re.compile(r"^\s*(\d+)\s{2}d=\S+\s{2}(?:-?\d+\.\d+ )*-?\d+\.\d+\s{2}(.+)$")
+
+
+def key(path):
+    name = path.rsplit("/", 1)[-1]
+    if name.lower().endswith(".mp3"):
+        name = name[:-4]
+    return unicodedata.normalize("NFC", name).lower()
+
+
+failed = 0
+for entry in json.load(open(reference, encoding="utf-8"))["seeds"]:
+    seed = entry["seed"]
+    run = subprocess.run(
+        [binary, "similar", "--profiles", profiles, "--seed", LONGER.get(seed, seed), "--k", str(K)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    found = []
+    for line in run.stdout.splitlines():
+        match = ROW.match(line)
+        if match and int(match.group(1)) > 0:
+            found.append(match.group(2))
+    if run.returncode != 0 or not found:
+        failed += 1
+        print("FAIL  0/%d  %s" % (K, seed))
+        print("      " + (run.stdout + run.stderr).strip().replace("\n", "\n      "))
+        continue
+    wanted = {key(name): name for name in entry["top10"]}
+    got = {key(path): path for path in found}
+    shared = len(wanted.keys() & got.keys())
+    verdict = "PASS" if shared >= MIN_SHARED else "FAIL"
+    failed += verdict == "FAIL"
+    print("%s  %d/%d  %s%s" % (verdict, shared, K, seed, "  (guard seed)" if entry.get("guard") else ""))
+    if shared < K:
+        for k in sorted(wanted.keys() - got.keys()):
+            print("      only in reference: " + wanted[k])
+        for k in sorted(got.keys() - wanted.keys()):
+            print("      only in this run:  " + got[k])
+print("%d seed(s) under %d of %d" % (failed, MIN_SHARED, K))
+sys.exit(1 if failed else 0)
+PY

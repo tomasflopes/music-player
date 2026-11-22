@@ -19,15 +19,19 @@ object SoundNeighbours {
 
     /**
      * The [k] songs closest to [row], nearest first, without any song whose [fileKeyOfSong] equals the seed's. A
-     * seed with no key leaves nothing out.
+     * seed with no key leaves nothing out. [artistsOfSong] feeds the outlier [guard] (ADR 0087): an isolated seed
+     * gets a share of its slots from songs of its own artist; without artists the list is plain sound.
      */
     fun nearest(
         space: SoundSpace,
         row: Int,
         k: Int,
+        artistsOfSong: (Long) -> SongArtistKeys? = { null },
+        guard: IsolationGuard = IsolationGuard(),
         fileKeyOfSong: (Long) -> String?,
     ): List<Neighbour> {
         val seedKey = fileKeyOfSong(space.songIds[row])
-        return space.nearest(row, k) { seedKey == null || fileKeyOfSong(space.songIds[it]) != seedKey }
+        val accept = { other: Int -> seedKey == null || fileKeyOfSong(space.songIds[other]) != seedKey }
+        return guard.blend(space, row, k, accept, artistsOfSong)
     }
 }

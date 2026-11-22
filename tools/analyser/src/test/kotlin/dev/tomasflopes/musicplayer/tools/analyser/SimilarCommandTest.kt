@@ -4,6 +4,8 @@ import dev.tomasflopes.musicplayer.core.analysis.ExportHeader
 import dev.tomasflopes.musicplayer.core.analysis.ExportRecord
 import dev.tomasflopes.musicplayer.core.analysis.ProfileExportCodec
 import dev.tomasflopes.musicplayer.core.analysis.SoundProfile
+import dev.tomasflopes.musicplayer.core.model.config.IsolationGuardConfig
+import dev.tomasflopes.musicplayer.core.model.sound.IsolationGuard
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -103,5 +105,35 @@ class SimilarCommandTest {
         assertThrows(UsageException::class.java) {
             SimilarCommand(PrintStream(ByteArrayOutputStream())).run(SimilarOptions(file, "x", 2))
         }
+    }
+
+    @Test
+    fun `an isolated seed gets 3 of its 10 slots from its own and featured artists, read from the file names`() {
+        // Centroids stand for positions on a line: the seed is alone at the low end, a dense group of 20 songs is
+        // the nearest sound, and the seed's artist is farther on (a guest song featuring it, then its own songs).
+        val group = (0 until 20).map { song("HH/C/Other - c${it + 1}.mp3", 10f + it * 0.1f) }
+        val own =
+            listOf(
+                song("HH/Z/Guest - Duet feat. Seed Artist.mp3", 30f),
+                song("HH/Y/Seed Artist - Own1.mp3", 31f),
+                song("HH/Y/Seed Artist - Own2.mp3", 32f),
+                song("HH/Y/Seed Artist - Own3.mp3", 33f),
+                song("HH/Y/Seed Artist - Own4.mp3", 34f),
+            )
+        val records = group + song("HH/Y/Seed Artist - Hit.mp3", 0f) + own
+        val guard = IsolationGuard(IsolationGuardConfig(rank = 2))
+
+        val text = SimilarCommand.render(records, options("Hit", k = 10), guard = guard)
+
+        val names =
+            text
+                .lines()
+                .filter { it.contains("d=") }
+                .drop(1)
+                .map { it.substringAfterLast('/') }
+        val expected =
+            (1..7).map { "Other - c$it.mp3" } +
+                listOf("Guest - Duet feat. Seed Artist.mp3", "Seed Artist - Own1.mp3", "Seed Artist - Own2.mp3")
+        assertEquals(expected, names)
     }
 }

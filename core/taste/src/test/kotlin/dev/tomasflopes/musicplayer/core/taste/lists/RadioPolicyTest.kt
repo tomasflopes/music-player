@@ -3,6 +3,8 @@ package dev.tomasflopes.musicplayer.core.taste.lists
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.core.model.config.IsolationGuardConfig
+import dev.tomasflopes.musicplayer.core.model.sound.IsolationGuard
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.RadioConfig
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -35,8 +37,9 @@ class RadioPolicyTest {
         recent: Set<Long> = emptySet(),
         config: RadioConfig = RadioConfig(),
         random: Int = 1,
+        guard: IsolationGuard = IsolationGuard(),
     ): List<Song> =
-        RadioPolicy(config).pick(seed, library, space, recent.mapTo(HashSet()) { SongId(it) }, Random(random))
+        RadioPolicy(config, guard).pick(seed, library, space, recent.mapTo(HashSet()) { SongId(it) }, Random(random))
 
     private fun List<Song>.ids() = map { it.id.value }
 
@@ -366,5 +369,37 @@ class RadioPolicyTest {
         val library = (1L..10L).map { by(it) }
 
         assertTrue(refill(library, ramp(5), seed = library[8]).isEmpty())
+    }
+
+    // ADR 0087: song 1 sits alone at 0, songs 2..61 form a dense group from 10, and songs 100 and 101 (the seed's
+    // artist) sit far away at 40 and 41. The guard uses rank 2 here so the small space is enough.
+    private val outlierLibrary =
+        listOf(by(1)) + (2L..61L).map { by(it) } + listOf(by(100, artist = 1), by(101, artist = 1))
+    private val outlierSpace =
+        line(
+            1L to 0f,
+            *(2L..61L).map { it to 10f + (it - 2) * 0.1f }.toTypedArray(),
+            100L to 40f,
+            101L to 41f,
+        )
+
+    @Test
+    fun `an isolated seed's nearest part takes its own artist's songs ahead of farther sound neighbours`() {
+        val guard = IsolationGuard(IsolationGuardConfig(rank = 2))
+
+        val batch = pick(outlierLibrary, outlierSpace, config = nearestOnly, guard = guard)
+
+        // 24 nearest slots, 7 of them for the seed's artist; the cap (3 per artist, the seed counts) leaves 2 own
+        // songs, so 22 sound songs (2..23) and then the two own songs, all in order of distance.
+        assertEquals(listOf(1L) + (2L..23L).toList() + listOf(100L, 101L), batch.ids())
+    }
+
+    @Test
+    fun `a seed that is not isolated gets the plain nearest part`() {
+        val never = IsolationGuard(IsolationGuardConfig(rank = 2, thresholdPercentile = 100.0))
+
+        val batch = pick(outlierLibrary, outlierSpace, config = nearestOnly, guard = never)
+
+        assertEquals((1L..25L).toList(), batch.ids())
     }
 }

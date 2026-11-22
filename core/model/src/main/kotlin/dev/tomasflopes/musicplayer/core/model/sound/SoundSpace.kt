@@ -1,6 +1,7 @@
 package dev.tomasflopes.musicplayer.core.model.sound
 
 import java.util.PriorityQueue
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.sqrt
 
 /** One result of a nearest-song search: the row in the space, the song, and its distance to the query. */
@@ -32,6 +33,15 @@ class SoundSpace(
     private val rowOfSong: Map<Long, Int> by lazy(LazyThreadSafetyMode.PUBLICATION) {
         HashMap<Long, Int>(size * 2).also { map -> songIds.forEachIndexed { row, id -> map[id] = row } }
     }
+
+    private val memos = ConcurrentHashMap<Any, Any>()
+
+    /** Something worked out once for this space and [key], for example the outlier threshold (ADR 0087). */
+    @Suppress("UNCHECKED_CAST")
+    internal fun <T : Any> memo(
+        key: Any,
+        compute: () -> T,
+    ): T = memos.computeIfAbsent(key) { compute() } as T
 
     /** The row of [songId], or -1 when the space has no point for it. */
     fun indexOf(songId: Long): Int = rowOfSong[songId] ?: -1

@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.core.model.sound
 
+import dev.tomasflopes.musicplayer.core.model.config.IsolationGuardConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -33,5 +34,27 @@ class SoundNeighboursTest {
         val found = SoundNeighbours.nearest(space, row = 0, k = 5) { null }
 
         assertEquals(listOf(2L), found.map { it.songId })
+    }
+
+    @Test
+    fun `without artists the guard changes nothing, however isolated the seed is`() {
+        val space = SoundSpace(longArrayOf(1, 2, 3), 1, floatArrayOf(0f, 5f, 100f))
+
+        val found = SoundNeighbours.nearest(space, row = 0, k = 2) { null }
+
+        assertEquals(listOf(2L, 3L), found.map { it.songId })
+    }
+
+    @Test
+    fun `an isolated seed borrows from its artist through the artistsOfSong lambda`() {
+        // Songs 2..4 are a dense group, the seed (1) is far from all, and song 5 is by the seed's artist and farther.
+        val ids = longArrayOf(1, 2, 3, 4, 5)
+        val space = SoundSpace(ids, 1, floatArrayOf(0f, 10f, 10.1f, 10.2f, 30f))
+        val artists = { id: Long -> SongArtistKeys(if (id == 1L || id == 5L) "seed" else "other") }
+        val guard = IsolationGuard(IsolationGuardConfig(rank = 1, thresholdPercentile = 70.0, artistShare = 0.5))
+
+        val found = SoundNeighbours.nearest(space, 0, 2, artists, guard) { null }
+
+        assertEquals(listOf(2L, 5L), found.map { it.songId })
     }
 }

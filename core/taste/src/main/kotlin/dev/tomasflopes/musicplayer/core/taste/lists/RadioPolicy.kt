@@ -3,6 +3,7 @@ package dev.tomasflopes.musicplayer.core.taste.lists
 import dev.tomasflopes.musicplayer.core.model.ArtistId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
+import dev.tomasflopes.musicplayer.core.model.sound.IsolationGuard
 import dev.tomasflopes.musicplayer.core.model.sound.SoundNeighbours
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.RadioConfig
@@ -15,7 +16,9 @@ import kotlin.random.Random
  * 1. Candidates are the songs of the space that are in the library, minus the seed and every copy of it: the same
  *    file name ([SoundNeighbours.fileKey], ADR 0073) or the same duplicate key (ADR 0070).
  * 2. The nearest part: candidates by distance to the seed's own point, plus [RadioConfig.recentPenalty] when the song
- *    is in `recentlyPlayed`. A recent song ranks later but stays.
+ *    is in `recentlyPlayed`. A recent song ranks later but stays. When the seed is isolated in the sound space
+ *    ([IsolationGuard], ADR 0087) a share of these slots goes first to the nearest songs of the seed's main artist
+ *    (song rows only, so featured artists are not seen here); the cap and the gap below still apply.
  * 3. The exploration part: the [RadioConfig.explorationBand] nearest candidates (same ranking as step 2) in a seeded
  *    random order (a hash of one draw from [Random] and the song id, as in Discover), so one seed gives one batch.
  *    Nothing outside the band is ever drawn (ADR 0075).
@@ -29,6 +32,7 @@ import kotlin.random.Random
  */
 class RadioPolicy(
     config: RadioConfig = RadioConfig(),
+    private val guard: IsolationGuard = IsolationGuard(),
 ) {
     private val builder = RadioBatchBuilder(config)
 
@@ -48,7 +52,8 @@ class RadioPolicy(
         if (seedRow < 0) return emptyList()
         val candidates = candidates(seed, library, space)
         val distanceOf = { candidate: Candidate -> space.distance(seedRow, candidate.row) }
-        return builder.build(listOf(seed), candidates, distanceOf, recentlyPlayed, random)
+        val ownArtist = ownArtist(seed, space, seedRow)
+        return builder.build(listOf(seed), candidates, distanceOf, recentlyPlayed, random, ownArtist = ownArtist)
     }
 
     /**
@@ -71,8 +76,30 @@ class RadioPolicy(
         if (seedRow < 0) return emptyList()
         val candidates = candidates(seed, library, space)
         val distanceOf = { candidate: Candidate -> space.distance(seedRow, candidate.row) }
-        return builder.build(emptyList(), candidates, distanceOf, recentlyPlayed, random, exclude, precedingArtists)
+        val ownArtist = ownArtist(seed, space, seedRow)
+        return builder.build(
+            emptyList(),
+            candidates,
+            distanceOf,
+            recentlyPlayed,
+            random,
+            exclude,
+            precedingArtists,
+            ownArtist,
+        )
     }
+
+    /** Set only when [seed] is isolated in [space]: its own artist's songs get a share of the nearest slots. */
+    private fun ownArtist(
+        seed: Song,
+        space: SoundSpace,
+        seedRow: Int,
+    ): OwnArtistPart? =
+        if (guard.isIsolated(space, seedRow)) {
+            OwnArtistPart(guard::artistSlots) { it.song.artistId == seed.artistId }
+        } else {
+            null
+        }
 
     private fun candidates(
         seed: Song,

@@ -6,7 +6,10 @@ import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import kotlinx.coroutines.runBlocking
 
-/** A song as the contract seeds it: five feature values, and the three ways a profile can be out of date. */
+/**
+ * A song as the contract seeds it: the feature values it varies (tempo and chroma stay 0), and the three ways a
+ * profile can be out of date.
+ */
 class SoundFixtureSong(
     val key: String,
     val centroid: Float,

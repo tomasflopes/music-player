@@ -3,7 +3,7 @@ package dev.tomasflopes.musicplayer.tools.analyser
 import dev.tomasflopes.musicplayer.core.analysis.SoundVectorizer
 import java.util.Locale
 
-/** One neighbour of the seed: its [path], distance and the five weighted, normalised values. */
+/** One neighbour of the seed: its [path], distance and the weighted, normalised values, one per dimension. */
 class SimilarRow(
     val path: String,
     val distance: Double,

@@ -22,6 +22,7 @@ class SoundVectorizerTest {
         tempo: Float = 120f,
         zeroCrossings: Float = 0.1f,
         chromaShift: Float = 0f,
+        chroma: FloatArray? = null,
     ): RawSoundProfile {
         val fixed = FloatArray(SoundProfile.FIXED_SIZE)
         fixed[SoundProfile.TEMPO] = tempo
@@ -32,11 +33,13 @@ class SoundVectorizerTest {
         fixed[SoundProfile.ONSET_DENSITY] = onset
         fixed[SoundProfile.BEAT_STRENGTH] = beat
         fixed[SoundProfile.ZERO_CROSSING_RATE] = zeroCrossings
-        for (bin in 0 until SoundProfile.CHROMA_BINS) fixed[SoundProfile.CHROMA_FIRST + bin] = chromaShift + bin
+        for (bin in 0 until SoundProfile.CHROMA_BINS) {
+            fixed[SoundProfile.CHROMA_FIRST + bin] = chroma?.get(bin) ?: (chromaShift + bin)
+        }
         return RawSoundProfile(id, fixed)
     }
 
-    /** Songs 0..20 whose [pick]ed feature is the song number, so p5 = 1 and p95 = 19 (numpy's linear rule). */
+    /** Songs 0..20 whose feature is the song number, so p1 = 0.2 and p99 = 19.8 (numpy's linear rule). */
     private fun ramp(set: (Int, SoundProfileBuilder) -> Unit): List<RawSoundProfile> =
         (0..20).map { buildRamp(it, set) }
 
@@ -47,6 +50,8 @@ class SoundVectorizerTest {
         var beat: Float = 0.5f,
         var loudnessVariation: Float = 0.05f,
         var meanLoudness: Float = 0.1f,
+        var tempo: Float = 120f,
+        var chroma: FloatArray? = null,
     )
 
     private fun buildRamp(
@@ -63,6 +68,8 @@ class SoundVectorizerTest {
             beat = b.beat,
             loudnessVariation = b.loudnessVariation,
             meanLoudness = b.meanLoudness,
+            tempo = b.tempo,
+            chroma = b.chroma,
         )
     }
 
@@ -72,11 +79,13 @@ class SoundVectorizerTest {
     ): Float = values[indexOf(songId) * dim + dimension]
 
     @Test
-    fun `the space has five dimensions and rows in ascending song id`() {
+    fun `the space has seven dimensions and rows in ascending song id`() {
         val space = vectorizer.vectorize(listOf(raw(30), raw(10), raw(20)))
 
-        assertEquals(5, space.dim)
+        assertEquals(7, space.dim)
         assertEquals(SoundVectorizer.DIM, space.dim)
+        assertEquals(7, SoundVectorizer.NAMES.size)
+        assertEquals(listOf("flatness", "tempo"), SoundVectorizer.NAMES.takeLast(2))
         assertArrayEquals(longArrayOf(10, 20, 30), space.songIds)
     }
 
@@ -85,30 +94,30 @@ class SoundVectorizerTest {
         val space = vectorizer.vectorize(emptyList())
 
         assertEquals(0, space.size)
-        assertEquals(5, space.dim)
+        assertEquals(7, space.dim)
     }
 
     @Test
-    fun `values are clipped at p5 and p95 and scaled to 0 to 1`() {
-        // Centroid 0..20 over 21 songs: p5 is 1, p95 is 19.
+    fun `values are clipped at p1 and p99 and scaled to 0 to 1`() {
+        // Centroid 0..20 over 21 songs: p1 is 0.2, p99 is 19.8.
         val space = vectorizer.vectorize(ramp { i, b -> b.centroid = i.toFloat() })
 
-        assertEquals(0f, space.value(1, 0), 1e-6f) // centroid 0, below p5
-        assertEquals(0f, space.value(2, 0), 1e-6f) // centroid 1, at p5
+        assertEquals(0f, space.value(1, 0), 1e-6f) // centroid 0, below p1
+        assertEquals(0.8f / 19.6f, space.value(2, 0), 1e-6f) // centroid 1, just above p1
         assertEquals(0.5f, space.value(11, 0), 1e-6f) // centroid 10
-        assertEquals(1f, space.value(20, 0), 1e-6f) // centroid 19, at p95
-        assertEquals(1f, space.value(21, 0), 1e-6f) // centroid 20, above p95
+        assertEquals(18.8f / 19.6f, space.value(20, 0), 1e-6f) // centroid 19, just below p99
+        assertEquals(1f, space.value(21, 0), 1e-6f) // centroid 20, above p99
     }
 
     @Test
     fun `percentiles interpolate linearly like numpy`() {
-        // Four values 0, 10, 20, 30: p5 sits at index 0.15 -> 1.5, p95 at index 2.85 -> 28.5.
+        // Four values 0, 10, 20, 30: p1 sits at index 0.03 -> 0.3, p99 at index 2.97 -> 29.7.
         val profiles = listOf(0f, 10f, 20f, 30f).mapIndexed { i, c -> raw((i + 1).toLong(), centroid = c) }
 
         val space = vectorizer.vectorize(profiles)
 
-        assertEquals((10f - 1.5f) / 27f, space.value(2, 0), 1e-6f)
-        assertEquals((20f - 1.5f) / 27f, space.value(3, 0), 1e-6f)
+        assertEquals((10f - 0.3f) / 29.4f, space.value(2, 0), 1e-6f)
+        assertEquals((20f - 0.3f) / 29.4f, space.value(3, 0), 1e-6f)
     }
 
     @Test
@@ -122,13 +131,18 @@ class SoundVectorizerTest {
                     b.beat = i.toFloat()
                     b.loudnessVariation = i * 0.1f
                     b.meanLoudness = 0.5f
+                    b.chroma = spikedChroma(spike = (20 - i) * 5f) // flatter with every song, uniform at the last
+                    b.tempo = Math.pow(2.0, i.toDouble()).toFloat()
                 },
             )
 
-        // The last song is above p95 in every feature, so each value is its weight: [1.0, 1.0, 0.5, 0.8, 0.8].
+        // The last song is above p99 in every feature, so each value is its weight.
         val top = space.vector(space.indexOf(21))
-        assertArrayEquals(floatArrayOf(1.0f, 1.0f, 0.5f, 0.8f, 0.8f), top, 1e-6f)
+        assertArrayEquals(floatArrayOf(1.0f, 1.0f, 0.5f, 0.8f, 0.8f, 0.6f, 0.4f), top, 1e-6f)
     }
+
+    /** Eleven bins of 1 and bin 0 of 1 + [spike]: spike 0 is uniform, a large spike is nearly one bin. */
+    private fun spikedChroma(spike: Float) = FloatArray(SoundProfile.CHROMA_BINS) { if (it == 0) 1f + spike else 1f }
 
     @Test
     fun `beat strength takes its square root after it is normalised`() {
@@ -153,7 +167,7 @@ class SoundVectorizerTest {
     }
 
     @Test
-    fun `tempo, zero crossings, chroma and the loudness level do not change the vector`() {
+    fun `zero crossings, the loudness level and the music end do not change the vector`() {
         val base =
             ramp { i, b ->
                 b.centroid = i.toFloat()
@@ -163,9 +177,7 @@ class SoundVectorizerTest {
         val changed =
             base.map {
                 val fixed = it.fixed.copyOf()
-                fixed[SoundProfile.TEMPO] = 77f + it.songId
                 fixed[SoundProfile.ZERO_CROSSING_RATE] = 0.9f / it.songId
-                fixed[SoundProfile.CHROMA_FIRST + 3] = 5f
                 fixed[SoundProfile.MUSIC_END] = 999f
                 // Twice as loud with twice the variation is the same relative dynamics.
                 fixed[SoundProfile.MEAN_LOUDNESS] *= 2
@@ -174,6 +186,45 @@ class SoundVectorizerTest {
             }
 
         assertArrayEquals(vectorizer.vectorize(base).values, vectorizer.vectorize(changed).values, 1e-6f)
+    }
+
+    @Test
+    fun `tempo is the log2 of the stored tempo, scaled like the others`() {
+        // Tempos 1, 2, 4, ... 2^20 give log2 0..20; song 11 (2^10) is 10, so (10 - 0.2) / 19.6 = 0.5, weight 0.4.
+        val space = vectorizer.vectorize(ramp { i, b -> b.tempo = Math.pow(2.0, i.toDouble()).toFloat() })
+
+        assertEquals(0.5f * 0.4f, space.value(11, 6), 1e-6f)
+    }
+
+    @Test
+    fun `a tempo below 1 counts as 1`() {
+        val space =
+            vectorizer.vectorize(
+                listOf(raw(1, tempo = 0f), raw(2, tempo = 1f), raw(3, tempo = -5f), raw(4, tempo = 8f)),
+            )
+
+        assertEquals(space.value(2, 6), space.value(1, 6), 0f)
+        assertEquals(space.value(2, 6), space.value(3, 6), 0f)
+        assertTrue(space.value(4, 6) > space.value(2, 6))
+    }
+
+    @Test
+    fun `tonal flatness is 1 for uniform chroma, 0 for a single bin and 0 for zero chroma`() {
+        fun flatness(chroma: FloatArray) = SoundVectorizer.tonalFlatness(raw(1, chroma = chroma).fixed)
+
+        assertEquals(1.0, flatness(FloatArray(SoundProfile.CHROMA_BINS) { 0.7f }), 1e-9)
+        assertEquals(0.0, flatness(FloatArray(SoundProfile.CHROMA_BINS) { if (it == 4) 3f else 0f }), 1e-9)
+        assertEquals(0.0, flatness(FloatArray(SoundProfile.CHROMA_BINS)), 0.0)
+    }
+
+    @Test
+    fun `tonal flatness is the entropy of the normalised chroma over ln 12`() {
+        // Two equal bins: entropy ln 2, so flatness ln 2 / ln 12.
+        val chroma = FloatArray(SoundProfile.CHROMA_BINS) { if (it < 2) 5f else 0f }
+
+        val flatness = SoundVectorizer.tonalFlatness(raw(1, chroma = chroma).fixed)
+
+        assertEquals(Math.log(2.0) / Math.log(12.0), flatness, 1e-9)
     }
 
     @Test
@@ -211,11 +262,22 @@ class SoundVectorizerTest {
     @Test
     fun `the config rejects numbers that cannot work`() {
         assertThrows(IllegalArgumentException::class.java) {
-            SoundVectorizerConfig(lowPercentile = 95.0, highPercentile = 5.0)
+            SoundVectorizerConfig(lowPercentile = 99.0, highPercentile = 1.0)
         }
         assertThrows(IllegalArgumentException::class.java) { SoundVectorizerConfig(lowPercentile = -1.0) }
         assertThrows(IllegalArgumentException::class.java) { SoundVectorizerConfig(highPercentile = 101.0) }
         assertThrows(IllegalArgumentException::class.java) { SoundVectorizerConfig(onsetWeight = -0.1) }
         assertThrows(IllegalArgumentException::class.java) { SoundVectorizerConfig(bassWeight = Double.NaN) }
+        assertThrows(IllegalArgumentException::class.java) { SoundVectorizerConfig(tempoWeight = -1.0) }
+        assertThrows(IllegalArgumentException::class.java) { SoundVectorizerConfig(flatnessWeight = Double.NaN) }
+    }
+
+    @Test
+    fun `the default config is p1 to p99 with the ADR 0087 weights`() {
+        val config = SoundVectorizerConfig()
+
+        assertEquals(1.0, config.lowPercentile, 0.0)
+        assertEquals(99.0, config.highPercentile, 0.0)
+        assertEquals(listOf(1.0, 1.0, 0.5, 0.8, 0.8, 0.6, 0.4), config.weights())
     }
 }

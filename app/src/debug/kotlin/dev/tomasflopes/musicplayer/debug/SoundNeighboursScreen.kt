@@ -22,7 +22,7 @@ import dev.tomasflopes.musicplayer.core.analysis.SoundVectorizer
 import dev.tomasflopes.musicplayer.core.model.Song
 import java.util.Locale
 
-/** Debug → Sound neighbours: a seed from search, its 20 nearest songs with distance and five values (ADR 0073). */
+/** Debug → Sound neighbours: a seed from search, its 20 nearest songs with distance and values (ADR 0073, 0087). */
 @Composable
 fun SoundNeighboursScreen(viewModel: SoundNeighboursViewModel) {
     val state by viewModel.state.collectAsState()

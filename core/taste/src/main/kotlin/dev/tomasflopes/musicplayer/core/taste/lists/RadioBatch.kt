@@ -17,6 +17,15 @@ internal class Candidate(
 )
 
 /**
+ * The seed's own artist inside the nearest part (ADR 0087): [slots] says how many of the nearest slots go to songs
+ * that [matches], given the size of the nearest part.
+ */
+internal class OwnArtistPart(
+    val slots: (Int) -> Int,
+    val matches: (Candidate) -> Boolean,
+)
+
+/**
  * Turns candidates into one batch. [initial] songs come first and count towards the batch size and the per-artist cap
  * (the seed song of a song radio; empty for an artist radio).
  */
@@ -29,6 +38,7 @@ internal class RadioBatchBuilder(
      * @param exclude songs already queued (ADR 0078): neither they nor any copy of them (same duplicate key) enter the
      *   batch, and they do not count towards the per-artist cap.
      * @param precedingArtists main artists of the songs that play right before the batch, for the artist gap.
+     * @param ownArtist set for an isolated seed: some nearest slots go to the nearest songs of its own artist.
      */
     fun build(
         initial: List<Song>,
@@ -38,18 +48,34 @@ internal class RadioBatchBuilder(
         random: Random,
         exclude: Collection<Song> = emptyList(),
         precedingArtists: List<ArtistId> = emptyList(),
+        ownArtist: OwnArtistPart? = null,
     ): List<Song> {
         val wanted = config.batchSize - initial.size
         val explorationWanted = (wanted * config.explorationShare).roundToInt().coerceIn(0, wanted)
         val picker = BatchPicker(initial, config.maxPerArtist, exclude)
 
         val ranked = rank(candidates, distanceOf, recentlyPlayed)
-        val nearest = picker.take(ranked, wanted - explorationWanted)
+        val nearest = nearestPart(picker, ranked, wanted - explorationWanted, ownArtist)
         val salt = random.nextLong()
         val band = ranked.take(config.explorationBand).sortedBy { seededUnit(salt, it.song.id.value) }
         val exploration = picker.take(band, explorationWanted)
 
         return (initial + interleaveEvenly(nearest, exploration)).spreadByArtist(config.artistGap, precedingArtists)
+    }
+
+    /** The nearest [wanted] songs; an [ownArtist] takes its slots first and the batch is back in ranked order. */
+    private fun nearestPart(
+        picker: BatchPicker,
+        ranked: List<Candidate>,
+        wanted: Int,
+        ownArtist: OwnArtistPart?,
+    ): List<Song> {
+        if (ownArtist == null) return picker.take(ranked, wanted)
+        val own = picker.take(ranked.filter(ownArtist.matches), ownArtist.slots(wanted).coerceAtMost(wanted))
+        val sound = picker.take(ranked, wanted - own.size)
+        val position = HashMap<SongId, Int>()
+        ranked.forEachIndexed { index, candidate -> position[candidate.song.id] = index }
+        return (own + sound).sortedBy { position.getValue(it.id) }
     }
 
     private fun rank(

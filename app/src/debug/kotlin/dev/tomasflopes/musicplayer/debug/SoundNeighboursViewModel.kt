@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.AlbumReader
 import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
@@ -11,6 +12,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
 import dev.tomasflopes.musicplayer.core.model.ref
+import dev.tomasflopes.musicplayer.core.model.sound.SongArtistKeys
 import dev.tomasflopes.musicplayer.core.model.sound.SoundNeighbours
 import dev.tomasflopes.musicplayer.playback.PlayRequest
 import dev.tomasflopes.musicplayer.playback.PlaybackController
@@ -30,7 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/** One neighbour of the seed: the song, its distance and the five weighted, normalised values. */
+/** One neighbour of the seed: the song, its distance and its weighted, normalised values. */
 class NeighbourRow(
     val song: Song,
     val distance: Double,
@@ -68,18 +70,20 @@ class SoundNeighboursViewModel
         val state: StateFlow<SoundNeighboursUiState> = mutableState.asStateFlow()
 
         private var songsById: Map<Long, Song> = emptyMap()
+        private var featuresById: Map<SongId, List<String>> = emptyMap()
         private var searchJob: Job? = null
 
         private val engine: Deferred<SearchEngine> =
             viewModelScope.async(start = CoroutineStart.LAZY) {
                 val songs = songReader.observeSongs().first()
                 songsById = songs.associateBy { it.id.value }
+                featuresById = featureReader.all()
                 val snapshot =
                     LibrarySnapshot(
                         artistReader.observeArtists().first(),
                         albumReader.observeAlbums().first(),
                         songs,
-                        featureReader.all(),
+                        featuresById,
                     )
                 engineFactory.build(snapshot)
             }
@@ -122,8 +126,15 @@ class SoundNeighboursViewModel
             val row = space.indexOf(seed.id.value)
             if (row < 0) return shown.copy(message = "No sound profile for this song yet.")
             val keyOf = { id: Long -> songsById[id]?.let { SoundNeighbours.fileKey(it.fileName) } }
+            // Main artist from the tag, featured ones from the title: what the outlier guard compares (ADR 0087).
+            val artistsOf = { id: Long ->
+                songsById[id]?.let { song ->
+                    val featured = featuresById[SongId(id)].orEmpty().mapTo(HashSet(), SongArtistKeys::key)
+                    SongArtistKeys(SongArtistKeys.key(song.tagArtistName), featured)
+                }
+            }
             val rows =
-                SoundNeighbours.nearest(space, row, NEIGHBOURS, keyOf).mapNotNull { n ->
+                SoundNeighbours.nearest(space, row, NEIGHBOURS, artistsOf, fileKeyOfSong = keyOf).mapNotNull { n ->
                     songsById[n.songId]?.let { NeighbourRow(it, n.distance, space.vector(n.row)) }
                 }
             return shown.copy(seedValues = space.vector(row), neighbours = rows)
