@@ -4,6 +4,7 @@ import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
 import dev.tomasflopes.musicplayer.core.model.crossfade.FadeCurve
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToLong
 import kotlin.math.sin
 
 /** The volume of the outgoing and the incoming player at a point of an overlap, one function each, no allocation. */
@@ -43,6 +44,31 @@ object DjVolumeCurve : GainCurve {
         }
 }
 
+/**
+ * What is left of an overlap whose beat match was abandoned (ADR 0096): from [fromProgress], where the gains were
+ * [incomingAtStart] and [outgoingAtStart], the outgoing song falls to 0 on a quarter cosine and the incoming one rises
+ * to 1 on a quarter sine, so the end is the same as the end of an equal-power fade and nothing jumps at the switch.
+ */
+class EqualPowerTail(
+    private val fromProgress: Float,
+    private val incomingAtStart: Float,
+    private val outgoingAtStart: Float,
+) : GainCurve {
+    override fun outgoing(progress: Float): Float = outgoingAtStart * cos(local(progress) * HALF_PI).toFloat()
+
+    override fun incoming(progress: Float): Float =
+        incomingAtStart + (1f - incomingAtStart) * sin(local(progress) * HALF_PI).toFloat()
+
+    private fun local(progress: Float): Double {
+        val span = 1f - fromProgress
+        return if (progress.isNaN() || span <= 0f) 1.0 else ((progress - fromProgress) / span).coerceIn(0f, 1f).toDouble()
+    }
+
+    private companion object {
+        const val HALF_PI = PI / 2
+    }
+}
+
 /** One step of the speed schedule after an overlap (slice 2): at [atMs] of the incoming position, speed [speed]. */
 data class SpeedStep(
     val atMs: Long,
@@ -68,8 +94,11 @@ sealed interface TransitionPlan {
 
     /**
      * Two songs playing together from [switchPointMs] of the outgoing song, the incoming one starting at
-     * [incomingStartMs] of its own file, for [overlapMs]. [incomingSpeed] is the incoming speed during the overlap and
-     * [easeBack] how it returns to 1.0 (both 1.0 and empty in slice 1). [ratio] is outgoing tempo over incoming tempo.
+     * [incomingStartMs] of its own file, for [overlapMs] of real time (the outgoing song plays at speed 1.0). The
+     * incoming song plays at [incomingSpeed], so it covers [incomingSpeed] times [overlapMs] of its file, and [easeBack]
+     * brings the speed back to 1.0 afterwards (positions in its file). [ratio] is outgoing tempo over the incoming
+     * tempo as read (equal to [incomingSpeed]). The grids are the two songs' beat grids as matched (the incoming one at
+     * the half or double tempo when that was the match); the engine reads them for phase lock.
      */
     class Overlap(
         override val technique: String,
@@ -80,7 +109,12 @@ sealed interface TransitionPlan {
         val ratio: Double = 1.0,
         val incomingSpeed: Float = 1f,
         val easeBack: List<SpeedStep> = emptyList(),
-    ) : TransitionPlan
+        val outgoingGrid: BeatGrid? = null,
+        val incomingGrid: BeatGrid? = null,
+    ) : TransitionPlan {
+        /** How much of the incoming file the overlap covers, in ms. */
+        val incomingSpanMs: Long get() = (overlapMs * incomingSpeed).roundToLong()
+    }
 
     companion object {
         /** The plan of a phase 6 decision. */

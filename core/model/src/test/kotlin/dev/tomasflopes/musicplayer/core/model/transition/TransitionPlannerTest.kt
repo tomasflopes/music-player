@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The planner with synthetic profiles (design phase 7, slice 1). At 120 BPM a beat is 500 ms, a bar 2 s and a phrase
+ * The planner with synthetic profiles (design phase 7, slices 1 and 2). At 120 BPM a beat is 500 ms, a bar 2 s and a phrase
  * 8 s; the first beat is at 0.5 s, so bar and phrase starts fall on 0.5 s plus a multiple of 2 s and 8 s.
  */
 class TransitionPlannerTest {
@@ -63,23 +63,84 @@ class TransitionPlannerTest {
     }
 
     @Test
-    fun `a tempo within one and a half percent still matches, with the incoming kept at speed 1`() {
+    fun `a tempo one percent apart matches by stretching the incoming song to the outgoing tempo`() {
         val plan = overlap(planFor(incoming = transitionProfile(tempo = 121.0)))
 
-        assertEquals(1f, plan.incomingSpeed)
         assertEquals(120.0 / 121.0, plan.ratio, 1e-9)
+        assertEquals((120.0 / 121.0).toFloat(), plan.incomingSpeed)
+        assertEquals(8, plan.easeBack.size)
+        assertEquals(1f, plan.easeBack.last().speed)
     }
 
     @Test
-    fun `three percent apart is a plain crossfade in slice 1`() {
-        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 123.6)))
+    fun `three percent apart matches at the stretched speed and eases back one step on each bar`() {
+        val plan = overlap(planFor(incoming = transitionProfile(tempo = 123.6)))
+
+        assertEquals(120.0 / 123.6, plan.ratio, 1e-9)
+        assertEquals((plan.incomingStartMs + plan.incomingSpanMs).toDouble(), plan.easeBack.first().atMs.toDouble(), 1.5)
+        val incomingBarMs = 60_000.0 / 123.6 * 4
+        plan.easeBack.zipWithNext().forEach { (a, b) ->
+            assertEquals(incomingBarMs, (b.atMs - a.atMs).toDouble(), 1.5)
+            assertTrue(b.speed - a.speed <= 0.005f + 1e-6f, "step ${b.speed - a.speed}")
+            assertTrue(b.speed > a.speed)
+        }
+        assertTrue(plan.easeBack.first().speed > plan.incomingSpeed)
+        assertEquals(1f, plan.easeBack.last().speed)
     }
 
     @Test
-    fun `half and double tempo and twelve percent apart are a plain crossfade in slice 1`() {
-        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 60.0)))
-        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 240.0)))
+    fun `the overlap is eight bars of real time and the incoming song covers speed times that`() {
+        val plan = overlap(planFor(incoming = transitionProfile(tempo = 123.6)))
+
+        assertEquals(16_000L, plan.overlapMs)
+        assertEquals(16_000 * (120.0 / 123.6), plan.incomingSpanMs.toDouble(), 1.0)
+    }
+
+    @Test
+    fun `half and double tempo match at the reading that needs the least stretch`() {
+        val half = overlap(planFor(incoming = transitionProfile(tempo = 60.0)))
+        val double = overlap(planFor(incoming = transitionProfile(tempo = 240.0)))
+        val stretchedHalf = overlap(planFor(outgoing = transitionProfile(tempo = 72.0), incoming = transitionProfile(tempo = 140.0)))
+
+        assertEquals(1f, half.incomingSpeed)
+        assertEquals(120.0, half.incomingGrid!!.tempoBpm, 1e-9)
+        assertTrue(half.easeBack.isEmpty())
+        assertEquals(1f, double.incomingSpeed)
+        assertEquals(120.0, double.incomingGrid!!.tempoBpm, 1e-9)
+        assertEquals(72.0 / 70.0, stretchedHalf.ratio, 1e-9)
+        assertEquals(70.0, stretchedHalf.incomingGrid!!.tempoBpm, 1e-9)
+    }
+
+    @Test
+    fun `the plain reading wins a tie over half and double`() {
+        val plan = overlap(planFor(incoming = transitionProfile(tempo = 120.0)))
+
+        assertEquals(120.0, plan.incomingGrid!!.tempoBpm, 1e-9)
+    }
+
+    @Test
+    fun `eight percent apart still matches and eight and a half does not`() {
+        val limit = overlap(planFor(outgoing = transitionProfile(tempo = 108.0), incoming = transitionProfile(tempo = 100.0)))
+        val over = planFor(outgoing = transitionProfile(tempo = 108.5), incoming = transitionProfile(tempo = 100.0))
+
+        assertEquals(1.08, limit.ratio, 1e-9)
+        assertEquals(TransitionPlan.Fade(4_000), over)
+    }
+
+    @Test
+    fun `twelve percent apart is a plain crossfade, even at half or double`() {
         assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 134.4)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 107.1)))
+    }
+
+    @Test
+    fun `the incoming song has to cover its stretched share of the overlap inside its intro`() {
+        val faster = transitionProfile(tempo = 120.0, introEndMs = 16_300)
+        val outgoing = transitionProfile(tempo = 125.0)
+
+        val plan = overlap(planFor(outgoing = outgoing, incoming = faster))
+
+        assertTrue(plan.incomingStartMs + plan.incomingSpanMs <= 16_300L, "span ${plan.incomingSpanMs}")
     }
 
     @Test

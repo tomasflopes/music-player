@@ -1,18 +1,22 @@
 package dev.tomasflopes.musicplayer.core.model.transition
 
-import kotlin.math.abs
 import kotlin.math.roundToLong
 
 /**
- * Lines the next song's beat up with the outgoing one on a bar (design phase 7, slice 1: no stretch).
+ * Lines the next song's beat up with the outgoing one on a bar and stretches it to the outgoing tempo (design phase 7,
+ * slices 1 and 2, ADR 0092, 0094).
  *
  * Applies when both songs have a usable profile, both tempo confidences reach [TransitionConfig.minConfidence] and
- * the tempos are within [TransitionConfig.unstretchedTolerance] of each other, so the incoming song stays at speed 1.0
- * (slice 2 replaces the tolerance by the stretch limit and adds half and double tempo). The overlap is
- * [TransitionConfig.overlapBars] bars of the outgoing tempo, shrunk bar by bar to fit the cap, the incoming intro and
- * the outgoing tail, and never under [TransitionConfig.minOverlapBars] (then the technique does not apply). It starts
- * on the latest phrase start of the outgoing song, else the latest bar start, that lies in the tail; when nothing
- * lies in the tail it takes the latest bar start whose overlap still ends by the music end.
+ * [TempoMatcher] finds a reading of the incoming tempo (x0.5, x1 or x2) within [TransitionConfig.maxStretch] of the
+ * outgoing tempo. The incoming song then plays at speed r (outgoing tempo over the incoming tempo as read) with its
+ * pitch kept, so its beats fall on the outgoing beats, and [EaseBack] returns it to 1.0 afterwards.
+ *
+ * The overlap is [TransitionConfig.overlapBars] bars of the outgoing tempo in real time, shrunk bar by bar to fit the
+ * cap, the incoming intro (the incoming song covers r times the overlap of its file) and the outgoing tail, and never
+ * under [TransitionConfig.minOverlapBars] (then the technique does not apply). It starts on the latest phrase start of
+ * the outgoing song, else the latest bar start, that lies in the tail; when nothing lies in the tail it takes the
+ * latest bar start whose overlap still ends by the music end. The incoming song starts on a bar of its own grid at the
+ * matched tempo, at or after its music start.
  */
 class BeatMatchTechnique : TransitionTechnique {
     override val name = "beat-match"
@@ -22,18 +26,22 @@ class BeatMatchTechnique : TransitionTechnique {
         val config = request.config
         val outgoing = request.outgoing?.takeIf { it.isUsable && it.tempoConfidence >= config.minConfidence }
         val incoming = request.incoming?.takeIf { it.isUsable && it.tempoConfidence >= config.minConfidence }
-        if (outgoing == null || incoming == null) return null
-        val ratio = outgoing.tempoBpm / incoming.tempoBpm
-        return if (abs(ratio - 1.0) > config.unstretchedTolerance) {
+        val match =
+            if (outgoing == null || incoming == null) {
+                null
+            } else {
+                TempoMatcher.best(outgoing.tempoBpm, incoming.tempoBpm, config.maxStretch)
+            }
+        return if (outgoing == null || incoming == null || match == null) {
             null
         } else {
             Search(
                 outgoingGrid = BeatGrid.of(outgoing, config),
-                incomingGrid = BeatGrid.of(incoming, config),
+                incomingGrid = BeatGrid.of(incoming, config, match.multiplier),
                 outgoing = outgoing,
                 incoming = incoming,
                 outgoingDurationMs = request.transition.outgoing.durationMs,
-                ratio = ratio,
+                ratio = match.ratio,
                 config = config,
             ).plan()
         }
@@ -59,11 +67,12 @@ class BeatMatchTechnique : TransitionTechnique {
                 switchPoint(overlap, strict)?.let { build(it, overlap) }
             }
 
+        /** Real-time lengths; the incoming intro has to hold [ratio] times the overlap of its file. */
         private fun overlapsLongestFirst(): Sequence<Double> =
             (config.overlapBars downTo config.minOverlapBars)
                 .asSequence()
                 .map { it * outgoingGrid.barMs }
-                .filter { it <= config.maxOverlapMs && it <= incoming.introEndMs - incomingStart }
+                .filter { it <= config.maxOverlapMs && it * ratio <= incoming.introEndMs - incomingStart }
 
         private fun switchPoint(
             overlapMs: Double,
@@ -85,6 +94,10 @@ class BeatMatchTechnique : TransitionTechnique {
             overlapMs = overlapMs.roundToLong(),
             curve = DjVolumeCurve,
             ratio = ratio,
+            incomingSpeed = ratio.toFloat(),
+            easeBack = EaseBack.steps(config, ratio, incomingGrid, incomingStart + overlapMs * ratio),
+            outgoingGrid = outgoingGrid,
+            incomingGrid = incomingGrid,
         )
     }
 

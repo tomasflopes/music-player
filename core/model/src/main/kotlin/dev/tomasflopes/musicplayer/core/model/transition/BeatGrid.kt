@@ -23,6 +23,12 @@ class BeatGrid(
         return firstBeatMs + bar * barMs
     }
 
+    /** The first phrase start at or after [ms] (never before the first beat). */
+    fun phraseStartAtOrAfter(ms: Double): Double {
+        val phrase = ceil((ms - firstBeatMs) / phraseMs - EPSILON).coerceAtLeast(0.0)
+        return firstBeatMs + phrase * phraseMs
+    }
+
     /** The latest bar start in [low]..[high], or null when none falls there. */
     fun latestBarStart(
         low: Double,
@@ -56,27 +62,38 @@ class BeatGrid(
         private const val EPSILON = 1e-9
         private const val EPSILON_MS = 1e-6
 
+        /** The grid of [profile]; [tempoMultiplier] 0.5 or 2 reads the same first beat at half or double tempo. */
         fun of(
             profile: TransitionProfile,
             config: TransitionConfig,
-        ) = BeatGrid(profile.firstBeatMs, profile.tempoBpm, config.beatsPerBar, config.beatsPerPhrase)
+            tempoMultiplier: Double = 1.0,
+        ) = BeatGrid(
+            profile.firstBeatMs,
+            profile.tempoBpm * tempoMultiplier,
+            config.beatsPerBar,
+            config.beatsPerPhrase,
+        )
     }
 }
 
 /** The beat-phase error between two playing songs, which the Transition lab shows live (design phase 7). */
 object BeatPhase {
     /**
-     * How far the incoming beat is behind (positive) or ahead of (negative) the outgoing beat, in ms, wrapped into
-     * half a beat either way. Positions are file positions. No allocation, so it can run on every tick.
+     * How far into its beat the incoming song is minus how far into its beat the outgoing song is, in ms of real time,
+     * wrapped into half a beat either way. Positive: the incoming beat came first (the incoming song is ahead).
+     * Positions are file positions; [incomingSpeed] turns the incoming offset from file ms into real ms (1.0 when the
+     * incoming song is not stretched). No allocation, so it can run on every tick.
      */
     fun errorMs(
         outgoing: BeatGrid,
         outgoingPositionMs: Double,
         incoming: BeatGrid,
         incomingPositionMs: Double,
+        incomingSpeed: Double = 1.0,
     ): Double {
         val beat = outgoing.beatMs
-        var error = incoming.beatOffsetMs(incomingPositionMs) - outgoing.beatOffsetMs(outgoingPositionMs)
+        val incomingOffset = incoming.beatOffsetMs(incomingPositionMs) / incomingSpeed
+        var error = incomingOffset - outgoing.beatOffsetMs(outgoingPositionMs)
         if (error > beat / 2) error -= beat
         if (error < -beat / 2) error += beat
         return error

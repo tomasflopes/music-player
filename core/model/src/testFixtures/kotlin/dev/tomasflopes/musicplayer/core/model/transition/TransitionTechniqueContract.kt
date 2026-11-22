@@ -99,6 +99,7 @@ object TransitionTechniqueContract {
             TechniqueCheck("answers the same request the same way") { deterministic(factory()) },
             TechniqueCheck("an overlap stays inside both songs") { overlapFits(factory()) },
             TechniqueCheck("the volume curves are bounded, exact at the ends and monotone") { curves(factory()) },
+            TechniqueCheck("the ease-back ends at speed 1 in small steps") { easeBack(factory()) },
         )
 
     private fun identity(technique: TransitionTechnique) {
@@ -130,7 +131,8 @@ object TransitionTechniqueContract {
             check(plan.overlapMs > 0) { "empty overlap" }
             check(plan.switchPointMs >= 0 && plan.incomingStartMs >= 0) { "negative start" }
             check(plan.switchPointMs + plan.overlapMs <= out) { "outgoing runs out: ${describe(plan)}" }
-            check(plan.incomingStartMs + plan.overlapMs <= inc) { "incoming runs out: ${describe(plan)}" }
+            check(plan.incomingStartMs + plan.incomingSpanMs <= inc) { "incoming runs out: ${describe(plan)}" }
+            check(plan.incomingSpeed > 0f && plan.incomingSpeed.isFinite()) { "speed ${plan.incomingSpeed}" }
         }
     }
 
@@ -154,10 +156,25 @@ object TransitionTechniqueContract {
         }
     }
 
+    private fun easeBack(technique: TransitionTechnique) {
+        for (request in sampleRequests()) {
+            val plan = technique.plan(request) as? TransitionPlan.Overlap ?: continue
+            val speeds = listOf(plan.incomingSpeed) + plan.easeBack.map { it.speed }
+            val limit = request.config.maxSpeedStep.toFloat() + EASE_EPSILON
+            check(speeds.last() == 1f) { "ends at ${speeds.last()}: ${describe(plan)}" }
+            check(speeds.zipWithNext().all { (a, b) -> kotlin.math.abs(b - a) <= limit }) { "a step is too large" }
+            check(plan.easeBack.zipWithNext().all { (a, b) -> b.atMs > a.atMs }) { "steps are not in order" }
+        }
+    }
+
     private fun sampleRequests() =
         listOf(
             transitionRequest(),
             transitionRequest(incoming = transitionProfile(tempo = 120.5)),
+            transitionRequest(incoming = transitionProfile(tempo = 126.0)),
+            transitionRequest(incoming = transitionProfile(tempo = 111.0)),
+            transitionRequest(incoming = transitionProfile(tempo = 60.0)),
+            transitionRequest(incoming = transitionProfile(tempo = 250.0)),
             transitionRequest(incoming = transitionProfile(introEndMs = 9_000)),
             transitionRequest(outgoing = transitionProfile(tempo = 90.0), incoming = transitionProfile(tempo = 90.0)),
         )
@@ -166,9 +183,10 @@ object TransitionTechniqueContract {
         when (plan) {
             null -> "none"
             is TransitionPlan.Overlap ->
-                "${plan.technique}:${plan.switchPointMs}:${plan.incomingStartMs}:${plan.overlapMs}:${plan.incomingSpeed}"
+                "${plan.technique}:${plan.switchPointMs}:${plan.incomingStartMs}:${plan.overlapMs}:${plan.incomingSpeed}:${plan.easeBack.size}"
             else -> plan.toString()
         }
 
     private const val STEPS = 100
+    private const val EASE_EPSILON = 1e-6f
 }
