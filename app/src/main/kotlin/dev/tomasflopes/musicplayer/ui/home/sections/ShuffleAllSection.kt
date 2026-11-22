@@ -11,7 +11,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.tomasflopes.musicplayer.ui.home.HomeSection
 import dev.tomasflopes.musicplayer.ui.home.HomeViewModel
 import dev.tomasflopes.musicplayer.ui.theme.Spacing

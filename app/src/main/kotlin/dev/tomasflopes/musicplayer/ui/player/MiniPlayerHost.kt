@@ -2,7 +2,7 @@ package dev.tomasflopes.musicplayer.ui.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** [MiniPlayer] wired to the playback controller; tapping the bar calls [onOpen]. */
