@@ -160,7 +160,8 @@ class TwoPlayerCrossfadeEngine(
                     preloaded = true
                 }
             }
-            if (started == null && preloaded && untilSwitch <= 0 && active.isPlaying) {
+            val atSwitch = preloaded && untilSwitch <= 0 && active.isPlaying
+            if (started == null && atSwitch) {
                 started = !late && player.playbackState == Player.STATE_READY
                 if (started) {
                     val running = Fade(active, player, overlap.overlapMs, overlap.incomingStartMs, overlap.curve)

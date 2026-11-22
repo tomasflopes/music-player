@@ -209,7 +209,7 @@ class TransitionPlannerTest {
         override val name = "spy"
         override val priority = 0
 
-        override fun planFor(request: TransitionRequest): TransitionPlan? {
+        override fun plan(request: TransitionRequest): TransitionPlan? {
             calls++
             return null
         }
@@ -220,6 +220,6 @@ class TransitionPlannerTest {
         override val priority: Int,
         private val plan: TransitionPlan,
     ) : TransitionTechnique {
-        override fun planFor(request: TransitionRequest) = plan
+        override fun plan(request: TransitionRequest) = plan
     }
 }
