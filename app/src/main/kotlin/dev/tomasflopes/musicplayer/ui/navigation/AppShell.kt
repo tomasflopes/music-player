@@ -129,6 +129,7 @@ private fun NavGraphBuilder.appDestinations(
     playlistDestinations(navController)
     mixDestinations(navController)
     searchDestination(navController, searchFocusRequest)
+    statsDestinations(navController)
     composable(
         route = AlbumRoute.PATTERN,
         arguments = listOf(navArgument(AlbumRoute.ARG_ID) { type = NavType.LongType }),
