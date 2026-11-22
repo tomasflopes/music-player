@@ -231,7 +231,7 @@ class TransitionLab(
             }
             val changed = reading.phase != LabPhase.WAITING && reading.incomingSpeed != lastSpeed
             val line =
-                if (changed) listOf("t=${elapsedMs()} ms  speed $lastSpeed to ${reading.incomingSpeed}") else emptyList()
+                if (changed) listOf(speedLine(reading)) else emptyList()
             if (changed) lastSpeed = reading.incomingSpeed
             mutableState.update {
                 it.copy(
@@ -243,7 +243,8 @@ class TransitionLab(
             }
         }
 
-        private fun elapsedMs() = (System.nanoTime() - startedAt) / NANOS_PER_MS
+        private fun speedLine(reading: LabReading) =
+            "t=${(System.nanoTime() - startedAt) / NANOS_PER_MS} ms  speed $lastSpeed to ${reading.incomingSpeed}"
 
         private fun ExoPlayer.isReady() = playbackState == Player.STATE_READY
 

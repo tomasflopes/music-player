@@ -26,4 +26,8 @@ abstract class DebugModule {
     @Binds
     @IntoSet
     abstract fun soundNeighboursEntry(entry: SoundNeighboursSettingsEntry): SettingsEntry
+
+    @Binds
+    @IntoSet
+    abstract fun transitionLabEntry(entry: TransitionLabSettingsEntry): SettingsEntry
 }

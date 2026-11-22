@@ -20,5 +20,9 @@
             android:name=".debug.SoundNeighboursActivity"
             android:exported="false"
             android:label="Sound neighbours" />
+        <activity
+            android:name=".debug.TransitionLabActivity"
+            android:exported="false"
+            android:label="Transition lab" />
     </application>
 </manifest>
