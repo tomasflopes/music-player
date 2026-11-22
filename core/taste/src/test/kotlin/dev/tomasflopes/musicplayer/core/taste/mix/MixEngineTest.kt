@@ -8,6 +8,7 @@ import dev.tomasflopes.musicplayer.core.model.mixes.MixSeedKind
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
 import dev.tomasflopes.musicplayer.core.taste.lists.song
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -37,9 +38,14 @@ class MixEngineTest {
         config: MixConfig = MixConfig(),
         random: Int = 1,
     ): List<Song> =
-        MixEngine(
-            config,
-        ).pick(seeds, library, space, recent.mapTo(HashSet()) { SongId(it) }, Random(random), MixLearning.EMPTY)
+        MixEngine(config, ordering = BatchOrdering.Identity).pick(
+            seeds,
+            library,
+            space,
+            recent.mapTo(HashSet()) { SongId(it) },
+            Random(random),
+            MixLearning.EMPTY,
+        )
 
     private fun List<Song>.ids() = map { it.id.value }
 
@@ -178,7 +184,16 @@ class MixEngineTest {
         exclude: List<Song> = emptyList(),
         config: MixConfig = nearestOnly,
     ): List<Song> =
-        MixEngine(config).refill(seeds, library, space, emptySet(), Random(1), exclude, emptyList(), MixLearning.EMPTY)
+        MixEngine(config, ordering = BatchOrdering.Identity).refill(
+            seeds,
+            library,
+            space,
+            emptySet(),
+            Random(1),
+            exclude,
+            emptyList(),
+            MixLearning.EMPTY,
+        )
 
     @Test
     fun `a refill never picks a queued song and still fills a whole batch`() {
@@ -214,9 +229,14 @@ class MixEngineTest {
         val config = MixConfig(openingPerArtist = 2, explorationShare = 0.0, artistGap = 0, densityRank = 3)
 
         val picked =
-            MixEngine(
-                config,
-            ).pick(listOf(artistSeed), library, space, emptySet(), Random(1), MixLearning.EMPTY)
+            MixEngine(config, ordering = BatchOrdering.Identity).pick(
+                listOf(artistSeed),
+                library,
+                space,
+                emptySet(),
+                Random(1),
+                MixLearning.EMPTY,
+            )
         val refilled = refill(listOf(artistSeed), library, space, config = config)
 
         assertTrue(picked.ids().take(2).all { it <= 2L })

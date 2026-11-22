@@ -27,6 +27,12 @@ class MixConfigTest {
     }
 
     @Test
+    fun `batches are shuffled by default in a mix and an artist radio`() {
+        assertEquals(true, MixConfig().shuffleBatch)
+        assertEquals(true, RadioConfig().shuffleBatch)
+    }
+
+    @Test
     fun `a band that cannot hold a batch is refused`() {
         assertThrows(IllegalArgumentException::class.java) { MixConfig(explorationBand = 10) }
     }

@@ -6,8 +6,10 @@ import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.mixes.MixSeed
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
+import dev.tomasflopes.musicplayer.core.taste.config.SmartShuffleConfig
 import dev.tomasflopes.musicplayer.core.taste.lists.Candidate
 import dev.tomasflopes.musicplayer.core.taste.lists.RadioBatchBuilder
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import kotlin.random.Random
 
 /**
@@ -32,6 +34,10 @@ import kotlin.random.Random
  *   per batch for that reason; the radio's own builder and numbers are untouched.
  * An empty [MixLearning] gives the batch of slice 2 exactly.
  *
+ * The finished batch is then put in play order by the [BatchOrdering] (ADR 0086): the same songs, shuffled with the
+ * artist gap, also against [precedingArtists] on a refill, so a mix does not open with the same song every time.
+ * [MixConfig.shuffleBatch] false keeps the builder's order (opening songs first, then nearest first).
+ *
  * Seeds with no point in the space give an empty list. Too few candidates give a shorter batch. [refill] builds the
  * next batch of a playing mix the same way, without step 2 (the seed artists were heard when the mix started) and
  * leaving out what is already queued (ADR 0078).
@@ -39,6 +45,7 @@ import kotlin.random.Random
 class MixEngine(
     private val config: MixConfig = MixConfig(),
     private val query: MixQuery = AnchorQuery(config),
+    private val ordering: BatchOrdering = BatchOrdering.smart(SmartShuffleConfig(config.artistGap)),
 ) {
     /**
      * @param library every song in the library; candidates not in it are ignored.
@@ -96,7 +103,8 @@ class MixEngine(
             ranking.keyOf(candidate.row) + repeat
         }
         val builder = RadioBatchBuilder(config.builderConfig(config.explorationShareFor(learning.informativeRows)))
-        return builder.build(first, candidates, keyOf, recentlyPlayed, random, exclude, precedingArtists)
+        val batch = builder.build(first, candidates, keyOf, recentlyPlayed, random, exclude, precedingArtists)
+        return if (config.shuffleBatch) ordering.order(batch, precedingArtists, random) else batch
     }
 
     /** The rank key of the seeds' anchors plus the liked ones that pass the gate; null when no seed has a point. */

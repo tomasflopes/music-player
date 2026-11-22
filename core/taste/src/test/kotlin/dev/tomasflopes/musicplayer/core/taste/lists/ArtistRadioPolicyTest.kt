@@ -5,6 +5,7 @@ import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.RadioConfig
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -35,7 +36,8 @@ class ArtistRadioPolicyTest {
         recent: Set<Long> = emptySet(),
         random: Int = 1,
     ): List<Song> =
-        ArtistRadioPolicy(config).pick(artist, library, space, recent.mapTo(HashSet()) { SongId(it) }, Random(random))
+        ArtistRadioPolicy(config, BatchOrdering.Identity)
+            .pick(artist, library, space, recent.mapTo(HashSet()) { SongId(it) }, Random(random))
 
     private fun List<Song>.ids() = map { it.id.value }
 

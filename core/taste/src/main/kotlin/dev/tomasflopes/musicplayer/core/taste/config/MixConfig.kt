@@ -52,6 +52,11 @@ data class MixConfig(
     val explorationFloor: Double = 0.10,
     /** Informative rows (not neutral, not burst-softened) it takes to go from [explorationShare] to the floor. */
     val explorationRows: Int = 200,
+    /**
+     * Shuffle the finished batch before it is queued (ADR 0086): same songs, smart-shuffle order, so a mix does not
+     * open with the same song every time. False keeps the builder's order (opening songs, then nearest first).
+     */
+    val shuffleBatch: Boolean = true,
     /** Fixes the exploration draw when set (tests, debugging); null draws a new one for every batch. */
     val seed: Long? = null,
 ) {

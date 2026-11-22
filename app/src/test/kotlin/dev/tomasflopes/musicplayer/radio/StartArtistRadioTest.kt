@@ -8,6 +8,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.RadioConfig
 import dev.tomasflopes.musicplayer.core.taste.lists.ArtistRadioPolicy
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.FakeSongReader
 import dev.tomasflopes.musicplayer.fakes.testSong
@@ -58,7 +59,7 @@ class StartArtistRadioTest {
             played = NoRecentPlays(),
             playback = playback,
             messages = messages,
-            policy = ArtistRadioPolicy(config),
+            policy = ArtistRadioPolicy(config, BatchOrdering.Identity),
             config = config,
             clock = clock,
         )

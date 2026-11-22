@@ -13,6 +13,7 @@ import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
 import dev.tomasflopes.musicplayer.core.taste.mix.MixEngine
 import dev.tomasflopes.musicplayer.core.taste.mix.MixLearning
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import dev.tomasflopes.musicplayer.fakes.FakeMixScoreBoard
 import dev.tomasflopes.musicplayer.fakes.FakePlaybackController
 import dev.tomasflopes.musicplayer.fakes.FakeSongReader
@@ -86,7 +87,7 @@ class StartMixTest {
         scores = board.also { it.learning = learning },
         playback = playback,
         messages = messages,
-        engine = MixEngine(config),
+        engine = MixEngine(config, ordering = BatchOrdering.Identity),
         config = config,
         clock = Clock.fixed(now, ZoneOffset.UTC),
     )

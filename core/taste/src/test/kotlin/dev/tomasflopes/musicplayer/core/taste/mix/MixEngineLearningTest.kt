@@ -8,6 +8,7 @@ import dev.tomasflopes.musicplayer.core.model.mixes.MixSeedKind
 import dev.tomasflopes.musicplayer.core.model.sound.SoundSpace
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
 import dev.tomasflopes.musicplayer.core.taste.lists.song
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -72,7 +73,9 @@ class MixEngineLearningTest {
         learning: MixLearning,
         seeds: List<MixSeed> = listOf(songSeed(seedSong)),
         config: MixConfig = tight,
-    ) = MixEngine(config).pick(seeds, plane, planeSpace, emptySet(), Random(1), learning).ids()
+    ) = MixEngine(config, ordering = BatchOrdering.Identity)
+        .pick(seeds, plane, planeSpace, emptySet(), Random(1), learning)
+        .ids()
 
     @Test
     fun `a liked song close to the seeds becomes an anchor and pulls its neighbourhood into the batch`() {
@@ -140,7 +143,9 @@ class MixEngineLearningTest {
         val seed = listOf(MixSeed(MixSeedKind.ARTIST, 99))
 
         fun batch(learning: MixLearning) =
-            MixEngine(config).pick(seed, library, space, emptySet(), Random(1), learning).ids()
+            MixEngine(config, ordering = BatchOrdering.Identity)
+                .pick(seed, library, space, emptySet(), Random(1), learning)
+                .ids()
 
         assertTrue(batch(MixLearning.EMPTY).containsAll(listOf(3L, 4L)))
         val without = batch(learning(banned = setOf(3)))
@@ -151,7 +156,7 @@ class MixEngineLearningTest {
     @Test
     fun `a refill leaves banned songs out too`() {
         val batch =
-            MixEngine(tight).refill(
+            MixEngine(tight, ordering = BatchOrdering.Identity).refill(
                 listOf(songSeed(seedSong)),
                 plane,
                 planeSpace,
@@ -173,7 +178,7 @@ class MixEngineLearningTest {
 
         fun batches(rows: Int) =
             (1..30).map {
-                MixEngine(config)
+                MixEngine(config, ordering = BatchOrdering.Identity)
                     .pick(listOf(songSeed(1)), library, space, emptySet(), Random(it), learning(informativeRows = rows))
                     .ids()
                     .toSet()
@@ -196,7 +201,7 @@ class MixEngineLearningTest {
     @Test
     fun `an empty learning gives exactly the slice 2 batch`() {
         val pick =
-            MixEngine(MixConfig()).pick(
+            MixEngine(MixConfig(), ordering = BatchOrdering.Identity).pick(
                 goldenSeeds,
                 goldenLibrary,
                 goldenSpace,
@@ -214,7 +219,7 @@ class MixEngineLearningTest {
     @Test
     fun `an empty learning gives exactly the slice 2 refill`() {
         val refill =
-            MixEngine(MixConfig()).refill(
+            MixEngine(MixConfig(), ordering = BatchOrdering.Identity).refill(
                 goldenSeeds,
                 goldenLibrary,
                 goldenSpace,

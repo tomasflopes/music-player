@@ -26,6 +26,11 @@ data class RadioConfig(
     val maxPerArtist: Int = 3,
     /** No song by the same main artist among the next [artistGap] songs; same meaning as smart shuffle's gap. */
     val artistGap: Int = SmartShuffleConfig().artistGap,
+    /**
+     * Shuffle the finished batch of an artist radio before it is queued (ADR 0086). The song radio ignores it: its
+     * seed plays first by definition (ADR 0072). False keeps the builder's order.
+     */
+    val shuffleBatch: Boolean = true,
     /** Fixes the exploration draw when set (tests, debugging); null draws a new one for every radio. */
     val seed: Long? = null,
 ) {

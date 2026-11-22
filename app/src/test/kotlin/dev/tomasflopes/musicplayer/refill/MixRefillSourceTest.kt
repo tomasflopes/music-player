@@ -9,6 +9,7 @@ import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.core.taste.config.MixConfig
 import dev.tomasflopes.musicplayer.core.taste.mix.MixEngine
 import dev.tomasflopes.musicplayer.core.taste.mix.MixLearning
+import dev.tomasflopes.musicplayer.core.taste.shuffle.BatchOrdering
 import dev.tomasflopes.musicplayer.fakes.FakeMixScoreBoard
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -27,7 +28,14 @@ class MixRefillSourceTest {
     private val board = FakeMixScoreBoard()
 
     private fun source(mixes: FakeMixReader) =
-        MixRefillSource(mixes, FixedVectors(spaceOf()), refillLibrary(), board, MixEngine(config), config)
+        MixRefillSource(
+            mixes,
+            FixedVectors(spaceOf()),
+            refillLibrary(),
+            board,
+            MixEngine(config, ordering = BatchOrdering.Identity),
+            config,
+        )
 
     @Test
     fun `it handles mix seeds only and refills at 5 or fewer left`() {
@@ -77,7 +85,14 @@ class MixRefillSourceTest {
         runTest {
             val vectors = FixedVectors(spaceOf(listOf(5, 6, 7)))
             val source =
-                MixRefillSource(FakeMixReader(mix(1)), vectors, refillLibrary(), board, MixEngine(config), config)
+                MixRefillSource(
+                    FakeMixReader(mix(1)),
+                    vectors,
+                    refillLibrary(),
+                    board,
+                    MixEngine(config, ordering = BatchOrdering.Identity),
+                    config,
+                )
 
             assertTrue(source.batch(signal(seed, refs(1))).songs.isEmpty())
         }
