@@ -6,6 +6,8 @@ plugins {
 
 android {
     namespace = "dev.tomasflopes.musicplayer.playback"
+    // Generated 90 and 92 BPM click tracks for the transition deviceCheck (scripts/gen-transition-mp3s.sh).
+    sourceSets.getByName("androidTest").assets.srcDir(rootProject.file("testdata/transitions"))
 }
 
 dependencies {

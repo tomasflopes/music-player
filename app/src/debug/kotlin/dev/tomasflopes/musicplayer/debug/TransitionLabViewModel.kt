@@ -175,7 +175,7 @@ class TransitionLabViewModel
             listOf("outgoing  ${profileLine(outgoing)}", "incoming  ${profileLine(incoming)}") +
                 when (plan) {
                     is TransitionPlan.Overlap -> overlapLines(plan)
-                    is TransitionPlan.Fade -> listOf("plan: ${plan.technique}, no beat match: ${why(outgoing, incoming)}")
+                    is TransitionPlan.Fade -> listOf("plan: ${plan.technique} (${why(outgoing, incoming)})")
                     TransitionPlan.HardCut -> listOf("plan: hard cut")
                 }
 
