@@ -7,6 +7,7 @@ import dev.tomasflopes.musicplayer.data.db.dao.AlbumDao
 import dev.tomasflopes.musicplayer.data.db.dao.ArtistDao
 import dev.tomasflopes.musicplayer.data.db.dao.ArtistImageDao
 import dev.tomasflopes.musicplayer.data.db.dao.FolderDao
+import dev.tomasflopes.musicplayer.data.db.dao.ListeningStatsDao
 import dev.tomasflopes.musicplayer.data.db.dao.MixDao
 import dev.tomasflopes.musicplayer.data.db.dao.PlayEventDao
 import dev.tomasflopes.musicplayer.data.db.dao.PlaylistAddEventDao
@@ -88,6 +89,8 @@ abstract class MusicDatabase : RoomDatabase() {
     abstract fun mixDao(): MixDao
 
     abstract fun songArtistDao(): SongArtistDao
+
+    abstract fun listeningStatsDao(): ListeningStatsDao
 
     abstract fun soundProfileDao(): SoundProfileDao
 
