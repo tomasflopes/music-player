@@ -24,15 +24,19 @@ class BeatMatchTechnique : TransitionTechnique {
         val incoming = request.incoming?.takeIf { it.isUsable && it.tempoConfidence >= config.minConfidence }
         if (outgoing == null || incoming == null) return null
         val ratio = outgoing.tempoBpm / incoming.tempoBpm
-        return if (abs(ratio - 1.0) > config.unstretchedTolerance) null else Search(
-            outgoingGrid = BeatGrid.of(outgoing, config),
-            incomingGrid = BeatGrid.of(incoming, config),
-            outgoing = outgoing,
-            incoming = incoming,
-            outgoingDurationMs = request.transition.outgoing.durationMs,
-            ratio = ratio,
-            config = config,
-        ).plan()
+        return if (abs(ratio - 1.0) > config.unstretchedTolerance) {
+            null
+        } else {
+            Search(
+                outgoingGrid = BeatGrid.of(outgoing, config),
+                incomingGrid = BeatGrid.of(incoming, config),
+                outgoing = outgoing,
+                incoming = incoming,
+                outgoingDurationMs = request.transition.outgoing.durationMs,
+                ratio = ratio,
+                config = config,
+            ).plan()
+        }
     }
 
     private class Search(
