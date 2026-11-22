@@ -44,6 +44,7 @@ import kotlin.math.abs
  * next to the watcher. A skip, a seek, a queue or settings change, a pause, the next overlap and a kill end the ease
  * and put both players at speed 1.0 at once.
  */
+@Suppress("TooManyFunctions") // one state machine over two players; the ease and phase lock helpers share its fields
 class TwoPlayerCrossfadeEngine(
     private val scope: CoroutineScope,
     private val secondary: () -> ExoPlayer,
@@ -56,7 +57,7 @@ class TwoPlayerCrossfadeEngine(
         val durationMs: Long,
         /** Where in its own file the incoming song starts; its position counts from here. */
         val startOffsetMs: Long = 0,
-        val curve: GainCurve = EqualPowerCurve,
+        var curve: GainCurve = EqualPowerCurve,
         /** Set once the host took [incoming] as its player; before that a cancelled fade leaves the host untouched. */
         var handedOver: Boolean = false,
         /** The incoming speed during the overlap: its file covers [speed] times [durationMs]. */

@@ -180,7 +180,8 @@ class TransitionLab(
         /** The ease-back runs after the overlap; the lab keeps playing until it is done (file ms are close enough). */
         private fun easeBackMs(): Long {
             val last = setup.plan.easeBack.lastOrNull() ?: return 0L
-            return (last.atMs - setup.plan.incomingStartMs - setup.plan.incomingSpanMs).coerceAtLeast(0L) + EASE_MARGIN_MS
+            return (last.atMs - setup.plan.incomingStartMs - setup.plan.incomingSpanMs).coerceAtLeast(0L) +
+                EASE_MARGIN_MS
         }
 
         private fun plannedTransition() =

@@ -11,8 +11,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The planner with synthetic profiles (design phase 7, slices 1 and 2). At 120 BPM a beat is 500 ms, a bar 2 s and a phrase
- * 8 s; the first beat is at 0.5 s, so bar and phrase starts fall on 0.5 s plus a multiple of 2 s and 8 s.
+ * The planner with synthetic profiles (design phase 7, slices 1 and 2). At 120 BPM a beat is 500 ms,
+ * a bar 2 s and a phrase 8 s; the first beat is at 0.5 s, so bar and phrase starts fall on 0.5 s
+ * plus a multiple of 2 s and 8 s.
  */
 class TransitionPlannerTest {
     private val dj = CrossfadeSettings(enabled = true, durationMs = 4_000, style = TransitionStyle.DJ_MIX)
@@ -77,7 +78,14 @@ class TransitionPlannerTest {
         val plan = overlap(planFor(incoming = transitionProfile(tempo = 123.6)))
 
         assertEquals(120.0 / 123.6, plan.ratio, 1e-9)
-        assertEquals((plan.incomingStartMs + plan.incomingSpanMs).toDouble(), plan.easeBack.first().atMs.toDouble(), 1.5)
+        assertEquals(
+            (plan.incomingStartMs + plan.incomingSpanMs).toDouble(),
+            plan.easeBack
+                .first()
+                .atMs
+                .toDouble(),
+            1.5,
+        )
         val incomingBarMs = 60_000.0 / 123.6 * 4
         plan.easeBack.zipWithNext().forEach { (a, b) ->
             assertEquals(incomingBarMs, (b.atMs - a.atMs).toDouble(), 1.5)
@@ -100,7 +108,8 @@ class TransitionPlannerTest {
     fun `half and double tempo match at the reading that needs the least stretch`() {
         val half = overlap(planFor(incoming = transitionProfile(tempo = 60.0)))
         val double = overlap(planFor(incoming = transitionProfile(tempo = 240.0)))
-        val stretchedHalf = overlap(planFor(outgoing = transitionProfile(tempo = 72.0), incoming = transitionProfile(tempo = 140.0)))
+        val stretchedHalf =
+            overlap(planFor(outgoing = transitionProfile(tempo = 72.0), incoming = transitionProfile(tempo = 140.0)))
 
         assertEquals(1f, half.incomingSpeed)
         assertEquals(120.0, half.incomingGrid!!.tempoBpm, 1e-9)
@@ -120,7 +129,8 @@ class TransitionPlannerTest {
 
     @Test
     fun `eight percent apart still matches and eight and a half does not`() {
-        val limit = overlap(planFor(outgoing = transitionProfile(tempo = 108.0), incoming = transitionProfile(tempo = 100.0)))
+        val limit =
+            overlap(planFor(outgoing = transitionProfile(tempo = 108.0), incoming = transitionProfile(tempo = 100.0)))
         val over = planFor(outgoing = transitionProfile(tempo = 108.5), incoming = transitionProfile(tempo = 100.0))
 
         assertEquals(1.08, limit.ratio, 1e-9)

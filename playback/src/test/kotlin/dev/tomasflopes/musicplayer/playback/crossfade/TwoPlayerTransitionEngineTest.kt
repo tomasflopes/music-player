@@ -23,11 +23,13 @@ import org.junit.jupiter.api.Test
 import kotlin.math.sqrt
 
 /**
- * [TwoPlayerCrossfadeEngine] with the DJ overlap of phase 7, on two [VirtualPlayer]s and a fake clock (ADR 0092): the
- * overlap starts at the switch point, at the incoming offset, follows the DJ curve and ends at speed 1.0; a late
- * preload runs the phase 6 plan; a pause, a skip and a release put both players back at speed 1.0. Slice 2 (ADR 0094
- * to 0097): a stretched incoming song is read by its position times the speed, eases back step by step on the plan's
- * schedule, phase lock nudges its speed or gives the match up, and every way out ends at speed 1.0. Nothing plays audio.
+ * [TwoPlayerCrossfadeEngine] with the DJ overlap of phase 7, on two [VirtualPlayer]s and a fake
+ * clock (ADR 0092): the overlap starts at the switch point, at the incoming offset, follows the
+ * DJ curve  and ends at speed 1.0; a late preload runs the phase 6 plan; a pause, a skip and a
+ * release put  both players back at speed 1.0. Slice 2 (ADR 0094 to 0097): a stretched incoming
+ * song is read by its position times the speed, eases back step by step on the plan's schedule,
+ * phase lock nudges its speed or gives the match up, and every way out ends at speed 1.0.
+ * Nothing plays audio.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TwoPlayerTransitionEngineTest {
@@ -376,7 +378,11 @@ class TwoPlayerTransitionEngineTest {
     fun `with phase lock on an incoming song that is ahead is slowed by the largest nudge`() =
         runTest {
             val config = TransitionConfig(phaseLockEnabled = true)
-            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID), config = config)
+            val s =
+                setup(
+                    overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID),
+                    config = config,
+                )
 
             advance(SWITCH_MS + 600)
 
@@ -386,7 +392,11 @@ class TwoPlayerTransitionEngineTest {
     @Test
     fun `with phase lock on aligned songs are left alone`() =
         runTest {
-            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, grids = GRID), config = TransitionConfig(phaseLockEnabled = true))
+            val s =
+                setup(
+                    overlapPlan(overlapMs = LONG_OVERLAP_MS, grids = GRID),
+                    config = TransitionConfig(phaseLockEnabled = true),
+                )
 
             advance(SWITCH_MS + LONG_OVERLAP_MS / 2)
 
@@ -398,11 +408,16 @@ class TwoPlayerTransitionEngineTest {
     fun `a phase error that stays above the limit for two bars turns the rest into an equal-power fade`() =
         runTest {
             val config = TransitionConfig(phaseLockEnabled = true)
-            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID), config = config)
+            val s =
+                setup(
+                    overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID),
+                    config = config,
+                )
 
             advance(SWITCH_MS + LONG_OVERLAP_MS / 2 + 50)
 
-            // The DJ curve would hold both players at 1 here; the abandoned match is already falling and rising short of it.
+            // The DJ curve would hold both players at 1 here; the abandoned match is already falling
+            // and rising short of it.
             assertTrue(s.spare.volume < 0.95f, "incoming ${s.spare.volume}")
             assertTrue(s.outgoing.volume < 0.95f, "outgoing ${s.outgoing.volume}")
 

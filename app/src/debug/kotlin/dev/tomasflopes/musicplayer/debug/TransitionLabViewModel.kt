@@ -196,7 +196,10 @@ class TransitionLabViewModel
         private fun overlapLines(plan: TransitionPlan.Overlap) =
             listOf(
                 "plan: ${plan.technique}",
-                "ratio ${fmt(plan.ratio, 4)} (${fmt(abs(plan.ratio - 1) * PERCENT, 2)} %), speed ${plan.incomingSpeed}, " +
+                "ratio ${fmt(
+                    plan.ratio,
+                    4,
+                )} (${fmt(abs(plan.ratio - 1) * PERCENT, 2)} %), speed ${plan.incomingSpeed}, " +
                     "grid ${plan.incomingGrid?.let { fmt(it.tempoBpm, 1) } ?: "-"} BPM",
                 "ease-back ${plan.easeBack.size} step(s), last at ${plan.easeBack.lastOrNull()?.atMs ?: "-"} ms",
                 "switch point ${plan.switchPointMs} ms of the outgoing song, lab starts ${config.labLeadMs} ms before",

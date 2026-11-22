@@ -61,7 +61,13 @@ class EqualPowerTail(
 
     private fun local(progress: Float): Double {
         val span = 1f - fromProgress
-        return if (progress.isNaN() || span <= 0f) 1.0 else ((progress - fromProgress) / span).coerceIn(0f, 1f).toDouble()
+        return if (progress.isNaN() ||
+            span <= 0f
+        ) {
+            1.0
+        } else {
+            ((progress - fromProgress) / span).coerceIn(0f, 1f).toDouble()
+        }
     }
 
     private companion object {
