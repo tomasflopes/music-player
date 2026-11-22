@@ -28,7 +28,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-/** What the lab plays: two songs, the overlap planned for them and the two beat grids it measures against. */
+/**
+ * What the lab plays: two songs, the overlap planned for them and the two beat grids it measures against (the
+ * incoming one at the matched tempo, which is the half or double tempo when that was the match).
+ */
 class LabSetup(
     val outgoing: Song,
     val incoming: Song,
@@ -84,6 +87,9 @@ class TransitionLab(
     val state: StateFlow<LabState> = mutableState.asStateFlow()
     private var session: Session? = null
 
+    /** Phase lock (ADR 0096) for the next run, off by default as in the app; the lab's switch sets it. */
+    var phaseLock: Boolean = config.phaseLockEnabled
+
     fun startTransition(setup: LabSetup) = begin { Session(setup).also { it.startTransition() } }
 
     fun startDrift(setup: LabSetup) = begin { Session(setup).also { it.startDrift() } }
@@ -116,7 +122,9 @@ class TransitionLab(
                 .build()
         private val first = ExoPlayer.Builder(context).build()
         private val second = ExoPlayer.Builder(context).build()
-        private val engine = TwoPlayerCrossfadeEngine(scope, { second }, attributes, config)
+        private val engine =
+            TwoPlayerCrossfadeEngine(scope, { second }, attributes, config.copy(phaseLockEnabled = phaseLock))
+        private val afterMs = AFTER_MS + easeBackMs()
         private val host = LabHost(first, plannedTransition())
         private val startedAt = System.nanoTime()
         private var job: Job? = null
@@ -142,6 +150,8 @@ class TransitionLab(
         fun startDrift() {
             first.setMediaItem(item(setup.outgoing), setup.plan.switchPointMs)
             second.setMediaItem(item(setup.incoming), setup.plan.incomingStartMs)
+            // The incoming song plays at the planned speed, so the drift is the error of the stretch itself.
+            if (setup.plan.incomingSpeed != 1f) second.playbackParameters = PlaybackParameters(setup.plan.incomingSpeed)
             first.volume = DRIFT_VOLUME
             second.volume = DRIFT_VOLUME
             first.prepare()
@@ -167,6 +177,12 @@ class TransitionLab(
             second.release()
         }
 
+        /** The ease-back runs after the overlap; the lab keeps playing until it is done (file ms are close enough). */
+        private fun easeBackMs(): Long {
+            val last = setup.plan.easeBack.lastOrNull() ?: return 0L
+            return (last.atMs - setup.plan.incomingStartMs - setup.plan.incomingSpanMs).coerceAtLeast(0L) + EASE_MARGIN_MS
+        }
+
         private fun plannedTransition() =
             PlannedTransition(
                 incoming = item(setup.incoming),
@@ -181,7 +197,7 @@ class TransitionLab(
         private suspend fun sample() {
             while (scope.isActive) {
                 delay(READING_MS)
-                val over = host.finished && host.sinceFinishedMs() >= AFTER_MS
+                val over = host.finished && host.sinceFinishedMs() >= afterMs
                 publish(reading())
                 if (over) {
                     stop()
@@ -202,7 +218,7 @@ class TransitionLab(
             return if (host.finished) {
                 LabReading(LabPhase.AFTER, outgoingMs = -1, incomingMs = inPos, incomingSpeed = speed)
             } else {
-                LabReading(LabPhase.OVERLAP, outPos, inPos, errorMs(outPos, inPos), speed)
+                LabReading(LabPhase.OVERLAP, outPos, inPos, errorMs(outPos, inPos, speed.toDouble()), speed)
             }
         }
 
@@ -216,7 +232,7 @@ class TransitionLab(
                 val outPos = first.currentPosition
                 val inPos = second.currentPosition
                 val speed = second.playbackParameters.speed
-                publish(LabReading(LabPhase.DRIFT, outPos, inPos, errorMs(outPos, inPos), speed))
+                publish(LabReading(LabPhase.DRIFT, outPos, inPos, errorMs(outPos, inPos, speed.toDouble()), speed))
                 if (System.nanoTime() - began >= DRIFT_MS * NANOS_PER_MS) {
                     stop()
                     return
@@ -252,7 +268,14 @@ class TransitionLab(
         private fun errorMs(
             outgoingPos: Long,
             incomingPos: Long,
-        ) = BeatPhase.errorMs(setup.outgoingGrid, outgoingPos.toDouble(), setup.incomingGrid, incomingPos.toDouble())
+            incomingSpeed: Double,
+        ) = BeatPhase.errorMs(
+            setup.outgoingGrid,
+            outgoingPos.toDouble(),
+            setup.incomingGrid,
+            incomingPos.toDouble(),
+            incomingSpeed,
+        )
     }
 
     /** The playback engine's part for the lab: plans once and notes the two players at the hand-over. */
@@ -297,6 +320,7 @@ class TransitionLab(
         const val SPEED_TEST_MS = 4_000L
         const val SPEED_TEST_SPEED = 1.04f
         private const val DRIFT_VOLUME = 0.5f
+        private const val EASE_MARGIN_MS = 2_000L
         private const val FALLBACK_FADE_MS = 4_000L
         private const val NANOS_PER_MS = 1_000_000L
     }

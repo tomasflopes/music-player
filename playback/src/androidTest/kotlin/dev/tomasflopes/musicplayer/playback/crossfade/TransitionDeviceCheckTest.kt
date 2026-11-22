@@ -16,7 +16,6 @@ import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.crossfade.Transition
 import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionCause
 import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
-import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
 import dev.tomasflopes.musicplayer.core.model.transition.BeatMatchTechnique
 import dev.tomasflopes.musicplayer.core.model.transition.BeatPhase
 import dev.tomasflopes.musicplayer.core.model.transition.CrossfadeTechnique
@@ -40,12 +39,11 @@ import kotlin.math.abs
 
 /**
  * The DJ overlap on real ExoPlayers, in `deviceCheck` (ADR 0009, 0092): two generated click tracks at 90 and 92 BPM
- * (`testdata/transitions`, `scripts/gen-transition-mp3s.sh`), planned by the real planner and run by the real
- * [TwoPlayerCrossfadeEngine]. The incoming song must start on the beat of the outgoing one, within [TOLERANCE_MS], the
- * volumes must follow the plan, and both players must end at speed 1.0.
- *
- * The two tempos are 2.2 % apart, so the check widens the slice 1 tolerance (1.5 %) to 3 % for itself; with the
- * defaults the planner would answer with a plain crossfade, which is the right thing for the app.
+ * (`testdata/transitions`, `scripts/gen-transition-mp3s.sh`), planned by the real planner with the default config and
+ * run by the real [TwoPlayerCrossfadeEngine]. The two tempos are 2.2 % apart, so since slice 2 (ADR 0094) they match
+ * normally: the incoming song is stretched to 90 BPM (speed 90/92) with its pitch kept. It must start on the beat of
+ * the outgoing one, within [TOLERANCE_MS], run at the planned speed during the overlap, and ease back to speed 1.0 on
+ * the plan's schedule (ADR 0095); the outgoing player must be at speed 1.0 after the overlap.
  *
  * NOT RUN: written without an emulator or a phone, never compiled or executed. Run `./gradlew deviceCheck` (with
  * `ANDROID_SERIAL` set to the emulator) before trusting any of it. The owner runs it and reports back.
@@ -61,7 +59,7 @@ class TransitionDeviceCheckTest {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val config = TransitionConfig(unstretchedTolerance = 0.03)
+    private val config = TransitionConfig()
     private lateinit var first: ExoPlayer
     private lateinit var second: ExoPlayer
     private lateinit var engine: TwoPlayerCrossfadeEngine
@@ -77,6 +75,8 @@ class TransitionDeviceCheckTest {
 
         @Volatile var incomingAtStart = -1L
 
+        @Volatile var incomingSpeedAtStart = -1f
+
         @Volatile var finished = 0
         private var planned = false
 
@@ -87,6 +87,7 @@ class TransitionDeviceCheckTest {
         override suspend fun fadeStarted(incoming: ExoPlayer) {
             outgoingAtStart = active.currentPosition
             incomingAtStart = incoming.currentPosition
+            incomingSpeedAtStart = incoming.playbackParameters.speed
             retiring = active
             active = incoming
         }
@@ -125,6 +126,7 @@ class TransitionDeviceCheckTest {
         val decision = CrossfadeDecision.Fade(plan.overlapMs)
         val fallback = CrossfadeDecision.Fade(FALLBACK_MS)
         val planned = PlannedTransition(item(incomingFile), decision, DURATION_MS, plan, fallback)
+        assertTrue("the plan stretches the incoming song", plan.incomingSpeed != 1f && plan.easeBack.isNotEmpty())
         val host = RecordingHost(first, planned)
 
         onMain {
@@ -138,20 +140,24 @@ class TransitionDeviceCheckTest {
 
         val error =
             BeatPhase.errorMs(
-                BeatGrid.of(outgoingProfile, config),
+                checkNotNull(plan.outgoingGrid),
                 host.outgoingAtStart.toDouble(),
-                BeatGrid.of(incomingProfile, config),
+                checkNotNull(plan.incomingGrid),
                 host.incomingAtStart.toDouble(),
+                host.incomingSpeedAtStart.toDouble(),
             )
+        assertEquals("the plan stretches 92 BPM to 90", 90.0 / 92.0, plan.ratio, 1e-9)
+        assertEquals("incoming runs at the planned speed", plan.incomingSpeed, host.incomingSpeedAtStart, 0f)
         assertTrue("incoming started ${error.toLong()} ms off the beat", abs(error) <= TOLERANCE_MS)
         val late = abs(host.outgoingAtStart - plan.switchPointMs)
         assertTrue("overlap started $late ms from the switch point", late <= TOLERANCE_MS)
         onMain {
             assertEquals("incoming ends at full volume", 1f, host.active.volume, 0f)
-            assertEquals("incoming ends at speed 1.0", 1f, host.active.playbackParameters.speed, 0f)
             assertEquals("outgoing ends at speed 1.0", 1f, checkNotNull(host.retiring).playbackParameters.speed, 0f)
             assertEquals("the retired player is empty", 0, first.mediaItemCount)
         }
+        waitFor { onMain { host.active.playbackParameters.speed } == 1f }
+        onMain { assertEquals("incoming ends at speed 1.0", 1f, host.active.playbackParameters.speed, 0f) }
     }
 
     private fun plan(

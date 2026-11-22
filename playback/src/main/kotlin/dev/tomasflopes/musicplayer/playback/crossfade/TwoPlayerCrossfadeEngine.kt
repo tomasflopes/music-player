@@ -8,13 +8,17 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
 import dev.tomasflopes.musicplayer.core.model.transition.EqualPowerCurve
+import dev.tomasflopes.musicplayer.core.model.transition.EqualPowerTail
 import dev.tomasflopes.musicplayer.core.model.transition.GainCurve
+import dev.tomasflopes.musicplayer.core.model.transition.PhaseLock
+import dev.tomasflopes.musicplayer.core.model.transition.SpeedStep
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Two ExoPlayers blended by hand (ADR 0061). The host's player plays the outgoing song. A watcher plans the next
@@ -31,8 +35,14 @@ import kotlinx.coroutines.launch
  * A DJ overlap (phase 7, ADR 0092) is the same handover with a different start and a different curve: the spare is
  * preloaded at the plan's incoming offset, the overlap starts when the outgoing song reaches the plan's switch point,
  * and the volumes follow the plan's [GainCurve] of the incoming position since that offset. An overlap whose spare is
- * not ready, or whose switch point has passed, runs the phase 6 plan instead. Whenever a fade ends, is cut or paused,
- * both players go back to speed 1.0.
+ * not ready, or whose switch point has passed, runs the phase 6 plan instead.
+ *
+ * Tempo match (slice 2, ADR 0094 to 0097): the incoming player runs at the plan's speed during the overlap, so its
+ * position covers that speed times the overlap; the volumes are read from that. With phase lock on ([PhaseLock]) the
+ * speed is nudged on a slow tick, and a lost beat match turns the rest of the overlap into an equal-power fade. When
+ * the overlap ends the incoming speed eases back to 1.0 on the plan's schedule, driven by a job of its own that runs
+ * next to the watcher. A skip, a seek, a queue or settings change, a pause, the next overlap and a kill end the ease
+ * and put both players at speed 1.0 at once.
  */
 class TwoPlayerCrossfadeEngine(
     private val scope: CoroutineScope,
@@ -49,18 +59,27 @@ class TwoPlayerCrossfadeEngine(
         val curve: GainCurve = EqualPowerCurve,
         /** Set once the host took [incoming] as its player; before that a cancelled fade leaves the host untouched. */
         var handedOver: Boolean = false,
+        /** The incoming speed during the overlap: its file covers [speed] times [durationMs]. */
+        val speed: Float = 1f,
+        var lock: PhaseLock? = null,
+        val easeBack: List<SpeedStep> = emptyList(),
+        /** False once the speed was put back to 1.0 early (a pause): no ease-back follows the overlap. */
+        var stretched: Boolean = false,
     )
 
     private var host: CrossfadeHost? = null
     private var spare: ExoPlayer? = null
     private var fade: Fade? = null
     private var job: Job? = null
+    private var easeJob: Job? = null
+    private var easing: ExoPlayer? = null
 
     override fun attach(host: CrossfadeHost) {
         this.host = host
     }
 
     override fun invalidate() {
+        cancelEase()
         abortFade()
         job?.cancel()
         spare?.let(::discard)
@@ -68,15 +87,20 @@ class TwoPlayerCrossfadeEngine(
     }
 
     override fun onPlayingChanged(playing: Boolean) {
+        if (!playing) cancelEase()
         val running = fade?.takeIf { it.handedOver } ?: return
         running.retiring.playWhenReady = playing
         if (!playing) {
             resetSpeed(running.retiring)
             resetSpeed(running.incoming)
+            // The beats cannot stay matched at speed 1.0: the rest of the overlap is a plain equal-power fade.
+            abandonMatch(running)
+            running.stretched = false
         }
     }
 
     override fun release() {
+        cancelEase()
         abortFade()
         job?.cancel()
         spare?.let(::resetSpeed)
@@ -147,8 +171,9 @@ class TwoPlayerCrossfadeEngine(
     ): Boolean {
         var preloaded = false
         var started: Boolean? = null
+        var wait = TICK_MS
         while (started == null) {
-            delay(TICK_MS)
+            delay(wait)
             val active = host.activePlayer
             val untilSwitch = overlap.switchPointMs - active.currentPosition
             val late = untilSwitch < -LATE_START_MS
@@ -163,25 +188,53 @@ class TwoPlayerCrossfadeEngine(
             val atSwitch = preloaded && untilSwitch <= 0 && active.isPlaying
             if (started == null && atSwitch) {
                 started = !late && player.playbackState == Player.STATE_READY
-                if (started) {
-                    val running = Fade(active, player, overlap.overlapMs, overlap.incomingStartMs, overlap.curve)
-                    runFade(host, running, overlap.incomingSpeed)
-                }
+                if (started) runFade(host, overlapFade(active, player, overlap))
             }
+            // Close to the switch point the watcher wakes on it, so the start is not up to one tick late (a late
+            // start is a beat-phase error of the same size).
+            wait = if (preloaded && untilSwitch in 1..TICK_MS) untilSwitch else TICK_MS
         }
         return started == true
+    }
+
+    private fun overlapFade(
+        active: ExoPlayer,
+        player: ExoPlayer,
+        overlap: TransitionPlan.Overlap,
+    ) = Fade(
+        active,
+        player,
+        overlap.overlapMs,
+        overlap.incomingStartMs,
+        overlap.curve,
+        speed = overlap.incomingSpeed,
+        lock = phaseLockFor(overlap),
+        easeBack = overlap.easeBack,
+        stretched = overlap.incomingSpeed != 1f,
+    )
+
+    /** Phase lock is a switch: off, an overlap runs at its planned speed from start to end (ADR 0096). */
+    private fun phaseLockFor(overlap: TransitionPlan.Overlap): PhaseLock? {
+        val outgoingGrid = overlap.outgoingGrid
+        val incomingGrid = overlap.incomingGrid
+        return if (config.phaseLockEnabled && outgoingGrid != null && incomingGrid != null) {
+            PhaseLock(config, outgoingGrid, incomingGrid, overlap.incomingSpeed.toDouble())
+        } else {
+            null
+        }
     }
 
     private suspend fun runFade(
         host: CrossfadeHost,
         running: Fade,
-        speed: Float = 1f,
     ) {
         val outgoing = running.retiring
         val incoming = running.incoming
+        // An ease-back still running belongs to the player that is the outgoing one now: it goes back to 1.0.
+        cancelEase()
         fade = running
         incoming.volume = 0f
-        if (speed != 1f) incoming.playbackParameters = PlaybackParameters(speed)
+        if (running.stretched) incoming.playbackParameters = PlaybackParameters(running.speed)
         incoming.playWhenReady = true
         host.fadeStarted(incoming)
         running.handedOver = true
@@ -195,24 +248,109 @@ class TwoPlayerCrossfadeEngine(
     }
 
     private suspend fun ramp(running: Fade) {
+        var sinceLock = 0L
         while (true) {
-            val progress = (running.incoming.currentPosition - running.startOffsetMs).toFloat() / running.durationMs
+            val progress = progressOf(running)
             running.incoming.volume = running.curve.incoming(progress)
             running.retiring.volume = running.curve.outgoing(progress)
             val outgoingState = running.retiring.playbackState
             val outgoingOver = outgoingState == Player.STATE_ENDED || outgoingState == Player.STATE_IDLE
             if (progress >= 1f || outgoingOver) return
+            sinceLock += RAMP_TICK_MS
+            if (sinceLock >= config.phaseLockTickMs) {
+                sinceLock = 0L
+                lockPhase(running)
+            }
             delay(RAMP_TICK_MS)
         }
     }
 
-    /** The fade ran its course: the incoming song is at full volume alone, the outgoing player is the spare. */
+    /** How much of the overlap has passed, read from the incoming position, which covers speed times the overlap. */
+    private fun progressOf(running: Fade): Float =
+        (running.incoming.currentPosition - running.startOffsetMs).toFloat() / (running.durationMs * running.speed)
+
+    /** One phase lock tick: nudge the incoming speed, or give the beat match up (ADR 0096). */
+    private fun lockPhase(running: Fade) {
+        val lock = running.lock ?: return
+        val current = running.incoming.playbackParameters.speed
+        val action =
+            lock.update(
+                running.retiring.currentPosition.toDouble(),
+                running.incoming.currentPosition.toDouble(),
+                current.toDouble(),
+            )
+        when (action) {
+            is PhaseLock.Action.Speed ->
+                if (abs(action.value - current) >= MIN_SPEED_CHANGE) {
+                    running.incoming.playbackParameters = PlaybackParameters(action.value)
+                }
+            PhaseLock.Action.Abandon -> abandonMatch(running)
+        }
+    }
+
+    /** From now on the overlap is an equal-power fade that starts from the gains it has, so nothing jumps. */
+    private fun abandonMatch(running: Fade) {
+        val progress = progressOf(running).coerceIn(0f, 1f)
+        running.curve = EqualPowerTail(progress, running.curve.incoming(progress), running.curve.outgoing(progress))
+        running.lock = null
+    }
+
+    /**
+     * The fade ran its course: the incoming song is at full volume alone, the outgoing player is the spare. A stretched
+     * incoming song eases back to speed 1.0 on the plan's schedule; the outgoing player is back at 1.0 already.
+     */
     private fun finish(running: Fade) {
         running.incoming.volume = 1f
-        resetSpeed(running.incoming)
         discard(running.retiring)
         spare = running.retiring
         fade = null
+        if (running.stretched) startEase(running.incoming, running.easeBack) else resetSpeed(running.incoming)
+    }
+
+    /** Runs [steps] on [player]: each step is set once the player's position has reached it (ADR 0095). */
+    private fun startEase(
+        player: ExoPlayer,
+        steps: List<SpeedStep>,
+    ) {
+        if (steps.isEmpty()) {
+            resetSpeed(player)
+            return
+        }
+        easing = player
+        easeJob = scope.launch { ease(player, steps) }
+    }
+
+    private suspend fun ease(
+        player: ExoPlayer,
+        steps: List<SpeedStep>,
+    ) {
+        var next = 0
+        while (next < steps.size) {
+            delay(TICK_MS)
+            val position = player.currentPosition
+            var target: Float? = null
+            while (next < steps.size && steps[next].atMs <= position) {
+                target = steps[next].speed
+                next++
+            }
+            if (target != null) setSpeed(player, target)
+        }
+        easing = null
+    }
+
+    /** Ends an ease-back that is running and puts its player at speed 1.0. */
+    private fun cancelEase() {
+        easeJob?.cancel()
+        easeJob = null
+        easing?.let(::resetSpeed)
+        easing = null
+    }
+
+    private fun setSpeed(
+        player: ExoPlayer,
+        speed: Float,
+    ) {
+        player.playbackParameters = if (speed == 1f) PlaybackParameters.DEFAULT else PlaybackParameters(speed)
     }
 
     /**
@@ -288,6 +426,9 @@ class TwoPlayerCrossfadeEngine(
 
         /** An overlap whose switch point is more than this far behind is not started: the phase 6 plan runs. */
         const val LATE_START_MS = 1_000L
+
+        /** Phase lock does not touch the speed for a change smaller than this. */
+        const val MIN_SPEED_CHANGE = 0.0005f
 
         /** A fade shorter than this is not worth the two players; the join stays plain. */
         const val MIN_FADE_MS = 500L

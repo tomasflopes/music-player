@@ -68,7 +68,7 @@ fun TransitionLabScreen(viewModel: TransitionLabViewModel) {
         }
         items(state.planLines) { line -> Mono(line) }
         item { Controls(viewModel, state.canPlay) }
-        item { Toggles() }
+        item { Toggles(state.phaseLock, viewModel::onPhaseLock) }
         item { Reading(lab.reading) }
         item { Summary(lab.summary) }
         if (lab.message.isNotEmpty()) item { Text(lab.message) }
@@ -107,17 +107,20 @@ private fun Controls(
     }
 }
 
-/** Slice 1 has neither a bass swap nor a phase lock; the switches are here so the lab keeps its final layout. */
+/** Phase lock works from slice 2 (it applies to the next run); the bass swap waits for slice 3. */
 @Composable
-private fun Toggles() {
+private fun Toggles(
+    phaseLock: Boolean,
+    onPhaseLock: (Boolean) -> Unit,
+) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Switch(checked = false, onCheckedChange = null, enabled = false)
             Text("Bass swap (slice 3)")
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Switch(checked = false, onCheckedChange = null, enabled = false)
-            Text("Phase lock (slice 2)")
+            Switch(checked = phaseLock, onCheckedChange = onPhaseLock)
+            Text("Phase lock")
         }
     }
 }

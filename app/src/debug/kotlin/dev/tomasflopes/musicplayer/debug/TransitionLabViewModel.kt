@@ -15,6 +15,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.ArtistReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
+import dev.tomasflopes.musicplayer.core.model.transition.TempoMatcher
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
@@ -53,6 +54,8 @@ data class TransitionLabUiState(
     val planLines: List<String> = emptyList(),
     /** True when the plan is a beat-matched overlap, so there is something to play. */
     val canPlay: Boolean = false,
+    /** The lab's phase lock switch (ADR 0096): off by default, applies to the next run. */
+    val phaseLock: Boolean = false,
 )
 
 /**
@@ -146,6 +149,11 @@ class TransitionLabViewModel
 
         fun onSpeedChange() = lab.changeSpeed()
 
+        fun onPhaseLock(enabled: Boolean) {
+            lab.phaseLock = enabled
+            mutableState.value = mutableState.value.copy(phaseLock = enabled)
+        }
+
         fun onStop() = lab.stop()
 
         override fun onCleared() = lab.stop()
@@ -164,8 +172,8 @@ class TransitionLabViewModel
                     Transition(outgoing, incoming, TransitionCause.END_OF_SONG, shuffled = true, repeatOne = false)
                 val plan = planner.plan(settings, transition, outProfile, inProfile)
                 if (plan is TransitionPlan.Overlap && outProfile != null && inProfile != null) {
-                    val outGrid = BeatGrid.of(outProfile, config)
-                    val inGrid = BeatGrid.of(inProfile, config)
+                    val outGrid = plan.outgoingGrid ?: BeatGrid.of(outProfile, config)
+                    val inGrid = plan.incomingGrid ?: BeatGrid.of(inProfile, config)
                     setup = LabSetup(outgoing, incoming, plan, outGrid, inGrid)
                 }
                 mutableState.value =
@@ -188,7 +196,9 @@ class TransitionLabViewModel
         private fun overlapLines(plan: TransitionPlan.Overlap) =
             listOf(
                 "plan: ${plan.technique}",
-                "ratio ${fmt(plan.ratio, 4)} (${fmt(abs(plan.ratio - 1) * PERCENT, 2)} %), speed ${plan.incomingSpeed}",
+                "ratio ${fmt(plan.ratio, 4)} (${fmt(abs(plan.ratio - 1) * PERCENT, 2)} %), speed ${plan.incomingSpeed}, " +
+                    "grid ${plan.incomingGrid?.let { fmt(it.tempoBpm, 1) } ?: "-"} BPM",
+                "ease-back ${plan.easeBack.size} step(s), last at ${plan.easeBack.lastOrNull()?.atMs ?: "-"} ms",
                 "switch point ${plan.switchPointMs} ms of the outgoing song, lab starts ${config.labLeadMs} ms before",
                 "incoming starts at ${plan.incomingStartMs} ms, overlap ${plan.overlapMs} ms",
             )
@@ -210,8 +220,8 @@ class TransitionLabViewModel
                 outgoing == null || incoming == null -> "a profile is missing"
                 minOf(outgoing.tempoConfidence, incoming.tempoConfidence) < config.minConfidence ->
                     "tempo confidence is low"
-                abs(outgoing.tempoBpm / incoming.tempoBpm - 1) > config.unstretchedTolerance ->
-                    "tempos too far apart for slice 1"
+                TempoMatcher.best(outgoing.tempoBpm, incoming.tempoBpm, config.maxStretch) == null ->
+                    "tempos more than ${fmt(config.maxStretch * PERCENT, 0)} % apart, even at half or double"
                 else -> "the songs are too short for four bars"
             }
 

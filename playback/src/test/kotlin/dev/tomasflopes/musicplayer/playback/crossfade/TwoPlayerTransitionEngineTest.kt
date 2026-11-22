@@ -5,7 +5,10 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
+import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
 import dev.tomasflopes.musicplayer.core.model.transition.DjVolumeCurve
+import dev.tomasflopes.musicplayer.core.model.transition.SpeedStep
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -22,7 +25,9 @@ import kotlin.math.sqrt
 /**
  * [TwoPlayerCrossfadeEngine] with the DJ overlap of phase 7, on two [VirtualPlayer]s and a fake clock (ADR 0092): the
  * overlap starts at the switch point, at the incoming offset, follows the DJ curve and ends at speed 1.0; a late
- * preload runs the phase 6 plan; a pause, a skip and a release put both players back at speed 1.0. Nothing plays audio.
+ * preload runs the phase 6 plan; a pause, a skip and a release put both players back at speed 1.0. Slice 2 (ADR 0094
+ * to 0097): a stretched incoming song is read by its position times the speed, eases back step by step on the plan's
+ * schedule, phase lock nudges its speed or gives the match up, and every way out ends at speed 1.0. Nothing plays audio.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TwoPlayerTransitionEngineTest {
@@ -74,26 +79,36 @@ class TwoPlayerTransitionEngineTest {
         val engine: TwoPlayerCrossfadeEngine,
     )
 
-    private fun overlapPlan(speed: Float = 1f) =
-        PlannedTransition(
-            MediaItem.EMPTY,
-            CrossfadeDecision.Fade(OVERLAP_MS),
-            DURATION_MS,
-            overlap =
-                TransitionPlan.Overlap(
-                    technique = "beat-match",
-                    switchPointMs = SWITCH_MS,
-                    incomingStartMs = INCOMING_START_MS,
-                    overlapMs = OVERLAP_MS,
-                    curve = DjVolumeCurve,
-                    incomingSpeed = speed,
-                ),
-            fallback = CrossfadeDecision.Fade(PHASE_SIX_MS),
-        )
+    private fun overlapPlan(
+        speed: Float = 1f,
+        overlapMs: Long = OVERLAP_MS,
+        incomingStartMs: Long = INCOMING_START_MS,
+        easeBack: List<SpeedStep> = emptyList(),
+        grids: BeatGrid? = null,
+    ) = PlannedTransition(
+        MediaItem.EMPTY,
+        CrossfadeDecision.Fade(overlapMs),
+        DURATION_MS,
+        overlap =
+            TransitionPlan.Overlap(
+                technique = "beat-match",
+                switchPointMs = SWITCH_MS,
+                incomingStartMs = incomingStartMs,
+                overlapMs = overlapMs,
+                curve = DjVolumeCurve,
+                ratio = speed.toDouble(),
+                incomingSpeed = speed,
+                easeBack = easeBack,
+                outgoingGrid = grids,
+                incomingGrid = grids,
+            ),
+        fallback = CrossfadeDecision.Fade(PHASE_SIX_MS),
+    )
 
     private fun TestScope.setup(
         plan: PlannedTransition = overlapPlan(),
         outgoingStartMs: Long = 0L,
+        config: TransitionConfig = TransitionConfig(),
     ): Setup {
         val clock = { currentTime }
         val outgoing =
@@ -103,7 +118,7 @@ class TwoPlayerTransitionEngineTest {
             }
         val spare = VirtualPlayer(clock, DURATION_MS)
         val host = RecordingHost(outgoing.player, plan, clock)
-        val engine = TwoPlayerCrossfadeEngine(backgroundScope, { spare.player }, attributes)
+        val engine = TwoPlayerCrossfadeEngine(backgroundScope, { spare.player }, attributes, config)
         engine.attach(host)
         engine.invalidate()
         return Setup(outgoing, spare, host, engine)
@@ -250,6 +265,154 @@ class TwoPlayerTransitionEngineTest {
             assertEquals(1f, s.outgoing.speed)
         }
 
+    /** Three bars of ease-back after an overlap whose incoming song covers 7 680 ms of its file at speed 0.96. */
+    private val easeSteps =
+        listOf(SpeedStep(9_680, 0.97f), SpeedStep(11_680, 0.98f), SpeedStep(13_680, 1f))
+
+    @Test
+    fun `a stretched incoming song is read by its position times the speed`() =
+        runTest {
+            val s = setup(overlapPlan(speed = FASTER))
+            advance(SWITCH_MS + 100)
+
+            advance(OVERLAP_MS / 4)
+            assertEquals(sqrt(0.5f), s.spare.volume, 0.03f)
+
+            advance(OVERLAP_MS / 2)
+            assertEquals(0, s.host.finished, "the overlap is still running")
+
+            advance(OVERLAP_MS / 4 + 500)
+            assertEquals(1, s.host.finished)
+        }
+
+    @Test
+    fun `after the overlap the speed eases back on the plan's schedule and ends at 1`() =
+        runTest {
+            val s = setup(overlapPlan(speed = SLOWER, easeBack = easeSteps))
+            advance(SWITCH_MS + 100)
+            assertEquals(SLOWER, s.spare.speed)
+            assertEquals(1f, s.outgoing.speed)
+
+            advance(OVERLAP_MS + 300)
+            assertEquals(0.97f, s.spare.speed)
+
+            advance(2_000)
+            assertEquals(0.98f, s.spare.speed)
+
+            advance(2_000)
+            assertEquals(1f, s.spare.speed)
+            assertEquals(1f, s.outgoing.speed)
+        }
+
+    @Test
+    fun `a pause during the ease-back puts the speed back at 1 and the ease stops`() =
+        runTest {
+            val s = setup(overlapPlan(speed = SLOWER, easeBack = easeSteps))
+            advance(SWITCH_MS + OVERLAP_MS + 400)
+            assertEquals(0.97f, s.spare.speed)
+
+            s.engine.onPlayingChanged(false)
+            assertEquals(1f, s.spare.speed)
+            advance(6_000)
+
+            assertEquals(1f, s.spare.speed)
+        }
+
+    @Test
+    fun `a skip during the ease-back puts the speed back at 1`() =
+        runTest {
+            val s = setup(overlapPlan(speed = SLOWER, easeBack = easeSteps))
+            advance(SWITCH_MS + OVERLAP_MS + 400)
+            assertEquals(0.97f, s.spare.speed)
+
+            s.engine.invalidate()
+
+            assertEquals(1f, s.spare.speed)
+            assertEquals(1f, s.outgoing.speed)
+        }
+
+    @Test
+    fun `a kill during the ease-back puts the speed back at 1`() =
+        runTest {
+            val s = setup(overlapPlan(speed = SLOWER, easeBack = easeSteps))
+            advance(SWITCH_MS + OVERLAP_MS + 400)
+
+            s.engine.release()
+            advance(5_000)
+
+            assertEquals(1f, s.spare.speed)
+            assertEquals(1f, s.outgoing.speed)
+        }
+
+    @Test
+    fun `a pause in a stretched overlap ends the match, so no ease-back follows`() =
+        runTest {
+            val s = setup(overlapPlan(speed = SLOWER, easeBack = easeSteps))
+            advance(SWITCH_MS + 2_000)
+            assertEquals(SLOWER, s.spare.speed)
+
+            s.engine.onPlayingChanged(false)
+            assertEquals(1f, s.spare.speed)
+            assertEquals(1f, s.outgoing.speed)
+            advance(OVERLAP_MS + 6_000)
+
+            assertEquals(1, s.host.finished)
+            assertEquals(1f, s.spare.speed)
+        }
+
+    @Test
+    fun `with phase lock off an overlap runs at its planned speed whatever the error`() =
+        runTest {
+            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID))
+            advance(SWITCH_MS + LONG_OVERLAP_MS / 2)
+
+            assertEquals(1f, s.spare.speed)
+            assertEquals(1f, s.spare.volume, 0.01f)
+            assertEquals(1f, s.outgoing.volume, 0.01f)
+            assertFalse(s.spare.calls.any { it.startsWith("setPlaybackParameters") })
+        }
+
+    @Test
+    fun `with phase lock on an incoming song that is ahead is slowed by the largest nudge`() =
+        runTest {
+            val config = TransitionConfig(phaseLockEnabled = true)
+            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID), config = config)
+
+            advance(SWITCH_MS + 600)
+
+            assertEquals(1f - config.maxNudge.toFloat(), s.spare.speed, 1e-4f)
+        }
+
+    @Test
+    fun `with phase lock on aligned songs are left alone`() =
+        runTest {
+            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, grids = GRID), config = TransitionConfig(phaseLockEnabled = true))
+
+            advance(SWITCH_MS + LONG_OVERLAP_MS / 2)
+
+            assertEquals(1f, s.spare.speed)
+            assertFalse(s.spare.calls.any { it.startsWith("setPlaybackParameters") })
+        }
+
+    @Test
+    fun `a phase error that stays above the limit for two bars turns the rest into an equal-power fade`() =
+        runTest {
+            val config = TransitionConfig(phaseLockEnabled = true)
+            val s = setup(overlapPlan(overlapMs = LONG_OVERLAP_MS, incomingStartMs = OFFSET_START_MS, grids = GRID), config = config)
+
+            advance(SWITCH_MS + LONG_OVERLAP_MS / 2 + 50)
+
+            // The DJ curve would hold both players at 1 here; the abandoned match is already falling and rising short of it.
+            assertTrue(s.spare.volume < 0.95f, "incoming ${s.spare.volume}")
+            assertTrue(s.outgoing.volume < 0.95f, "outgoing ${s.outgoing.volume}")
+
+            advance(LONG_OVERLAP_MS)
+
+            assertEquals(1, s.host.finished)
+            assertEquals(1f, s.spare.volume)
+            assertEquals(1f, s.spare.speed)
+        }
+
     private fun assertNear(
         expected: Long,
         actual: Long,
@@ -266,5 +429,12 @@ class TwoPlayerTransitionEngineTest {
         const val OVERLAP_MS = 8_000L
         const val PHASE_SIX_MS = 4_000L
         const val SPED_UP = 1.04f
+        const val FASTER = 1.08f
+        const val SLOWER = 0.96f
+        const val LONG_OVERLAP_MS = 16_000L
+
+        /** Off the beat by 120 ms against the outgoing song, which plays from 0 on a 500 ms beat. */
+        const val OFFSET_START_MS = 2_120L
+        val GRID = BeatGrid(0.0, 120.0, 4, 16)
     }
 }
