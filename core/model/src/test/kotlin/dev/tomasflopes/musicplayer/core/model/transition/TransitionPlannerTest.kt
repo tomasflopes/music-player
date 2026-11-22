@@ -122,7 +122,8 @@ class TransitionPlannerTest {
     fun `a song too short for four bars is a plain crossfade`() {
         val short = transitionProfile(introEndMs = 2_000, outroStartMs = 3_000, musicEndMs = 5_000)
 
-        val result = planFor(outgoing = short, transition = transition(outgoing = transitionSong(1, durationMs = 6_000)))
+        val result =
+            planFor(outgoing = short, transition = transition(outgoing = transitionSong(1, durationMs = 6_000)))
 
         assertEquals(TransitionPlan.Fade(2_000), result)
     }

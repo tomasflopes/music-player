@@ -48,9 +48,7 @@ class BeatGrid(
     ): Double? {
         if (high < low) return null
         val unit = floor((high - firstBeatMs) / unitMs + EPSILON)
-        if (unit < 0) return null
-        val start = firstBeatMs + unit * unitMs
-        return start.takeIf { it >= low - EPSILON_MS }
+        return if (unit < 0) null else (firstBeatMs + unit * unitMs).takeIf { it >= low - EPSILON_MS }
     }
 
     companion object {

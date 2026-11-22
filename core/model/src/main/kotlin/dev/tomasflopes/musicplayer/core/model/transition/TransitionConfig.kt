@@ -23,16 +23,21 @@ data class TransitionConfig(
     val maxNudge: Double = 0.005,
     val maxPhaseErrorMs: Long = 40,
     val bassCutHz: Int = 150,
-    val bassCutDb: Float = -24f,
+    val bassCutDb: Float = DEFAULT_BASS_CUT_DB,
     val bassSwapBeats: Int = 2,
     val talkEnabled: Boolean = true,
     val talkMinMs: Long = 8_000,
     val talkEnergyRatio: Float = 0.5f,
     val talkLeadMs: Long = 1_000,
-    val talkDuckDb: Float = -6f,
+    val talkDuckDb: Float = DEFAULT_TALK_DUCK_DB,
     val talkFadeBars: Int = 4,
     /** The lab starts this long before the switch point. */
     val labLeadMs: Long = 15_000,
     /** The next song is handed to the spare player this long before the overlap starts. */
     val preloadLeadMs: Long = 8_000,
-)
+) {
+    private companion object {
+        const val DEFAULT_BASS_CUT_DB = -24f
+        const val DEFAULT_TALK_DUCK_DB = -6f
+    }
+}

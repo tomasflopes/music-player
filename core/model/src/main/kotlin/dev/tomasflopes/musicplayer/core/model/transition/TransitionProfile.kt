@@ -19,10 +19,14 @@ data class TransitionProfile(
     /** Finite numbers in a sane range, boundaries in order: anything else is treated as "no profile". */
     val isUsable: Boolean
         get() =
-            tempoBpm.isFinite() && tempoBpm in MIN_BPM..MAX_BPM &&
-                firstBeatMs.isFinite() && firstBeatMs >= 0.0 &&
+            tempoBpm.isFinite() &&
+                tempoBpm in MIN_BPM..MAX_BPM &&
+                firstBeatMs.isFinite() &&
+                firstBeatMs >= 0.0 &&
                 !tempoConfidence.isNaN() &&
-                musicStartMs in 0..introEndMs && introEndMs <= outroStartMs && outroStartMs <= musicEndMs
+                musicStartMs in 0..introEndMs &&
+                introEndMs <= outroStartMs &&
+                outroStartMs <= musicEndMs
 
     private companion object {
         const val MIN_BPM = 30.0

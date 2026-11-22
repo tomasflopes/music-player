@@ -79,18 +79,45 @@ internal class VirtualPlayer(
             args: Array<Any?>?,
         ): Any? {
             val list = args?.toList().orEmpty()
-            return when (method.name) {
+            return playback(method.name) ?: items(method.name, proxy, list) ?: command(method, list)
+        }
+
+        private fun playback(name: String): Any? =
+            when (name) {
                 "getCurrentPosition" -> position
                 "getDuration" -> durationMs
                 "getPlaybackState" -> state
                 "isPlaying" -> playWhenReady && state == Player.STATE_READY
                 "getPlayWhenReady" -> playWhenReady
+                "getVolume" -> volume
+                "getPlaybackParameters" -> if (speed == 1f) PlaybackParameters.DEFAULT else PlaybackParameters(speed)
+                else -> null
+            }
+
+        private fun items(
+            name: String,
+            proxy: Any,
+            list: List<Any?>,
+        ): Any? =
+            when (name) {
+                "getMediaItemCount" -> if (hasItem) 1 else 0
+                "getCurrentMediaItemIndex" -> 0
+                "getMediaItemAt" -> MediaItem.EMPTY
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === list[0]
+                "toString" -> "VirtualPlayer"
+                else -> null
+            }
+
+        private fun command(
+            method: Method,
+            list: List<Any?>,
+        ): Any? =
+            when (method.name) {
                 "setPlayWhenReady" -> record(method, list) { changePlayWhenReady(list[0] as Boolean) }
                 "play" -> record(method, list) { changePlayWhenReady(true) }
                 "pause" -> record(method, list) { changePlayWhenReady(false) }
-                "getVolume" -> volume
                 "setVolume" -> record(method, list) { volume = list[0] as Float }
-                "getPlaybackParameters" -> if (speed == 1f) PlaybackParameters.DEFAULT else PlaybackParameters(speed)
                 "setPlaybackParameters" ->
                     record(method, list) {
                         rebase()
@@ -108,15 +135,8 @@ internal class VirtualPlayer(
                         hasItem = false
                         basePosition = 0L
                     }
-                "getMediaItemCount" -> if (hasItem) 1 else 0
-                "getCurrentMediaItemIndex" -> 0
-                "getMediaItemAt" -> MediaItem.EMPTY
-                "hashCode" -> System.identityHashCode(proxy)
-                "equals" -> proxy === list[0]
-                "toString" -> "VirtualPlayer"
                 else -> record(method, list) {}
             }
-        }
 
         private fun record(
             method: Method,

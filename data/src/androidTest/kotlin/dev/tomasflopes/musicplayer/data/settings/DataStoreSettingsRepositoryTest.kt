@@ -126,7 +126,9 @@ class DataStoreSettingsRepositoryTest {
         runTest {
             assertEquals(TransitionStyle.CROSSFADE, newInstance().crossfade.first().style)
 
-            newInstance().setCrossfade(CrossfadeSettings(enabled = true, durationMs = 5_000, style = TransitionStyle.DJ_MIX))
+            newInstance().setCrossfade(
+                CrossfadeSettings(enabled = true, durationMs = 5_000, style = TransitionStyle.DJ_MIX),
+            )
 
             assertEquals(TransitionStyle.DJ_MIX, newInstance().crossfade.first().style)
         }

@@ -198,7 +198,9 @@ class TransitionDeviceCheckTest {
     /** The test APK's asset, copied to the cache so ExoPlayer can read it as a file. */
     private fun asset(name: String): File =
         File(context.cacheDir, name).also { file ->
-            instrumentation.context.assets.open(name).use { input -> file.outputStream().use { input.copyTo(it) } }
+            instrumentation.context.assets
+                .open(name)
+                .use { input -> file.outputStream().use { input.copyTo(it) } }
         }
 
     private fun waitFor(condition: () -> Boolean) {

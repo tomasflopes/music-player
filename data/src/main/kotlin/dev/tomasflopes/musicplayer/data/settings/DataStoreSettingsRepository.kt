@@ -47,8 +47,9 @@ class DataStoreSettingsRepository(
                 CrossfadeSettings(
                     enabled = preferences[CROSSFADE_ENABLED] ?: false,
                     durationMs = preferences[CROSSFADE_DURATION_MS]?.toLong() ?: CrossfadeSettings.DEFAULT_DURATION_MS,
-                    style = TransitionStyle.entries.firstOrNull { it.name == preferences[CROSSFADE_STYLE] }
-                        ?: TransitionStyle.CROSSFADE,
+                    style =
+                        TransitionStyle.entries.firstOrNull { it.name == preferences[CROSSFADE_STYLE] }
+                            ?: TransitionStyle.CROSSFADE,
                 ).coerced()
             }.distinctUntilChanged()
 

@@ -3,10 +3,10 @@ package dev.tomasflopes.musicplayer.playback.di
 import android.content.Context
 import dagger.Module
 import dagger.Provides
-import dagger.multibindings.IntoSet
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.BeatMatchTechnique
 import dev.tomasflopes.musicplayer.core.model.transition.CrossfadeTechnique

@@ -100,7 +100,13 @@ class TransitionLabViewModel
             if (text.isBlank()) return
             searchJob =
                 viewModelScope.launch {
-                    val songs = engine.await().search(text).songs.map { it.song }.take(MAX_MATCHES)
+                    val songs =
+                        engine
+                            .await()
+                            .search(text)
+                            .songs
+                            .map { it.song }
+                            .take(MAX_MATCHES)
                     mutableState.value = mutableState.value.copy(matches = songs)
                 }
         }

@@ -24,8 +24,7 @@ class BeatMatchTechnique : TransitionTechnique {
         val incoming = request.incoming?.takeIf { it.isUsable && it.tempoConfidence >= config.minConfidence }
         if (outgoing == null || incoming == null) return null
         val ratio = outgoing.tempoBpm / incoming.tempoBpm
-        if (abs(ratio - 1.0) > config.unstretchedTolerance) return null
-        return Search(
+        return if (abs(ratio - 1.0) > config.unstretchedTolerance) null else Search(
             outgoingGrid = BeatGrid.of(outgoing, config),
             incomingGrid = BeatGrid.of(incoming, config),
             outgoing = outgoing,

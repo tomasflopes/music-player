@@ -53,8 +53,11 @@ class TransitionPlanner(
         outgoingDurationMs: Long,
         incomingDurationMs: Long,
     ): Boolean =
-        overlapMs > 0 && switchPointMs >= 0 && incomingStartMs >= 0 &&
+        overlapMs > 0 &&
+            switchPointMs >= 0 &&
+            incomingStartMs >= 0 &&
             switchPointMs + overlapMs <= outgoingDurationMs &&
             incomingStartMs + overlapMs <= incomingDurationMs &&
-            incomingSpeed.isFinite() && incomingSpeed > 0f
+            incomingSpeed.isFinite() &&
+            incomingSpeed > 0f
 }

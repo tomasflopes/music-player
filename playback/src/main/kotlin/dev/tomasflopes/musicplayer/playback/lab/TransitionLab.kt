@@ -198,11 +198,12 @@ class TransitionLab(
             }
             val inPos = incoming.currentPosition
             val speed = incoming.playbackParameters.speed
-            if (host.finished) {
-                return LabReading(LabPhase.AFTER, outgoingMs = -1, incomingMs = inPos, incomingSpeed = speed)
-            }
             val outPos = retiring.currentPosition
-            return LabReading(LabPhase.OVERLAP, outPos, inPos, errorMs(outPos, inPos), speed)
+            return if (host.finished) {
+                LabReading(LabPhase.AFTER, outgoingMs = -1, incomingMs = inPos, incomingSpeed = speed)
+            } else {
+                LabReading(LabPhase.OVERLAP, outPos, inPos, errorMs(outPos, inPos), speed)
+            }
         }
 
         private suspend fun drift() {

@@ -21,8 +21,8 @@ import kotlinx.coroutines.launch
  * transition; when the policy says fade, it preloads the next song on the spare player, silent and paused, and when the
  * outgoing song is `fade` from its end it starts the spare, hands the session and the queue window to it
  * ([CrossfadeHost.fadeStarted]) and ramps both volumes with the plan's curve ([EqualPowerCurve] in phase 6) until the
- * incoming song's position says the fade is over. The outgoing player then becomes the spare. Progress is read from the incoming player's position,
- * not from a timer, so a pause or a seek mid-fade can never leave the two out of step.
+ * incoming song's position says the fade is over. The outgoing player then becomes the spare. Progress is read from
+ * the incoming player's position, not from a timer, so a pause or a seek mid-fade can never leave the two out of step.
  *
  * Whenever the spare is not ready at the moment the fade should start, or the policy says hard cut, nothing happens
  * and Media3's own gapless transition on the host's player does the join. Every state change goes through the main
@@ -95,8 +95,8 @@ class TwoPlayerCrossfadeEngine(
     private suspend fun fadeNext(host: CrossfadeHost): Boolean {
         val plan = host.planNext() ?: return false
         val overlap = plan.overlap
-        if (overlap != null && waitAndOverlap(host, plan, overlap, sparePlayer())) return true
-        return fadePhaseSix(host, if (overlap != null) plan.phaseSix() else plan)
+        val ran = overlap != null && waitAndOverlap(host, plan, overlap, sparePlayer())
+        return ran || fadePhaseSix(host, if (overlap != null) plan.phaseSix() else plan)
     }
 
     /** The phase 6 fade of [plan], or false when it is a hard cut. */
@@ -146,21 +146,29 @@ class TwoPlayerCrossfadeEngine(
         player: ExoPlayer,
     ): Boolean {
         var preloaded = false
-        while (true) {
+        var started: Boolean? = null
+        while (started == null) {
             delay(TICK_MS)
             val active = host.activePlayer
             val untilSwitch = overlap.switchPointMs - active.currentPosition
+            val late = untilSwitch < -LATE_START_MS
             if (!preloaded && untilSwitch <= overlap.overlapMs + config.preloadLeadMs) {
-                if (untilSwitch < -LATE_START_MS) return false
-                preload(player, plan, overlap.incomingStartMs)
-                preloaded = true
+                if (late) {
+                    started = false
+                } else {
+                    preload(player, plan, overlap.incomingStartMs)
+                    preloaded = true
+                }
             }
-            if (!preloaded || untilSwitch > 0 || !active.isPlaying) continue
-            if (untilSwitch < -LATE_START_MS || player.playbackState != Player.STATE_READY) return false
-            val running = Fade(active, player, overlap.overlapMs, overlap.incomingStartMs, overlap.curve)
-            runFade(host, running, overlap.incomingSpeed)
-            return true
+            if (started == null && preloaded && untilSwitch <= 0 && active.isPlaying) {
+                started = !late && player.playbackState == Player.STATE_READY
+                if (started) {
+                    val running = Fade(active, player, overlap.overlapMs, overlap.incomingStartMs, overlap.curve)
+                    runFade(host, running, overlap.incomingSpeed)
+                }
+            }
         }
+        return started == true
     }
 
     private suspend fun runFade(
