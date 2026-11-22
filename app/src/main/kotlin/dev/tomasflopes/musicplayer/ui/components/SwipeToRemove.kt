@@ -32,8 +32,8 @@ fun SwipeToRemove(
 ) {
     val latestRemove by rememberUpdatedState(onRemove)
     var removals by remember { mutableIntStateOf(0) }
-    // TODO: confirmValueChange is deprecated; move to dynamic anchors
-    //  (see AnchoredDraggableDynamicAnchorsSample).
+    // Note: confirmValueChange is deprecated; a later pass should move to dynamic anchors
+    // (see AnchoredDraggableDynamicAnchorsSample).
     val swipe =
         rememberSwipeToDismissBoxState(
             confirmValueChange = {
