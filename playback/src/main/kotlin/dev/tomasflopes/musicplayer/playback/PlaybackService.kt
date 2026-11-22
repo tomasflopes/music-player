@@ -22,6 +22,8 @@ import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.ports.PlayHistoryWriter
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngineFactory
 import dev.tomasflopes.musicplayer.playback.log.PendingPlayStore
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
@@ -55,6 +57,10 @@ class PlaybackService : MediaSessionService() {
     @Inject lateinit var settings: SettingsRepository
 
     @Inject lateinit var crossfadeFactory: CrossfadeEngineFactory
+
+    @Inject lateinit var transitionPlanner: TransitionPlanner
+
+    @Inject lateinit var transitionProfiles: TransitionProfileSource
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -101,6 +107,8 @@ class PlaybackService : MediaSessionService() {
                 crossfadeFactory.create(this, scope),
                 { crossfade },
                 { session?.player = it },
+                transitionPlanner,
+                transitionProfiles,
             )
         this.engine = engine
         scope.launch {

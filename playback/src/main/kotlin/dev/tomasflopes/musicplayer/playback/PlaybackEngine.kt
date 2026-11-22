@@ -1,15 +1,21 @@
 package dev.tomasflopes.musicplayer.playback
 
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.SongId
 import dev.tomasflopes.musicplayer.core.model.SongRef
+import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadePolicy
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.crossfade.Transition
 import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionCause
+import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.log.StartedBy
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
@@ -28,11 +34,13 @@ import dev.tomasflopes.musicplayer.playback.queue.QueueStore
 import dev.tomasflopes.musicplayer.playback.queue.QueueWindowSync
 import dev.tomasflopes.musicplayer.playback.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Everything the service does with the queue and the player, on the main thread, one command at a time.
@@ -56,6 +64,9 @@ internal class PlaybackEngine(
     private val crossfadeSettings: () -> CrossfadeSettings = { CrossfadeSettings() },
     /** The session's player changed: the service hands the new one to the session. */
     private val onPlayerChanged: (QueueAwarePlayer) -> Unit = {},
+    /** Chooses the technique per transition (ADR 0092); with no technique registered it is exactly phase 6. */
+    private val planner: TransitionPlanner = TransitionPlanner(emptyList()),
+    private val profiles: TransitionProfileSource = TransitionProfileSource { null },
 ) : CrossfadeHost {
     private var player: ExoPlayer = initialPlayer
     private val cache = HashMap<SongId, Song>()
@@ -155,12 +166,41 @@ internal class PlaybackEngine(
                     shuffled = queue.shuffled,
                     repeatOne = queue.repeatMode == RepeatMode.ONE,
                 )
-            PlannedTransition(
-                incoming = mapper.toMediaItem(next, incoming),
-                decision = CrossfadePolicy.decide(crossfadeSettings(), transition),
-                outgoingDurationMs = outgoing.durationMs,
-            )
+            plannedTransition(mapper.toMediaItem(next, incoming), transition)
         }
+
+    /**
+     * The phase 6 decision, or with the DJ mix style the planner's choice (ADR 0092). Profiles are read only for the
+     * DJ style, and the planning runs off the main thread, so the Crossfade style does exactly what phase 6 did.
+     */
+    private suspend fun plannedTransition(
+        item: MediaItem,
+        transition: Transition,
+    ): PlannedTransition {
+        val settings = crossfadeSettings()
+        val phaseSix = CrossfadePolicy.decide(settings, transition)
+        if (settings.style != TransitionStyle.DJ_MIX || phaseSix !is CrossfadeDecision.Fade) {
+            return PlannedTransition(item, phaseSix, transition.outgoing.durationMs)
+        }
+        val outgoingProfile = profiles.profile(transition.outgoing.id.value)
+        val incomingProfile = profiles.profile(transition.incoming.id.value)
+        val plan =
+            withContext(Dispatchers.Default) { planner.plan(settings, transition, outgoingProfile, incomingProfile) }
+        return when (plan) {
+            is TransitionPlan.Overlap ->
+                PlannedTransition(
+                    item,
+                    CrossfadeDecision.Fade(plan.overlapMs),
+                    transition.outgoing.durationMs,
+                    overlap = plan,
+                    fallback = phaseSix,
+                )
+            is TransitionPlan.Fade ->
+                PlannedTransition(item, CrossfadeDecision.Fade(plan.durationMs), transition.outgoing.durationMs)
+            TransitionPlan.HardCut ->
+                PlannedTransition(item, CrossfadeDecision.HardCut, transition.outgoing.durationMs)
+        }
+    }
 
     /**
      * The fade begins (ADR 0062). The outgoing row ends as completed, with its full duration, which is where the

@@ -10,6 +10,7 @@ android {
 
 dependencies {
     testImplementation(testFixtures(projects.core.model))
+    testImplementation(libs.kotlinx.coroutines.test)
     implementation(projects.core.model)
     implementation(projects.core.taste)
     implementation(libs.media3.exoplayer)

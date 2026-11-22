@@ -4,16 +4,27 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import kotlinx.coroutines.CoroutineScope
 
-/** What follows the current song and how to join the two (ADR 0062). */
+/**
+ * What follows the current song and how to join the two (ADR 0062, 0092). [decision] is the phase 6 decision. A DJ
+ * [overlap] (phase 7) replaces it: the songs play together from [TransitionPlan.Overlap.switchPointMs], and [decision]
+ * then holds the overlap as a fade of the same length so a reader that only knows phase 6 still sees a fade. When the
+ * overlap cannot run (a late preload), [fallback] is what runs instead: the phase 6 decision.
+ */
 class PlannedTransition(
     /** The next song, ready for a player. */
     val incoming: MediaItem,
     val decision: CrossfadeDecision,
     /** The outgoing song's length from the library, for when the player does not know its own yet. */
     val outgoingDurationMs: Long,
-)
+    val overlap: TransitionPlan.Overlap? = null,
+    val fallback: CrossfadeDecision = decision,
+) {
+    /** The same transition as phase 6 would make it, without the overlap. */
+    fun phaseSix() = PlannedTransition(incoming, fallback, outgoingDurationMs)
+}
 
 /**
  * The side of the playback engine that a [CrossfadeEngine] talks to: it owns the queue, the log, the session player

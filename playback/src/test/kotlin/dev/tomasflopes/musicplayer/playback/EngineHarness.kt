@@ -11,6 +11,8 @@ import dev.tomasflopes.musicplayer.core.model.SongRef
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.log.PlaySource
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngine
 import dev.tomasflopes.musicplayer.playback.crossfade.SinglePlayerEngine
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
@@ -65,6 +67,8 @@ internal class EngineHarness(
     crossfade: CrossfadeEngine = SinglePlayerEngine,
     crossfadeSettings: () -> CrossfadeSettings = { CrossfadeSettings() },
     private val songOf: (Long) -> Song = { song(it) },
+    planner: TransitionPlanner = TransitionPlanner(emptyList()),
+    profiles: TransitionProfileSource = TransitionProfileSource { null },
 ) {
     var time = 1_000L
     val state = FakePlayerState()
@@ -97,6 +101,8 @@ internal class EngineHarness(
             crossfade,
             crossfadeSettings,
             { sessionPlayers += it },
+            planner,
+            profiles,
         )
 
     init {

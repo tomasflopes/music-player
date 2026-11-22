@@ -3,10 +3,14 @@ package dev.tomasflopes.musicplayer.playback.crossfade
 import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
-import dev.tomasflopes.musicplayer.core.model.crossfade.FadeCurve
+import dev.tomasflopes.musicplayer.core.model.transition.EqualPowerCurve
+import dev.tomasflopes.musicplayer.core.model.transition.GainCurve
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,23 +20,33 @@ import kotlinx.coroutines.launch
  * Two ExoPlayers blended by hand (ADR 0061). The host's player plays the outgoing song. A watcher plans the next
  * transition; when the policy says fade, it preloads the next song on the spare player, silent and paused, and when the
  * outgoing song is `fade` from its end it starts the spare, hands the session and the queue window to it
- * ([CrossfadeHost.fadeStarted]) and ramps both volumes with [FadeCurve] until the incoming song's position says the
- * fade is over. The outgoing player then becomes the spare. Progress is read from the incoming player's position,
+ * ([CrossfadeHost.fadeStarted]) and ramps both volumes with the plan's curve ([EqualPowerCurve] in phase 6) until the
+ * incoming song's position says the fade is over. The outgoing player then becomes the spare. Progress is read from the incoming player's position,
  * not from a timer, so a pause or a seek mid-fade can never leave the two out of step.
  *
  * Whenever the spare is not ready at the moment the fade should start, or the policy says hard cut, nothing happens
  * and Media3's own gapless transition on the host's player does the join. Every state change goes through the main
  * thread; [secondary] is built lazily on the first fade.
+ *
+ * A DJ overlap (phase 7, ADR 0092) is the same handover with a different start and a different curve: the spare is
+ * preloaded at the plan's incoming offset, the overlap starts when the outgoing song reaches the plan's switch point,
+ * and the volumes follow the plan's [GainCurve] of the incoming position since that offset. An overlap whose spare is
+ * not ready, or whose switch point has passed, runs the phase 6 plan instead. Whenever a fade ends, is cut or paused,
+ * both players go back to speed 1.0.
  */
 class TwoPlayerCrossfadeEngine(
     private val scope: CoroutineScope,
     private val secondary: () -> ExoPlayer,
     private val attributes: AudioAttributes,
+    private val config: TransitionConfig = TransitionConfig(),
 ) : CrossfadeEngine {
     private class Fade(
         val retiring: ExoPlayer,
         val incoming: ExoPlayer,
         val durationMs: Long,
+        /** Where in its own file the incoming song starts; its position counts from here. */
+        val startOffsetMs: Long = 0,
+        val curve: GainCurve = EqualPowerCurve,
         /** Set once the host took [incoming] as its player; before that a cancelled fade leaves the host untouched. */
         var handedOver: Boolean = false,
     )
@@ -54,12 +68,18 @@ class TwoPlayerCrossfadeEngine(
     }
 
     override fun onPlayingChanged(playing: Boolean) {
-        fade?.takeIf { it.handedOver }?.retiring?.playWhenReady = playing
+        val running = fade?.takeIf { it.handedOver } ?: return
+        running.retiring.playWhenReady = playing
+        if (!playing) {
+            resetSpeed(running.retiring)
+            resetSpeed(running.incoming)
+        }
     }
 
     override fun release() {
         abortFade()
         job?.cancel()
+        spare?.let(::resetSpeed)
         spare?.release()
         spare = null
     }
@@ -73,9 +93,19 @@ class TwoPlayerCrossfadeEngine(
 
     /** Plans the next transition and, when it is a fade, waits for it and runs it. False: stop watching. */
     private suspend fun fadeNext(host: CrossfadeHost): Boolean {
-        val plan = host.planNext()
-        val requested = (plan?.decision as? CrossfadeDecision.Fade)?.durationMs
-        return plan != null && requested != null && waitAndFade(host, plan, requested, sparePlayer())
+        val plan = host.planNext() ?: return false
+        val overlap = plan.overlap
+        if (overlap != null && waitAndOverlap(host, plan, overlap, sparePlayer())) return true
+        return fadePhaseSix(host, if (overlap != null) plan.phaseSix() else plan)
+    }
+
+    /** The phase 6 fade of [plan], or false when it is a hard cut. */
+    private suspend fun fadePhaseSix(
+        host: CrossfadeHost,
+        plan: PlannedTransition,
+    ): Boolean {
+        val requested = (plan.decision as? CrossfadeDecision.Fade)?.durationMs
+        return requested != null && waitAndFade(host, plan, requested, sparePlayer())
     }
 
     private fun sparePlayer(): ExoPlayer = spare ?: secondary().also(::configureSpare).also { spare = it }
@@ -99,20 +129,50 @@ class TwoPlayerCrossfadeEngine(
             if (!preloaded || remaining > requestedMs || !active.isPlaying) continue
             val fadeMs = minOf(requestedMs, remaining)
             if (fadeMs < MIN_FADE_MS || player.playbackState != Player.STATE_READY) return false
-            runFade(host, active, player, fadeMs)
+            runFade(host, Fade(active, player, fadeMs))
+            return true
+        }
+    }
+
+    /**
+     * Waits for the outgoing song to reach the switch point of [overlap], preloading the spare at the incoming offset
+     * [TransitionConfig.preloadLeadMs] plus the overlap before it, then runs the overlap. True when it ran. False when
+     * the spare is not ready at the switch point or the switch point is already past: the phase 6 plan runs instead.
+     */
+    private suspend fun waitAndOverlap(
+        host: CrossfadeHost,
+        plan: PlannedTransition,
+        overlap: TransitionPlan.Overlap,
+        player: ExoPlayer,
+    ): Boolean {
+        var preloaded = false
+        while (true) {
+            delay(TICK_MS)
+            val active = host.activePlayer
+            val untilSwitch = overlap.switchPointMs - active.currentPosition
+            if (!preloaded && untilSwitch <= overlap.overlapMs + config.preloadLeadMs) {
+                if (untilSwitch < -LATE_START_MS) return false
+                preload(player, plan, overlap.incomingStartMs)
+                preloaded = true
+            }
+            if (!preloaded || untilSwitch > 0 || !active.isPlaying) continue
+            if (untilSwitch < -LATE_START_MS || player.playbackState != Player.STATE_READY) return false
+            val running = Fade(active, player, overlap.overlapMs, overlap.incomingStartMs, overlap.curve)
+            runFade(host, running, overlap.incomingSpeed)
             return true
         }
     }
 
     private suspend fun runFade(
         host: CrossfadeHost,
-        outgoing: ExoPlayer,
-        incoming: ExoPlayer,
-        fadeMs: Long,
+        running: Fade,
+        speed: Float = 1f,
     ) {
-        val running = Fade(outgoing, incoming, fadeMs)
+        val outgoing = running.retiring
+        val incoming = running.incoming
         fade = running
         incoming.volume = 0f
+        if (speed != 1f) incoming.playbackParameters = PlaybackParameters(speed)
         incoming.playWhenReady = true
         host.fadeStarted(incoming)
         running.handedOver = true
@@ -127,10 +187,9 @@ class TwoPlayerCrossfadeEngine(
 
     private suspend fun ramp(running: Fade) {
         while (true) {
-            val progress = running.incoming.currentPosition.toFloat() / running.durationMs
-            val gains = FadeCurve.gains(progress)
-            running.incoming.volume = gains.incoming
-            running.retiring.volume = gains.outgoing
+            val progress = (running.incoming.currentPosition - running.startOffsetMs).toFloat() / running.durationMs
+            running.incoming.volume = running.curve.incoming(progress)
+            running.retiring.volume = running.curve.outgoing(progress)
             val outgoingState = running.retiring.playbackState
             val outgoingOver = outgoingState == Player.STATE_ENDED || outgoingState == Player.STATE_IDLE
             if (progress >= 1f || outgoingOver) return
@@ -141,6 +200,7 @@ class TwoPlayerCrossfadeEngine(
     /** The fade ran its course: the incoming song is at full volume alone, the outgoing player is the spare. */
     private fun finish(running: Fade) {
         running.incoming.volume = 1f
+        resetSpeed(running.incoming)
         discard(running.retiring)
         spare = running.retiring
         fade = null
@@ -156,6 +216,7 @@ class TwoPlayerCrossfadeEngine(
         fade = null
         if (running.handedOver) {
             running.incoming.volume = 1f
+            resetSpeed(running.incoming)
             discard(running.retiring)
             spare = running.retiring
         } else {
@@ -167,15 +228,22 @@ class TwoPlayerCrossfadeEngine(
     private fun preload(
         player: ExoPlayer,
         plan: PlannedTransition,
+        startMs: Long = 0,
     ) {
         player.volume = 0f
         player.playWhenReady = false
-        player.setMediaItem(plan.incoming)
+        if (startMs > 0) player.setMediaItem(plan.incoming, startMs) else player.setMediaItem(plan.incoming)
         player.prepare()
+    }
+
+    /** A player that was sped up or slowed goes back to speed 1.0; nothing is allocated when it is already there. */
+    private fun resetSpeed(player: ExoPlayer) {
+        if (player.playbackParameters.speed != 1f) player.playbackParameters = PlaybackParameters.DEFAULT
     }
 
     /** Silent, stopped, empty, at full volume's opposite, ready for the next preload. */
     private fun discard(player: ExoPlayer) {
+        resetSpeed(player)
         player.stop()
         player.clearMediaItems()
         player.volume = 0f
@@ -208,6 +276,9 @@ class TwoPlayerCrossfadeEngine(
 
         /** How long before the fade starts the next song is handed to the spare player. */
         const val PRELOAD_LEAD_MS = 8_000L
+
+        /** An overlap whose switch point is more than this far behind is not started: the phase 6 plan runs. */
+        const val LATE_START_MS = 1_000L
 
         /** A fade shorter than this is not worth the two players; the join stays plain. */
         const val MIN_FADE_MS = 500L

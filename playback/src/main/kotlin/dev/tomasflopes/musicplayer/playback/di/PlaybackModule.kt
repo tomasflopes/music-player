@@ -3,10 +3,16 @@ package dev.tomasflopes.musicplayer.playback.di
 import android.content.Context
 import dagger.Module
 import dagger.Provides
+import dagger.multibindings.IntoSet
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
+import dev.tomasflopes.musicplayer.core.model.transition.BeatMatchTechnique
+import dev.tomasflopes.musicplayer.core.model.transition.CrossfadeTechnique
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionTechnique
 import dev.tomasflopes.musicplayer.core.taste.config.SmartShuffleConfig
 import dev.tomasflopes.musicplayer.core.taste.score.ScoreBoard
 import dev.tomasflopes.musicplayer.core.taste.shuffle.BoardGlobalScores
@@ -63,6 +69,26 @@ object PlaybackModule {
      */
     @Provides
     fun crossfadeEngineFactory(): CrossfadeEngineFactory = TwoPlayerCrossfadeEngine.factory
+
+    /** Every number of the beat-matched transitions (phase 7); none of them is a setting. */
+    @Provides @Singleton
+    fun transitionConfig() = TransitionConfig()
+
+    /**
+     * The transition techniques (ADR 0092): one `@IntoSet` line per technique, asked in priority order. The phase 6
+     * crossfade is the last one and always answers. A new technique is a new class and one line here.
+     */
+    @Provides @IntoSet
+    fun beatMatchTechnique(): TransitionTechnique = BeatMatchTechnique()
+
+    @Provides @IntoSet
+    fun crossfadeTechnique(): TransitionTechnique = CrossfadeTechnique()
+
+    @Provides
+    fun transitionPlanner(
+        techniques: Set<@JvmSuppressWildcards TransitionTechnique>,
+        config: TransitionConfig,
+    ) = TransitionPlanner(techniques, config)
 
     @Provides @Singleton
     fun controller(
