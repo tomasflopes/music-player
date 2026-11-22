@@ -1,0 +1,9 @@
+# 0096: Phase lock nudges the incoming speed behind a switch that is off by default
+
+Date: 2026-11-22 · Status: proposed
+
+**Context.** Two players do not stay in phase by themselves: the tempo estimate has an error and each ExoPlayer has its own clock. Slice 1 added the lab to measure this (ADR 0093), but its numbers are not in, so whether phase lock is needed, and its tolerance, is open.
+
+**Decision.** `PhaseLock` (pure, `:core:model`) is built with the planned speed and the two grids of the overlap. Every `phaseLockTickMs` (250 ms) the engine gives it both file positions and the current speed; it computes the beat-phase error in real time (`BeatPhase.errorMs`, now taking the incoming speed) and answers a speed or `Abandon`. The speed is the planned speed plus a nudge proportional to the error, full at 20 ms and never more than `maxNudge` (0.005) either way; a positive error (the incoming beat came first) slows the incoming song. If the error stays above `maxPhaseErrorMs` (40) for `phaseLockAbandonBars` (2) bars of ticks, the beat match is abandoned and the rest of the overlap is an `EqualPowerTail`: the outgoing gain falls to 0 on a quarter cosine and the incoming gain rises to 1 on a quarter sine, both starting from the gains they have, so nothing jumps; the speed is left as it is and eases back as planned. A pause in an overlap with a stretch also abandons the match, because both speeds go to 1.0 then (0097). The switch is `TransitionConfig.phaseLockEnabled`, off by default; the lab has a switch for it (applies to the next run), so the owner can compare by ear.
+
+**Consequences.** With the switch off, nothing changes against the plain overlap. The nudge is relative to the planned speed, so the speed log shows what the lock did, and the authority is 5 ms of correction per second. The default is changed only by the owner, from the lab numbers. Not accepted until `check` and the owner's lab runs pass.
