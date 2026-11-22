@@ -26,7 +26,7 @@ class TransitionPlannerTest {
         repeatOne: Boolean = false,
     ) = Transition(outgoing, incoming, cause, shuffled, repeatOne)
 
-    private fun plan(
+    private fun planFor(
         outgoing: TransitionProfile? = transitionProfile(),
         incoming: TransitionProfile? = transitionProfile(),
         settings: CrossfadeSettings = dj,
@@ -38,7 +38,7 @@ class TransitionPlannerTest {
 
     @Test
     fun `equal tempo lines up on a phrase start with eight bars`() {
-        val plan = overlap(plan())
+        val plan = overlap(planFor())
 
         assertEquals("beat-match", plan.technique)
         assertEquals(160_500L, plan.switchPointMs)
@@ -54,7 +54,7 @@ class TransitionPlannerTest {
         val outgoing = transitionProfile(firstBeatMs = 130.0)
         val incoming = transitionProfile(tempo = 121.0, firstBeatMs = 800.0, musicStartMs = 790)
 
-        val plan = overlap(plan(outgoing = outgoing, incoming = incoming))
+        val plan = overlap(planFor(outgoing = outgoing, incoming = incoming))
 
         assertEquals(0.0, (plan.switchPointMs - 130.0) % 8_000.0, 1.0)
         val incomingBarMs = 60_000.0 / 121.0 * 4
@@ -64,7 +64,7 @@ class TransitionPlannerTest {
 
     @Test
     fun `a tempo within one and a half percent still matches, with the incoming kept at speed 1`() {
-        val plan = overlap(plan(incoming = transitionProfile(tempo = 121.0)))
+        val plan = overlap(planFor(incoming = transitionProfile(tempo = 121.0)))
 
         assertEquals(1f, plan.incomingSpeed)
         assertEquals(120.0 / 121.0, plan.ratio, 1e-9)
@@ -72,32 +72,32 @@ class TransitionPlannerTest {
 
     @Test
     fun `three percent apart is a plain crossfade in slice 1`() {
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(tempo = 123.6)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 123.6)))
     }
 
     @Test
     fun `half and double tempo and twelve percent apart are a plain crossfade in slice 1`() {
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(tempo = 60.0)))
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(tempo = 240.0)))
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(tempo = 134.4)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 60.0)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 240.0)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = 134.4)))
     }
 
     @Test
     fun `low confidence on either song is a plain crossfade`() {
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(confidence = 0.4f)))
-        assertEquals(TransitionPlan.Fade(4_000), plan(outgoing = transitionProfile(confidence = 0.49f)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(confidence = 0.4f)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(outgoing = transitionProfile(confidence = 0.49f)))
     }
 
     @Test
     fun `a missing or unusable profile is a plain crossfade`() {
-        assertEquals(TransitionPlan.Fade(4_000), plan(outgoing = null))
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = null))
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(tempo = Double.NaN)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(outgoing = null))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = null))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(tempo = Double.NaN)))
     }
 
     @Test
     fun `a short intro shrinks the overlap`() {
-        val plan = overlap(plan(incoming = transitionProfile(introEndMs = 9_000)))
+        val plan = overlap(planFor(incoming = transitionProfile(introEndMs = 9_000)))
 
         assertEquals(8_000L, plan.overlapMs)
         assertEquals(168_500L, plan.switchPointMs)
@@ -107,7 +107,7 @@ class TransitionPlannerTest {
     fun `the overlap is capped at twenty seconds`() {
         val slow = transitionProfile(tempo = 90.0, firstBeatMs = 0.0, musicStartMs = 0, outroStartMs = 150_000)
 
-        val plan = overlap(plan(outgoing = slow, incoming = slow))
+        val plan = overlap(planFor(outgoing = slow, incoming = slow))
 
         assertTrue(plan.overlapMs <= 20_000L, "overlap ${plan.overlapMs}")
         assertEquals(18_667L, plan.overlapMs)
@@ -115,14 +115,14 @@ class TransitionPlannerTest {
 
     @Test
     fun `an intro shorter than four bars is a plain crossfade`() {
-        assertEquals(TransitionPlan.Fade(4_000), plan(incoming = transitionProfile(introEndMs = 4_000)))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(introEndMs = 4_000)))
     }
 
     @Test
     fun `a song too short for four bars is a plain crossfade`() {
         val short = transitionProfile(introEndMs = 2_000, outroStartMs = 3_000, musicEndMs = 5_000)
 
-        val result = plan(outgoing = short, transition = transition(outgoing = transitionSong(1, durationMs = 6_000)))
+        val result = planFor(outgoing = short, transition = transition(outgoing = transitionSong(1, durationMs = 6_000)))
 
         assertEquals(TransitionPlan.Fade(2_000), result)
     }
@@ -131,7 +131,7 @@ class TransitionPlannerTest {
     fun `when no bar starts in the tail the overlap ends by the music end instead`() {
         val noTail = transitionProfile(outroStartMs = 177_900, musicEndMs = 178_000)
 
-        val plan = overlap(plan(outgoing = noTail))
+        val plan = overlap(planFor(outgoing = noTail))
 
         assertTrue(plan.switchPointMs + plan.overlapMs <= 178_000L)
         assertEquals(0.0, (plan.switchPointMs - 500.0) % 2_000.0, 1.0)
@@ -143,7 +143,7 @@ class TransitionPlannerTest {
 
         val crossfade = dj.copy(style = TransitionStyle.CROSSFADE)
 
-        val result = plan(settings = crossfade, planner = TransitionPlanner(listOf(spy)))
+        val result = planFor(settings = crossfade, planner = TransitionPlanner(listOf(spy)))
 
         assertEquals(TransitionPlan.Fade(4_000), result)
         assertEquals(0, spy.calls)
@@ -157,12 +157,12 @@ class TransitionPlannerTest {
         val next = transitionSong(2).copy(albumTitle = "Album", albumArtist = "Artist", trackNumber = 2)
         val hardCuts =
             listOf(
-                plan(settings = dj.copy(enabled = false), planner = spied),
-                plan(transition = transition(repeatOne = true), planner = spied),
-                plan(transition = transition(cause = TransitionCause.TAP_JUMP), planner = spied),
-                plan(transition = transition(cause = TransitionCause.MANUAL_SEEK), planner = spied),
-                plan(transition = transition(outgoing = album, incoming = next, shuffled = false), planner = spied),
-                plan(transition = transition(outgoing = transitionSong(1, durationMs = 0)), planner = spied),
+                planFor(settings = dj.copy(enabled = false), planner = spied),
+                planFor(transition = transition(repeatOne = true), planner = spied),
+                planFor(transition = transition(cause = TransitionCause.TAP_JUMP), planner = spied),
+                planFor(transition = transition(cause = TransitionCause.MANUAL_SEEK), planner = spied),
+                planFor(transition = transition(outgoing = album, incoming = next, shuffled = false), planner = spied),
+                planFor(transition = transition(outgoing = transitionSong(1, durationMs = 0)), planner = spied),
             )
 
         hardCuts.forEach { assertEquals(TransitionPlan.HardCut, it) }
@@ -174,7 +174,7 @@ class TransitionPlannerTest {
         val first = FixedTechnique("first", priority = 1, plan = TransitionPlan.Fade(1_111))
         val second = FixedTechnique("second", priority = 2, plan = TransitionPlan.Fade(2_222))
 
-        assertEquals(TransitionPlan.Fade(1_111), plan(planner = TransitionPlanner(listOf(second, first))))
+        assertEquals(TransitionPlan.Fade(1_111), planFor(planner = TransitionPlanner(listOf(second, first))))
     }
 
     @Test
@@ -195,12 +195,12 @@ class TransitionPlannerTest {
 
         val planner = TransitionPlanner(listOf(broken, CrossfadeTechnique()))
 
-        assertEquals(TransitionPlan.Fade(4_000), plan(planner = planner))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(planner = planner))
     }
 
     @Test
     fun `with no technique registered the phase 6 decision stands`() {
-        assertEquals(TransitionPlan.Fade(4_000), plan(planner = TransitionPlanner(emptyList())))
+        assertEquals(TransitionPlan.Fade(4_000), planFor(planner = TransitionPlanner(emptyList())))
     }
 
     private class SpyTechnique : TransitionTechnique {
@@ -208,7 +208,7 @@ class TransitionPlannerTest {
         override val name = "spy"
         override val priority = 0
 
-        override fun plan(request: TransitionRequest): TransitionPlan? {
+        override fun planFor(request: TransitionRequest): TransitionPlan? {
             calls++
             return null
         }
@@ -219,6 +219,6 @@ class TransitionPlannerTest {
         override val priority: Int,
         private val plan: TransitionPlan,
     ) : TransitionTechnique {
-        override fun plan(request: TransitionRequest) = plan
+        override fun planFor(request: TransitionRequest) = plan
     }
 }

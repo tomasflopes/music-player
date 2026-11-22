@@ -53,7 +53,7 @@ internal class VirtualPlayer(
         baseTime = now()
     }
 
-    fun play() = setPlayWhenReady(true)
+    fun play() = changePlayWhenReady(true)
 
     val player: ExoPlayer =
         Proxy.newProxyInstance(
@@ -67,7 +67,7 @@ internal class VirtualPlayer(
         baseTime = now()
     }
 
-    private fun setPlayWhenReady(value: Boolean) {
+    private fun changePlayWhenReady(value: Boolean) {
         rebase()
         playWhenReady = value
     }
@@ -85,9 +85,9 @@ internal class VirtualPlayer(
                 "getPlaybackState" -> state
                 "isPlaying" -> playWhenReady && state == Player.STATE_READY
                 "getPlayWhenReady" -> playWhenReady
-                "setPlayWhenReady" -> record(method, list) { setPlayWhenReady(list[0] as Boolean) }
-                "play" -> record(method, list) { setPlayWhenReady(true) }
-                "pause" -> record(method, list) { setPlayWhenReady(false) }
+                "setPlayWhenReady" -> record(method, list) { changePlayWhenReady(list[0] as Boolean) }
+                "play" -> record(method, list) { changePlayWhenReady(true) }
+                "pause" -> record(method, list) { changePlayWhenReady(false) }
                 "getVolume" -> volume
                 "setVolume" -> record(method, list) { volume = list[0] as Float }
                 "getPlaybackParameters" -> if (speed == 1f) PlaybackParameters.DEFAULT else PlaybackParameters(speed)

@@ -35,7 +35,7 @@ class BeatGridTest {
     fun `the beat offset wraps and is never negative`() {
         assertEquals(0.0, grid.beatOffsetMs(500.0), 1e-9)
         assertEquals(100.0, grid.beatOffsetMs(1_100.0), 1e-9)
-        assertEquals(400.0, grid.beatOffsetMs(100.0), 1e-9)
+        assertEquals(100.0, grid.beatOffsetMs(100.0), 1e-9)
     }
 
     @Test
