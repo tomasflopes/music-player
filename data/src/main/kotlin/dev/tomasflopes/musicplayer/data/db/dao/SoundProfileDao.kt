@@ -165,4 +165,19 @@ interface SoundProfileDao {
             "ORDER BY sound_profile.song_id",
     )
     suspend fun soundHeads(profilerVersion: Int): List<SoundHeadRow>
+
+    /**
+     * The head of the current profile of one in-library song, or null (ADR 0058, 0092): same rules as [soundHeads]
+     * (current version, the file it was made from, a BLOB long enough for the fixed part).
+     */
+    @Query(
+        "SELECT substr(sound_profile.features, 1, $HEAD_BYTES) " +
+            "FROM sound_profile JOIN song ON song.id = sound_profile.song_id " +
+            "WHERE song.id = :songId AND song.in_library = 1 AND sound_profile.profiler_version = :profilerVersion " +
+            "AND sound_profile.file_size = song.file_size AND length(sound_profile.features) >= $HEAD_BYTES",
+    )
+    suspend fun soundHead(
+        songId: Long,
+        profilerVersion: Int,
+    ): ByteArray?
 }

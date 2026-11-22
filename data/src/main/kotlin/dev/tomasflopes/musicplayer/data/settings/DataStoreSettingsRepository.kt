@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
+import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import kotlinx.coroutines.flow.Flow
@@ -46,6 +47,8 @@ class DataStoreSettingsRepository(
                 CrossfadeSettings(
                     enabled = preferences[CROSSFADE_ENABLED] ?: false,
                     durationMs = preferences[CROSSFADE_DURATION_MS]?.toLong() ?: CrossfadeSettings.DEFAULT_DURATION_MS,
+                    style = TransitionStyle.entries.firstOrNull { it.name == preferences[CROSSFADE_STYLE] }
+                        ?: TransitionStyle.CROSSFADE,
                 ).coerced()
             }.distinctUntilChanged()
 
@@ -71,6 +74,7 @@ class DataStoreSettingsRepository(
         store.edit {
             it[CROSSFADE_ENABLED] = saved.enabled
             it[CROSSFADE_DURATION_MS] = saved.durationMs.toInt()
+            it[CROSSFADE_STYLE] = saved.style.name
         }
     }
 
@@ -85,6 +89,7 @@ class DataStoreSettingsRepository(
         val RECENTLY_ADDED_DAYS = intPreferencesKey("recently_added_days")
         val CROSSFADE_ENABLED = booleanPreferencesKey("crossfade_enabled")
         val CROSSFADE_DURATION_MS = intPreferencesKey("crossfade_duration_ms")
+        val CROSSFADE_STYLE = stringPreferencesKey("crossfade_style")
         val EXTEND_SINGLE_SONGS = booleanPreferencesKey("extend_single_songs")
     }
 }

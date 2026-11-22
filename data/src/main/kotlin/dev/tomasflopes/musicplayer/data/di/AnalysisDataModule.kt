@@ -20,10 +20,12 @@ import dev.tomasflopes.musicplayer.core.analysis.HandBuiltProfilerV1
 import dev.tomasflopes.musicplayer.core.analysis.PcmSource
 import dev.tomasflopes.musicplayer.core.analysis.SoundProfiler
 import dev.tomasflopes.musicplayer.core.model.ports.SoundVectorSource
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
 import dev.tomasflopes.musicplayer.data.analysis.MediaCodecPcmSource
 import dev.tomasflopes.musicplayer.data.analysis.RoomAnalysisQueue
 import dev.tomasflopes.musicplayer.data.analysis.RoomAnalysisStore
 import dev.tomasflopes.musicplayer.data.analysis.RoomSoundVectorSource
+import dev.tomasflopes.musicplayer.data.analysis.RoomTransitionProfileSource
 import dev.tomasflopes.musicplayer.data.analysis.WorkManagerAnalysisScheduler
 import dev.tomasflopes.musicplayer.data.settings.DataStoreAnalysisHintStore
 import javax.inject.Singleton
@@ -43,6 +45,9 @@ abstract class AnalysisDataModule {
 
     @Binds
     abstract fun soundVectors(impl: RoomSoundVectorSource): SoundVectorSource
+
+    @Binds
+    abstract fun transitionProfiles(impl: RoomTransitionProfileSource): TransitionProfileSource
 
     @Binds
     abstract fun scheduler(impl: WorkManagerAnalysisScheduler): AnalysisScheduler

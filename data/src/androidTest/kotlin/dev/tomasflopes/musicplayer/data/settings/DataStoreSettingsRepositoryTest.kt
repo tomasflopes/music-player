@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.tomasflopes.musicplayer.core.model.config.LibraryConfig
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
+import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
 import dev.tomasflopes.musicplayer.core.model.ports.MusicRoot
 import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -118,6 +119,16 @@ class DataStoreSettingsRepositoryTest {
             newInstance().setCrossfade(CrossfadeSettings(enabled = true, durationMs = 9_000))
 
             assertEquals(CrossfadeSettings(enabled = true, durationMs = 9_000), newInstance().crossfade.first())
+        }
+
+    @Test
+    fun transitionStyleIsCrossfadeUntilSetAndSurvivesANewInstance() =
+        runTest {
+            assertEquals(TransitionStyle.CROSSFADE, newInstance().crossfade.first().style)
+
+            newInstance().setCrossfade(CrossfadeSettings(enabled = true, durationMs = 5_000, style = TransitionStyle.DJ_MIX))
+
+            assertEquals(TransitionStyle.DJ_MIX, newInstance().crossfade.first().style)
         }
 
     @Test
