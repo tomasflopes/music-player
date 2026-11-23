@@ -277,7 +277,7 @@ class TwoPlayerCrossfadeEngine(
         }
     }
 
-    /** The shelf gains of both players at [progress]: the incoming starts cut, the swap is on the middle bar (ADR 0100). */
+    /** The shelf gains of both players at [progress]: the incoming starts cut, the swap is mid-overlap (ADR 0100). */
     private fun applyBass(
         running: Fade,
         curve: BassCurve,
@@ -467,10 +467,10 @@ class TwoPlayerCrossfadeEngine(
         /** A fade shorter than this is not worth the two players; the join stays plain. */
         const val MIN_FADE_MS = 500L
 
-        /** The factory with no bass filter: phase 6 and slice 1 and 2 behaviour, and the second ExoPlayer is built when needed. */
+        /** The factory with no bass filter: phase 6 and slice 1 and 2 behaviour; the spare is built when needed. */
         val factory = engineFactory { ExoPlayer.Builder(it).build() }
 
-        /** The Hilt-bound factory with the bass filter: [players] builds the spare, and finds the control of each player. */
+        /** The Hilt-bound factory with the bass filter: [players] builds the spare and finds each player's control. */
         @OptIn(UnstableApi::class)
         fun factory(players: BassPlayers): CrossfadeEngineFactory = engineFactory({ players.newPlayer(it) }, players)
 

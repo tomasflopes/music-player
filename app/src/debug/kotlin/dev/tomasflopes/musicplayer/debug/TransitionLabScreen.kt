@@ -107,7 +107,7 @@ private fun Controls(
     }
 }
 
-/** Phase lock (slice 2) and the bass swap (slice 3) apply to the next run; the swap is on by default, for A/B listening. */
+/** Phase lock (slice 2) and the bass swap (slice 3) apply to the next run; the swap is on, for A/B listening. */
 @Composable
 private fun Toggles(
     phaseLock: Boolean,

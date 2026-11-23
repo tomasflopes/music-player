@@ -213,7 +213,7 @@ class TransitionLabViewModel
                 "ease-back ${plan.easeBack.size} step(s), last at ${plan.easeBack.lastOrNull()?.atMs ?: "-"} ms",
                 "switch point ${plan.switchPointMs} ms of the outgoing song, lab starts ${config.labLeadMs} ms before",
                 "incoming starts at ${plan.incomingStartMs} ms, overlap ${plan.overlapMs} ms",
-                plan.bass?.let { "bass swap at ${it.swapStartMs} ms of the overlap over ${it.swapMs} ms, cut ${it.cutDb} dB" }
+                plan.bass?.let { "bass swap at ${it.swapStartMs} ms over ${it.swapMs} ms, cut ${it.cutDb} dB" }
                     ?: "no bass swap",
             )
 

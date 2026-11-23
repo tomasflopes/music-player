@@ -18,7 +18,7 @@ import kotlin.math.log10
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** The Media3 processor around the bass shelf (ADR 0101, 0102): bypass is byte for byte, the cut is audible in numbers. */
+/** The Media3 processor around the bass shelf (ADR 0101, 0102): bypass is byte for byte, the cut is in numbers. */
 @OptIn(UnstableApi::class)
 class ShelfAudioProcessorTest {
     private val rate = 44_100

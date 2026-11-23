@@ -104,8 +104,8 @@ sealed interface TransitionPlan {
      * incoming song plays at [incomingSpeed], so it covers [incomingSpeed] times [overlapMs] of its file, and [easeBack]
      * brings the speed back to 1.0 afterwards (positions in its file). [ratio] is outgoing tempo over the incoming
      * tempo as read (equal to [incomingSpeed]). The grids are the two songs' beat grids as matched (the incoming one at
-     * the half or double tempo when that was the match); the engine reads them for phase lock. [bass] is the bass swap schedule of the beat
-     * match (slice 3); it is null for any other overlap, so the filters stay bypassed.
+     * the half or double tempo when that was the match); the engine reads them for phase lock. [bass] is the bass
+     * swap schedule of the beat match (slice 3); it is null for any other overlap, so the filters stay bypassed.
      */
     class Overlap(
         override val technique: String,

@@ -10,9 +10,9 @@ class ShelfAudioProcessorContractTest {
     @Test
     fun `the shelf processor keeps the bass control contract`() {
         val failures =
-            BassControlContract.checks(TransitionConfig().bassCutDb) { ShelfAudioProcessor(TransitionConfig()) }.mapNotNull {
-                runCatching(it.run).exceptionOrNull()?.let { e -> "${it.name}: $e" }
-            }
+            BassControlContract
+                .checks(TransitionConfig().bassCutDb) { ShelfAudioProcessor(TransitionConfig()) }
+                .mapNotNull { runCatching(it.run).exceptionOrNull()?.let { e -> "${it.name}: $e" } }
 
         check(failures.isEmpty()) { failures.joinToString("; ") }
     }
