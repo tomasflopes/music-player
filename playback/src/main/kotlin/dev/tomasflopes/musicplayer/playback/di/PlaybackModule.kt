@@ -9,7 +9,9 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.BeatMatchTechnique
+import dev.tomasflopes.musicplayer.core.model.transition.CalibratedConfidenceReliability
 import dev.tomasflopes.musicplayer.core.model.transition.CrossfadeTechnique
+import dev.tomasflopes.musicplayer.core.model.transition.TempoReliability
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionTechnique
@@ -78,8 +80,15 @@ object PlaybackModule {
      * The transition techniques (ADR 0092): one `@IntoSet` line per technique, asked in priority order. The phase 6
      * crossfade is the last one and always answers. A new technique is a new class and one line here.
      */
+    /**
+     * Which stored tempos a beat match trusts (ADR 0098, 0099). Change this one line to compare with
+     * `StoredConfidenceReliability`, the slice 1 and 2 rule.
+     */
+    @Provides
+    fun tempoReliability(): TempoReliability = CalibratedConfidenceReliability()
+
     @Provides @IntoSet
-    fun beatMatchTechnique(): TransitionTechnique = BeatMatchTechnique()
+    fun beatMatchTechnique(reliability: TempoReliability): TransitionTechnique = BeatMatchTechnique(reliability)
 
     @Provides @IntoSet
     fun crossfadeTechnique(): TransitionTechnique = CrossfadeTechnique()

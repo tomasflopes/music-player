@@ -16,6 +16,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongFeatureReader
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
 import dev.tomasflopes.musicplayer.core.model.transition.TempoMatcher
+import dev.tomasflopes.musicplayer.core.model.transition.TempoReliability
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
@@ -77,6 +78,7 @@ class TransitionLabViewModel
         private val profiles: TransitionProfileSource,
         private val planner: TransitionPlanner,
         private val config: TransitionConfig,
+        private val reliability: TempoReliability,
     ) : ViewModel() {
         private val mutableState = MutableStateFlow(TransitionLabUiState())
         val state: StateFlow<TransitionLabUiState> = mutableState.asStateFlow()
@@ -221,7 +223,7 @@ class TransitionLabViewModel
         ): String =
             when {
                 outgoing == null || incoming == null -> "a profile is missing"
-                minOf(outgoing.tempoConfidence, incoming.tempoConfidence) < config.minConfidence ->
+                !reliability.isReliable(outgoing, config) || !reliability.isReliable(incoming, config) ->
                     "tempo confidence is low"
                 TempoMatcher.best(outgoing.tempoBpm, incoming.tempoBpm, config.maxStretch) == null ->
                     "tempos more than ${fmt(config.maxStretch * PERCENT, 0)} % apart, even at half or double"

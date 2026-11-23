@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test
 class TransitionPlannerTest {
     private val dj = CrossfadeSettings(enabled = true, durationMs = 4_000, style = TransitionStyle.DJ_MIX)
     private val planner = TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique()))
+    private val storedRulePlanner =
+        TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique(StoredConfidenceReliability())))
 
     private fun transition(
         outgoing: Song = transitionSong(1),
@@ -154,9 +156,37 @@ class TransitionPlannerTest {
     }
 
     @Test
-    fun `low confidence on either song is a plain crossfade`() {
-        assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(confidence = 0.4f)))
-        assertEquals(TransitionPlan.Fade(4_000), planFor(outgoing = transitionProfile(confidence = 0.49f)))
+    fun `the stored rule of slices 1 and 2 still needs a confidence of 0_5 on both songs`() {
+        val fade = TransitionPlan.Fade(4_000)
+
+        assertEquals(fade, planFor(planner = storedRulePlanner, incoming = transitionProfile(confidence = 0.4f)))
+        assertEquals(fade, planFor(planner = storedRulePlanner, outgoing = transitionProfile(confidence = 0.49f)))
+        overlap(planFor(planner = storedRulePlanner, incoming = transitionProfile(confidence = 0.5f)))
+    }
+
+    @Test
+    fun `the calibrated rule matches at 0_15 on both songs and is a plain crossfade just below`() {
+        val fade = TransitionPlan.Fade(4_000)
+        val below = transitionProfile(confidence = 0.149f)
+        val at = transitionProfile(confidence = 0.15f)
+        val above = transitionProfile(confidence = 0.151f)
+
+        assertEquals(fade, planFor(incoming = below))
+        assertEquals(fade, planFor(outgoing = below))
+        assertEquals(fade, planFor(outgoing = below, incoming = below))
+        overlap(planFor(outgoing = at, incoming = at))
+        overlap(planFor(outgoing = above, incoming = above))
+    }
+
+    @Test
+    fun `songs between 0_15 and 0_5 are beat matched by the calibrated rule and not by the stored one`() {
+        val middling = transitionProfile(confidence = 0.2f)
+
+        overlap(planFor(outgoing = middling, incoming = middling))
+        assertEquals(
+            TransitionPlan.Fade(4_000),
+            planFor(planner = storedRulePlanner, outgoing = middling, incoming = middling),
+        )
     }
 
     @Test

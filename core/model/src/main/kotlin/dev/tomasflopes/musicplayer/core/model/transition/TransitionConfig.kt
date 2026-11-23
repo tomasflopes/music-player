@@ -7,8 +7,10 @@ package dev.tomasflopes.musicplayer.core.model.transition
  */
 @Suppress("LongParameterList")
 data class TransitionConfig(
-    /** Both songs need a tempo confidence of at least this much for a beat match (calibration is still open). */
+    /** The tempo confidence [StoredConfidenceReliability] asks for: the slice 1 and 2 guess, kept for comparison. */
     val minConfidence: Float = 0.5f,
+    /** The tempo confidence [CalibratedConfidenceReliability] asks for, from the owner's checks (ADR 0099). */
+    val calibratedMinConfidence: Float = 0.15f,
     /** The largest stretch of the incoming song, as |r - 1|, half and double tempo included (ADR 0094). */
     val maxStretch: Double = 0.08,
     val beatsPerBar: Int = 4,

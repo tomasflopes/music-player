@@ -6,7 +6,7 @@ import kotlin.math.roundToLong
  * Lines the next song's beat up with the outgoing one on a bar and stretches it to the outgoing tempo (design phase 7,
  * slices 1 and 2, ADR 0092, 0094).
  *
- * Applies when both songs have a usable profile, both tempo confidences reach [TransitionConfig.minConfidence] and
+ * Applies when both songs have a usable profile, [reliability] trusts both stored tempos (ADR 0098) and
  * [TempoMatcher] finds a reading of the incoming tempo (x0.5, x1 or x2) within [TransitionConfig.maxStretch] of the
  * outgoing tempo. The incoming song then plays at speed r (outgoing tempo over the incoming tempo as read) with its
  * pitch kept, so its beats fall on the outgoing beats, and [EaseBack] returns it to 1.0 afterwards.
@@ -18,14 +18,16 @@ import kotlin.math.roundToLong
  * latest bar start whose overlap still ends by the music end. The incoming song starts on a bar of its own grid at the
  * matched tempo, at or after its music start.
  */
-class BeatMatchTechnique : TransitionTechnique {
+class BeatMatchTechnique(
+    private val reliability: TempoReliability = CalibratedConfidenceReliability(),
+) : TransitionTechnique {
     override val name = "beat-match"
     override val priority = TransitionTechnique.BEAT_MATCH_PRIORITY
 
     override fun plan(request: TransitionRequest): TransitionPlan? {
         val config = request.config
-        val outgoing = request.outgoing?.takeIf { it.isUsable && it.tempoConfidence >= config.minConfidence }
-        val incoming = request.incoming?.takeIf { it.isUsable && it.tempoConfidence >= config.minConfidence }
+        val outgoing = request.outgoing?.takeIf { it.isUsable && reliability.isReliable(it, config) }
+        val incoming = request.incoming?.takeIf { it.isUsable && reliability.isReliable(it, config) }
         val match =
             if (outgoing == null || incoming == null) {
                 null
