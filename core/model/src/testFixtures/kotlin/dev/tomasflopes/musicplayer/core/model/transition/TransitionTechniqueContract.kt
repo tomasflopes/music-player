@@ -25,7 +25,52 @@ fun transitionProfile(
     introEndMs: Long = 20_000,
     outroStartMs: Long = 160_000,
     musicEndMs: Long = 178_000,
-) = TransitionProfile(tempo, firstBeatMs, confidence, musicStartMs, introEndMs, outroStartMs, musicEndMs)
+    energy: List<Float> = emptyList(),
+) = TransitionProfile(
+    tempo,
+    firstBeatMs,
+    confidence,
+    musicStartMs,
+    introEndMs,
+    outroStartMs,
+    musicEndMs,
+    energyPerSecond = energy,
+)
+
+/**
+ * A stored energy curve (one RMS value per second, ADR 0065) for a song whose intro is at [intro] level, whose body
+ * runs from [introEndMs] to [outroStartMs] at [body] and whose tail, to [musicEndMs], is at [tail]. The curve ends at
+ * the music end, as the profiler's does.
+ */
+fun energyCurve(
+    introEndMs: Long = 20_000,
+    outroStartMs: Long = 160_000,
+    musicEndMs: Long = 178_000,
+    intro: Float = 0.1f,
+    body: Float = 0.2f,
+    tail: Float = 0.04f,
+): List<Float> =
+    List(((musicEndMs + 999) / 1_000).toInt()) { second ->
+        val middle = second * 1_000L + 500
+        when {
+            middle < introEndMs -> intro
+            middle < outroStartMs -> body
+            else -> tail
+        }
+    }
+
+/** A profile whose tail is talk by the default rule: a body at 0.2 and a tail at 0.04 for 18 s. */
+fun talkOutroProfile(
+    tempo: Double = 120.0,
+    outroStartMs: Long = 160_000,
+    musicEndMs: Long = 178_000,
+    tail: Float = 0.04f,
+) = transitionProfile(
+    tempo = tempo,
+    outroStartMs = outroStartMs,
+    musicEndMs = musicEndMs,
+    energy = energyCurve(outroStartMs = outroStartMs, musicEndMs = musicEndMs, tail = tail),
+)
 
 fun transitionSong(
     id: Long,
@@ -89,6 +134,8 @@ object TransitionTechniqueContract {
             transitionProfile(outroStartMs = 10_000, musicEndMs = 5_000),
             transitionProfile(firstBeatMs = -3.0),
             transitionProfile(musicEndMs = 5_000_000),
+            transitionProfile(energy = listOf(Float.NaN, -1f, Float.POSITIVE_INFINITY)),
+            talkOutroProfile(),
         )
 
     fun checks(factory: () -> TransitionTechnique): List<TechniqueCheck> =
@@ -177,6 +224,11 @@ object TransitionTechniqueContract {
             transitionRequest(incoming = transitionProfile(tempo = 250.0)),
             transitionRequest(incoming = transitionProfile(introEndMs = 9_000)),
             transitionRequest(outgoing = transitionProfile(tempo = 90.0), incoming = transitionProfile(tempo = 90.0)),
+            transitionRequest(outgoing = talkOutroProfile()),
+            transitionRequest(outgoing = talkOutroProfile(), incoming = transitionProfile(tempo = 87.0)),
+            transitionRequest(outgoing = talkOutroProfile(), incoming = transitionProfile(confidence = 0.01f)),
+            transitionRequest(outgoing = talkOutroProfile(outroStartMs = 100_000, musicEndMs = 170_000)),
+            transitionRequest(outgoing = talkOutroProfile(), incoming = transitionProfile(introEndMs = 9_000)),
         )
 
     private fun describe(plan: TransitionPlan?): String =

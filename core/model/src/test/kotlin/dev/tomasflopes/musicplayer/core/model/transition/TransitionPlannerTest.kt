@@ -1,5 +1,6 @@
 package dev.tomasflopes.musicplayer.core.model.transition
 
+import dev.tomasflopes.musicplayer.core.model.AlbumId
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings
 import dev.tomasflopes.musicplayer.core.model.crossfade.Transition
@@ -244,6 +245,7 @@ class TransitionPlannerTest {
         val spy = SpyTechnique()
 
         val crossfade = dj.copy(style = TransitionStyle.CROSSFADE)
+        val tapped = transition(cause = TransitionCause.TAP_JUMP)
 
         val result = planFor(settings = crossfade, planner = TransitionPlanner(listOf(spy)))
 
@@ -322,5 +324,84 @@ class TransitionPlannerTest {
         private val plan: TransitionPlan,
     ) : TransitionTechnique {
         override fun plan(request: TransitionRequest) = plan
+    }
+
+    private val talkPlanner =
+        TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique(), TalkOutroTechnique()))
+
+    private fun describe(plan: TransitionPlan): String =
+        when (plan) {
+            is TransitionPlan.Overlap ->
+                "${plan.technique}:${plan.switchPointMs}:${plan.incomingStartMs}:${plan.overlapMs}:" +
+                    "${plan.incomingSpeed}:${plan.easeBack.size}:${plan.bass != null}"
+            else -> plan.toString()
+        }
+
+    @Test
+    fun `a talking outro is planned before the beat match, even when the tempos would match`() {
+        val plan = overlap(planFor(outgoing = talkOutroProfile(), planner = talkPlanner))
+
+        assertEquals("talk-outro", plan.technique)
+        assertEquals(161_000L, plan.switchPointMs)
+    }
+
+    @Test
+    fun `songs that are not talk outros are planned exactly as without the talk technique`() {
+        val pairs =
+            listOf(
+                transitionProfile() to transitionProfile(),
+                transitionProfile() to transitionProfile(tempo = 123.6),
+                transitionProfile() to transitionProfile(tempo = 60.0),
+                transitionProfile() to transitionProfile(tempo = 150.0),
+                transitionProfile() to transitionProfile(confidence = 0.01f),
+                transitionProfile(energy = energyCurve(tail = 0.15f)) to transitionProfile(),
+                talkOutroProfile(tail = 0.14f) to transitionProfile(),
+                talkOutroProfile(outroStartMs = 171_000) to transitionProfile(tempo = 123.6),
+                null to transitionProfile(),
+                transitionProfile() to null,
+            )
+
+        for ((outgoing, incoming) in pairs) {
+            assertEquals(
+                describe(planFor(outgoing, incoming)),
+                describe(planFor(outgoing, incoming, planner = talkPlanner)),
+            )
+        }
+    }
+
+    @Test
+    fun `a talking outro with an incoming song without a profile is the phase 6 crossfade`() {
+        val plan = planFor(outgoing = talkOutroProfile(), incoming = null, planner = talkPlanner)
+
+        assertEquals(TransitionPlan.Fade(4_000), plan)
+    }
+
+    @Test
+    fun `the phase 6 rules come before a talking outro`() {
+        fun track(id: Long) =
+            transitionSong(id).copy(
+                albumId = AlbumId(7),
+                albumTitle = "Album",
+                albumArtist = "Artist",
+                trackNumber = id.toInt(),
+            )
+        val first = track(1)
+        val second = track(2)
+        val albumInOrder = transition(outgoing = first, incoming = second, shuffled = false)
+        val crossfade = dj.copy(style = TransitionStyle.CROSSFADE)
+        val tapped = transition(cause = TransitionCause.TAP_JUMP)
+
+        assertEquals(
+            TransitionPlan.HardCut,
+            planFor(outgoing = talkOutroProfile(), transition = tapped, planner = talkPlanner),
+        )
+        assertEquals(
+            TransitionPlan.HardCut,
+            planFor(outgoing = talkOutroProfile(), transition = albumInOrder, planner = talkPlanner),
+        )
+        assertEquals(
+            TransitionPlan.Fade(4_000),
+            planFor(outgoing = talkOutroProfile(), settings = crossfade, planner = talkPlanner),
+        )
     }
 }
