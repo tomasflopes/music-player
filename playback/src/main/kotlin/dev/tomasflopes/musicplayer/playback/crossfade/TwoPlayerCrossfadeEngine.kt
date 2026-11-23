@@ -470,7 +470,8 @@ class TwoPlayerCrossfadeEngine(
         val factory = engineFactory(build = { ExoPlayer.Builder(it).build() })
 
         /** The Hilt-bound factory with the bass filter: [players] builds the spare, finds each player's control. */
-                fun factory(players: BassPlayers): CrossfadeEngineFactory = engineFactory({ players.newPlayer(it) }, players)
+        fun factory(players: BassPlayers): CrossfadeEngineFactory =
+            engineFactory({ players.newPlayer(it) }, players)
 
         private fun engineFactory(
             build: (Context) -> ExoPlayer,
