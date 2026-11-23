@@ -13,6 +13,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.BeatMatchTechnique
 import dev.tomasflopes.musicplayer.core.model.transition.CalibratedConfidenceReliability
 import dev.tomasflopes.musicplayer.core.model.transition.CrossfadeTechnique
+import dev.tomasflopes.musicplayer.core.model.transition.TalkOutroTechnique
 import dev.tomasflopes.musicplayer.core.model.transition.TempoReliability
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
@@ -100,6 +101,9 @@ object PlaybackModule {
      */
     @Provides @IntoSet
     fun beatMatchTechnique(reliability: TempoReliability): TransitionTechnique = BeatMatchTechnique(reliability)
+
+    @Provides @IntoSet
+    fun talkOutroTechnique(reliability: TempoReliability): TransitionTechnique = TalkOutroTechnique(reliability)
 
     @Provides @IntoSet
     fun crossfadeTechnique(): TransitionTechnique = CrossfadeTechnique()

@@ -8,7 +8,9 @@ import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
 import dev.tomasflopes.musicplayer.core.model.transition.BassCurve
 import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
 import dev.tomasflopes.musicplayer.core.model.transition.DjVolumeCurve
+import dev.tomasflopes.musicplayer.core.model.transition.GainCurve
 import dev.tomasflopes.musicplayer.core.model.transition.SpeedStep
+import dev.tomasflopes.musicplayer.core.model.transition.TalkCurve
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import dev.tomasflopes.musicplayer.playback.bass.BassControl
@@ -111,17 +113,19 @@ class TwoPlayerTransitionEngineTest {
         easeBack: List<SpeedStep> = emptyList(),
         grids: BeatGrid? = null,
         bass: BassCurve? = null,
+        curve: GainCurve = DjVolumeCurve,
+        technique: String = "beat-match",
     ) = PlannedTransition(
         MediaItem.EMPTY,
         CrossfadeDecision.Fade(overlapMs),
         DURATION_MS,
         overlap =
             TransitionPlan.Overlap(
-                technique = "beat-match",
+                technique = technique,
                 switchPointMs = SWITCH_MS,
                 incomingStartMs = incomingStartMs,
                 overlapMs = overlapMs,
-                curve = DjVolumeCurve,
+                curve = curve,
                 ratio = speed.toDouble(),
                 incomingSpeed = speed,
                 easeBack = easeBack,
@@ -562,6 +566,99 @@ class TwoPlayerTransitionEngineTest {
             advance(DURATION_MS)
 
             assertTrue(s.spareBass.sets.isEmpty())
+            assertTrue(s.outgoingBass.sets.isEmpty())
+        }
+
+    /** The talking outro (ADR 0104): speed 1, no bass curve, no grids, the plan's own curve over a long overlap. */
+    private fun talkPlan() =
+        overlapPlan(
+            overlapMs = LONG_OVERLAP_MS,
+            curve = TalkCurve.of(LONG_OVERLAP_MS, beatMs = 500.0, barMs = 2_000.0, fadeBars = 4, duckDb = -6f)!!,
+            technique = "talk-outro",
+        )
+
+    @Test
+    fun `a talking outro starts at the switch point with the incoming song silent and ducks the outgoing one`() =
+        runTest {
+            val s = setup(talkPlan())
+
+            advance(SWITCH_MS + 100)
+
+            assertEquals(1, s.host.started)
+            assertEquals(0f, s.host.incomingVolumeAtStart)
+            advance(1_000)
+            assertEquals(1f, s.spare.volume, 0.01f, "the incoming beat is in after half a second")
+            assertEquals(0.708f, s.outgoing.volume, 0.05f, "half way down the duck")
+            advance(1_500)
+            assertEquals(0.501f, s.outgoing.volume, 0.03f, "ducked by 6 dB")
+            advance(2_000)
+            assertEquals(0.501f, s.outgoing.volume, 0.03f, "held")
+        }
+
+    @Test
+    fun `a talking outro fades the outgoing song out and ends with the incoming song alone at speed 1`() =
+        runTest {
+            val s = setup(talkPlan())
+            advance(SWITCH_MS + 100)
+
+            advance(LONG_OVERLAP_MS - 1_100)
+            assertTrue(s.outgoing.volume < 0.2f, "nearly gone before the end")
+            advance(2_000)
+
+            assertEquals(1, s.host.finished)
+            assertEquals(1f, s.spare.volume)
+            assertFalse(s.outgoing.hasItem)
+            assertEquals(1f, s.spare.speed)
+            assertEquals(1f, s.outgoing.speed)
+            assertTrue(s.spareBass.sets.isEmpty() && s.outgoingBass.sets.isEmpty(), "no bass processing")
+            assertTrue(s.spareBass.isBypassed && s.outgoingBass.isBypassed)
+        }
+
+    @Test
+    fun `a skip, a pause and a kill during a talking outro leave nothing sped up or filtered`() {
+        listOf<(Setup) -> Unit>(
+            { it.engine.invalidate() },
+            { it.engine.onPlayingChanged(false) },
+            { it.engine.release() },
+        ).forEach { end ->
+            runTest {
+                val s = setup(talkPlan())
+                advance(SWITCH_MS + 2_000)
+
+                end(s)
+
+                assertEquals(1f, s.spare.speed)
+                assertEquals(1f, s.outgoing.speed)
+                assertTrue(s.spareBass.isBypassed && s.outgoingBass.isBypassed)
+                assertTrue(s.spareBass.sets.isEmpty() && s.outgoingBass.sets.isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun `a skip during a talking outro leaves the incoming song at full volume`() =
+        runTest {
+            val s = setup(talkPlan())
+            advance(SWITCH_MS + 2_000)
+
+            s.engine.invalidate()
+
+            assertEquals(1f, s.spare.volume)
+        }
+
+    @Test
+    fun `a spare that is not ready at the switch point of a talking outro runs the phase 6 plan`() =
+        runTest {
+            val s = setup(talkPlan())
+            s.spare.ready = false
+            advance(SWITCH_MS + 2_000)
+            assertEquals(0, s.host.started, "no overlap without a ready spare")
+            s.spare.ready = true
+
+            advance(DURATION_MS - SWITCH_MS)
+
+            assertEquals(1, s.host.started)
+            assertNear(DURATION_MS - PHASE_SIX_MS, s.host.outgoingPositionAtStart)
             assertTrue(s.outgoingBass.sets.isEmpty())
         }
 
