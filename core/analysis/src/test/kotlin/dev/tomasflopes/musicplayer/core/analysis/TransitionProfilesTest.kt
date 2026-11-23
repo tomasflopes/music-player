@@ -43,4 +43,24 @@ class TransitionProfilesTest {
         assertNull(TransitionProfiles.fromFixed(fixed { it[SoundProfile.MUSIC_END] = Float.NaN }))
         assertNotNull(TransitionProfiles.fromFixed(fixed()))
     }
+
+    @Test
+    fun `a whole blob also gives the energy curve and the fixed part alone gives none`() {
+        val curve = FloatArray(200) { 0.1f + it / 1_000f }
+        val blob = ProfileBlobCodec.encode(SoundProfile(fixed(), curve))
+
+        val profile = TransitionProfiles.fromBlob(blob)!!
+
+        assertEquals(curve.toList(), profile.energyPerSecond)
+        assertEquals(TransitionProfiles.fromFixed(fixed())!!.copy(energyPerSecond = curve.toList()), profile)
+        assertEquals(emptyList<Float>(), TransitionProfiles.fromFixed(fixed())!!.energyPerSecond)
+    }
+
+    @Test
+    fun `a blob that cannot be a profile, or whose numbers cannot be a grid, gives no profile`() {
+        assertNull(TransitionProfiles.fromBlob(ByteArray(10)))
+        assertNull(TransitionProfiles.fromBlob(ByteArray(SoundProfile.FIXED_SIZE * 4 + 1)))
+        val noTempo = SoundProfile(fixed { it[SoundProfile.BEAT_TEMPO] = 0f }, FloatArray(3))
+        assertNull(TransitionProfiles.fromBlob(ProfileBlobCodec.encode(noTempo)))
+    }
 }

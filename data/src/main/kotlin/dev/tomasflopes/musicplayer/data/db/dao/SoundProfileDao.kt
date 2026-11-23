@@ -180,4 +180,19 @@ interface SoundProfileDao {
         songId: Long,
         profilerVersion: Int,
     ): ByteArray?
+
+    /**
+     * The whole BLOB of the current profile of one in-library song, or null: same rules as [soundHead]. The
+     * transitions read the energy curve of the outgoing song for the talking outro (ADR 0104); about 1 KB a song.
+     */
+    @Query(
+        "SELECT sound_profile.features " +
+            "FROM sound_profile JOIN song ON song.id = sound_profile.song_id " +
+            "WHERE song.id = :songId AND song.in_library = 1 AND sound_profile.profiler_version = :profilerVersion " +
+            "AND sound_profile.file_size = song.file_size AND length(sound_profile.features) >= $HEAD_BYTES",
+    )
+    suspend fun soundBlob(
+        songId: Long,
+        profilerVersion: Int,
+    ): ByteArray?
 }

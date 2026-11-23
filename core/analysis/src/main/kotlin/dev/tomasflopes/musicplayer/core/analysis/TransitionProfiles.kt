@@ -12,8 +12,16 @@ object TransitionProfiles {
      * cannot be a beat grid (not finite, a negative time, no tempo, boundaries out of order); a transition then falls
      * back to the crossfade.
      */
-    fun fromFixed(fixed: FloatArray): TransitionProfile? {
-        val profile = SoundProfile(fixed, FloatArray(0))
+    fun fromFixed(fixed: FloatArray): TransitionProfile? = fromProfile(SoundProfile(fixed, FloatArray(0)))
+
+    /**
+     * Like [fromFixed], from a whole stored BLOB: the energy curve is read too, for the talking outro (ADR 0104).
+     * Null for bytes that cannot be a profile.
+     */
+    fun fromBlob(bytes: ByteArray): TransitionProfile? =
+        runCatching { fromProfile(ProfileBlobCodec.decode(bytes)) }.getOrNull()
+
+    private fun fromProfile(profile: SoundProfile): TransitionProfile? {
         val candidates =
             (0 until SoundProfile.CANDIDATE_SLOTS)
                 .map { profile.candidate(it).first.toDouble() }
@@ -27,6 +35,7 @@ object TransitionProfiles {
             outroStartMs = ms(profile.outroStartSeconds),
             musicEndMs = ms(profile.musicEndSeconds),
             candidateBpms = candidates,
+            energyPerSecond = profile.energyCurve.toList(),
         ).takeIf { it.isUsable }
     }
 

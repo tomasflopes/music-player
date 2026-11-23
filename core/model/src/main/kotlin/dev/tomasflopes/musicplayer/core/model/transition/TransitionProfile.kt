@@ -4,7 +4,8 @@ package dev.tomasflopes.musicplayer.core.model.transition
  * What a transition needs from a stored sound profile (ADR 0065), in milliseconds and BPM, with no Android and no
  * analysis types. [firstBeatMs] and [tempoBpm] are the beat grid; the four boundaries are music start, intro end,
  * outro start and music end. [candidateBpms] are the tempo candidates, best first, for the half and double tempo
- * matches of slice 2.
+ * matches of slice 2. [energyPerSecond] is the stored energy curve (RMS of each whole second, ADR 0065) for the talking
+ * outro of slice 4; it is empty when the reader had only the fixed part of the profile.
  */
 data class TransitionProfile(
     val tempoBpm: Double,
@@ -15,6 +16,7 @@ data class TransitionProfile(
     val outroStartMs: Long,
     val musicEndMs: Long,
     val candidateBpms: List<Double> = emptyList(),
+    val energyPerSecond: List<Float> = emptyList(),
 ) {
     /** Finite numbers in a sane range, boundaries in order: anything else is treated as "no profile". */
     val isUsable: Boolean
