@@ -82,7 +82,9 @@ object BassControlContract {
                     try {
                         repeat(ROUNDS) { control.setGainDb(if (it % 2 == index) depthDb else 0f) }
                         control.bypass()
-                    } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                    } catch (
+                        @Suppress("TooGenericExceptionCaught") e: Throwable,
+                    ) {
                         failure = e
                     }
                 }
