@@ -3,7 +3,6 @@ package dev.tomasflopes.musicplayer.playback.bass
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessor.AudioFormat
-import androidx.media3.common.util.UnstableApi
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -19,7 +18,6 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /** The Media3 processor around the bass shelf (ADR 0101, 0102): bypass is byte for byte, the cut is in numbers. */
-@OptIn(UnstableApi::class)
 class ShelfAudioProcessorTest {
     private val rate = 44_100
 

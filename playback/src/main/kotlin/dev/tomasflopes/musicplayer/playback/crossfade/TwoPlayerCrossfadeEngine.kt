@@ -5,7 +5,6 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
 import dev.tomasflopes.musicplayer.core.model.transition.BassCurve
@@ -471,8 +470,7 @@ class TwoPlayerCrossfadeEngine(
         val factory = engineFactory(build = { ExoPlayer.Builder(it).build() })
 
         /** The Hilt-bound factory with the bass filter: [players] builds the spare and finds each player's control. */
-        @OptIn(UnstableApi::class)
-        fun factory(players: BassPlayers): CrossfadeEngineFactory = engineFactory({ players.newPlayer(it) }, players)
+                fun factory(players: BassPlayers): CrossfadeEngineFactory = engineFactory({ players.newPlayer(it) }, players)
 
         private fun engineFactory(
             build: (Context) -> ExoPlayer,
