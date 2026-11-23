@@ -33,6 +33,7 @@ data class TransitionConfig(
     val bassCutHz: Int = 150,
     val bassCutDb: Float = DEFAULT_BASS_CUT_DB,
     val bassSwapBeats: Int = 2,
+    /** On for the owner's listening test. The rule over-flags on the real library (ADR 0106). */
     val talkEnabled: Boolean = true,
     val talkMinMs: Long = 8_000,
     val talkEnergyRatio: Float = 0.5f,

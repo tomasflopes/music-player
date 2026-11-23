@@ -2,6 +2,7 @@ package dev.tomasflopes.musicplayer.core.model.transition
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -12,11 +13,12 @@ import org.junit.jupiter.api.Test
  */
 class TalkOutroTechniqueTest {
     private val technique = TalkOutroTechnique()
+    private val on = TransitionConfig(talkEnabled = true)
 
     private fun plan(
         outgoing: TransitionProfile? = talkOutroProfile(),
         incoming: TransitionProfile? = transitionProfile(),
-        config: TransitionConfig = TransitionConfig(),
+        config: TransitionConfig = on,
         incomingDurationMs: Long = 180_000,
     ) = technique.plan(
         transitionRequest(
@@ -99,7 +101,7 @@ class TalkOutroTechniqueTest {
     @Test
     fun `fewer than four seconds of overlap is left to the other techniques`() {
         assertNull(plan(incomingDurationMs = 3_000))
-        assertNull(plan(config = TransitionConfig(talkLeadMs = 15_000)))
+        assertNull(plan(config = on.copy(talkLeadMs = 15_000)))
     }
 
     @Test
@@ -120,13 +122,19 @@ class TalkOutroTechniqueTest {
     }
 
     @Test
+    fun `it is on by default`() {
+        assertEquals(true, TransitionConfig().talkEnabled)
+        assertNotNull(plan(config = TransitionConfig()))
+    }
+
+    @Test
     fun `it can be turned off`() {
         assertNull(plan(config = TransitionConfig(talkEnabled = false)))
     }
 
     @Test
     fun `the numbers come from the config`() {
-        val plan = overlap(plan(config = TransitionConfig(talkLeadMs = 2_000, talkDuckDb = -12f, talkFadeBars = 2)))
+        val plan = overlap(plan(config = on.copy(talkLeadMs = 2_000, talkDuckDb = -12f, talkFadeBars = 2)))
 
         assertEquals(162_000L, plan.switchPointMs)
         assertEquals(0.251f, plan.curve.outgoing(3_000f / plan.overlapMs), 0.003f)

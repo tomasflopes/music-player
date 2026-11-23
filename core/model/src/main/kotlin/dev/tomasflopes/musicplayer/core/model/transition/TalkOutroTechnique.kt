@@ -3,9 +3,10 @@ package dev.tomasflopes.musicplayer.core.model.transition
 /**
  * The next song's beat enters under the talk at the end of the outgoing song (design phase 7, slice 4, ADR 0104).
  *
- * Applies when [TalkDetector] says the outgoing tail (outro start to music end) is talk, both songs have a usable
- * profile and [TransitionConfig.talkEnabled] is on. The incoming song starts at [TransitionConfig.talkLeadMs] after the
- * outro start, at speed 1.0 (there is no beat to match), on the first bar of its own grid, and rises over one beat.
+ * Applies when [TransitionConfig.talkEnabled] is on (ADR 0106), [TalkDetector] says the
+ * outgoing tail (outro start to music end) is talk, and both songs have a usable profile. The incoming song starts at
+ * [TransitionConfig.talkLeadMs] after the outro start, at speed 1.0 (there is no beat to match), on the first bar of
+ * its own grid, and rises over one beat.
  * The outgoing song ducks by [TransitionConfig.talkDuckDb] over one bar and falls to nothing over the last
  * [TransitionConfig.talkFadeBars] bars of the overlap, which ends at the music end or after
  * [TransitionConfig.maxOverlapMs], whichever comes first. No bass swap, no ease-back.

@@ -100,7 +100,7 @@ fun transitionRequest(
     incoming: TransitionProfile? = transitionProfile(),
     outgoingDurationMs: Long = 180_000,
     incomingDurationMs: Long = 180_000,
-    config: TransitionConfig = TransitionConfig(),
+    config: TransitionConfig = TransitionConfig(talkEnabled = true),
 ) = TransitionRequest(
     transition =
         Transition(

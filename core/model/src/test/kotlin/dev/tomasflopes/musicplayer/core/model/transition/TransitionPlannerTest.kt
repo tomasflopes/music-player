@@ -327,7 +327,10 @@ class TransitionPlannerTest {
     }
 
     private val talkPlanner =
-        TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique(), TalkOutroTechnique()))
+        TransitionPlanner(
+            listOf(CrossfadeTechnique(), BeatMatchTechnique(), TalkOutroTechnique()),
+            TransitionConfig(talkEnabled = true),
+        )
 
     private fun describe(plan: TransitionPlan): String =
         when (plan) {
