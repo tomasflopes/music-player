@@ -39,7 +39,14 @@ data class TransitionConfig(
     val talkEnergyRatio: Float = 0.5f,
     val talkLeadMs: Long = 1_000,
     val talkDuckDb: Float = DEFAULT_TALK_DUCK_DB,
-    val talkFadeBars: Int = 4,
+    /** Bars of the final fade, in which the incoming song rises to full and the outgoing one falls out (ADR 0107). */
+    val talkFadeBars: Int = DEFAULT_TALK_FADE_BARS,
+    /** The flat level of the incoming song under the talk, before its own loudness match (ADR 0107). */
+    val talkHeldDb: Float = DEFAULT_TALK_HELD_DB,
+    /** True: the held level drops further when the incoming song's body is louder than the outgoing one's. */
+    val talkLevelMatch: Boolean = true,
+    /** The most the loudness match lowers the held level, in dB. It never raises it. */
+    val talkMaxMatchDb: Float = DEFAULT_TALK_MAX_MATCH_DB,
     /** The lab starts this long before the switch point. */
     val labLeadMs: Long = 15_000,
     /** The next song is handed to the spare player this long before the overlap starts. */
@@ -48,5 +55,8 @@ data class TransitionConfig(
     private companion object {
         const val DEFAULT_BASS_CUT_DB = -24f
         const val DEFAULT_TALK_DUCK_DB = -6f
+        const val DEFAULT_TALK_HELD_DB = -12f
+        const val DEFAULT_TALK_MAX_MATCH_DB = 6f
+        const val DEFAULT_TALK_FADE_BARS = 2
     }
 }

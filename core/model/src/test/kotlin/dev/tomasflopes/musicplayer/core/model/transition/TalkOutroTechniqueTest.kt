@@ -61,14 +61,14 @@ class TalkOutroTechniqueTest {
     }
 
     @Test
-    fun `the outgoing song ducks over one bar and fades over the last four bars of the overlap`() {
+    fun `the outgoing song ducks over one bar and fades over the last two bars of the overlap`() {
         val plan = overlap(plan())
         val overlapMs = plan.overlapMs.toFloat()
 
-        assertEquals(1f, plan.curve.incoming(500f / overlapMs))
+        assertEquals(0.251f, plan.curve.incoming(500f / overlapMs), 0.003f)
         assertEquals(0.501f, plan.curve.outgoing(2_000f / overlapMs), 0.002f)
-        assertEquals(0.501f, plan.curve.outgoing(9_000f / overlapMs), 0.002f)
-        assertTrue(plan.curve.outgoing(15_000f / overlapMs) < 0.2f)
+        assertEquals(0.501f, plan.curve.outgoing(12_000f / overlapMs), 0.002f)
+        assertTrue(plan.curve.outgoing(16_500f / overlapMs) < 0.2f)
         assertEquals(0f, plan.curve.outgoing(1f))
     }
 
@@ -78,8 +78,8 @@ class TalkOutroTechniqueTest {
         val plan = overlap(plan(incoming = unsure))
 
         assertEquals(600L, plan.incomingStartMs)
-        assertEquals(1f, plan.curve.incoming(1_000f / plan.overlapMs))
-        assertTrue(plan.curve.incoming(500f / plan.overlapMs) < 1f, "a second, not a beat at 120 BPM")
+        assertEquals(0.251f, plan.curve.incoming(1_000f / plan.overlapMs), 0.003f)
+        assertTrue(plan.curve.incoming(500f / plan.overlapMs) < 0.2f, "a second, not a beat at 120 BPM")
         assertEquals(0.501f, plan.curve.outgoing(2_000f / plan.overlapMs), 0.002f)
     }
 
@@ -140,5 +140,59 @@ class TalkOutroTechniqueTest {
         assertEquals(0.251f, plan.curve.outgoing(3_000f / plan.overlapMs), 0.003f)
         assertEquals(0.251f, plan.curve.outgoing(11_000f / plan.overlapMs), 0.003f, "held until two bars from the end")
         assertTrue(plan.curve.outgoing(14_000f / plan.overlapMs) < 0.2f)
+    }
+
+    @Test
+    fun `the defaults hold the incoming song at minus twelve decibels and fade over two bars`() {
+        val config = TransitionConfig()
+
+        assertEquals(-12f, config.talkHeldDb)
+        assertEquals(2, config.talkFadeBars)
+        assertEquals(true, config.talkLevelMatch)
+        assertEquals(6f, config.talkMaxMatchDb)
+    }
+
+    @Test
+    fun `the plan holds the incoming song at the held level and raises it only in the final fade`() {
+        val plan = overlap(plan())
+        val held = 0.251f
+
+        assertEquals(held, plan.curve.incoming(3_000f / plan.overlapMs), 0.003f)
+        assertEquals(held, plan.curve.incoming(11_000f / plan.overlapMs), 0.003f, "the hold ends at 13 s")
+        assertTrue(plan.curve.incoming(15_000f / plan.overlapMs) > 0.6f)
+        assertEquals(1f, plan.curve.incoming(1f))
+    }
+
+    @Test
+    fun `the held level and the fade length come from the config`() {
+        val plan = overlap(plan(config = on.copy(talkHeldDb = -6f, talkFadeBars = 4, talkLevelMatch = false)))
+
+        assertEquals(0.501f, plan.curve.incoming(5_000f / plan.overlapMs), 0.003f)
+        assertEquals(0.501f, plan.curve.incoming(8_000f / plan.overlapMs), 0.003f, "the fade is 4 bars, 8 s")
+        assertTrue(plan.curve.incoming(12_000f / plan.overlapMs) > 0.7f)
+    }
+
+    private fun loudIncoming(body: Float) = transitionProfile(energy = energyCurve(body = body, tail = body))
+
+    @Test
+    fun `a louder incoming body lowers the held level by the difference in decibels`() {
+        // outgoing body 0.2; incoming body 0.4 is 6.02 dB louder, so the held level drops from -12 to about -18 dB
+        val matched = overlap(plan(incoming = loudIncoming(0.4f)))
+        val flat = overlap(plan(incoming = loudIncoming(0.4f), config = on.copy(talkLevelMatch = false)))
+
+        assertEquals(0.126f, matched.curve.incoming(5_000f / matched.overlapMs), 0.004f)
+        assertEquals(0.251f, flat.curve.incoming(5_000f / flat.overlapMs), 0.004f)
+        assertEquals(1f, matched.curve.incoming(1f), "the song still ends at full level")
+    }
+
+    @Test
+    fun `the loudness match is capped, never raises the level and needs both curves`() {
+        val capped = overlap(plan(incoming = loudIncoming(2.0f)))
+        val quieter = overlap(plan(incoming = loudIncoming(0.05f)))
+        val unknown = overlap(plan(incoming = transitionProfile()))
+
+        assertEquals(0.126f, capped.curve.incoming(5_000f / capped.overlapMs), 0.004f, "at most 6 dB lower")
+        assertEquals(0.251f, quieter.curve.incoming(5_000f / quieter.overlapMs), 0.004f, "a quiet song is not raised")
+        assertEquals(0.251f, unknown.curve.incoming(5_000f / unknown.overlapMs), 0.004f, "no curve, no match")
     }
 }

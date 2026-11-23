@@ -573,7 +573,15 @@ class TwoPlayerTransitionEngineTest {
     private fun talkPlan() =
         overlapPlan(
             overlapMs = LONG_OVERLAP_MS,
-            curve = TalkCurve.of(LONG_OVERLAP_MS, beatMs = 500.0, barMs = 2_000.0, fadeBars = 4, duckDb = -6f)!!,
+            curve =
+                TalkCurve.of(
+                    LONG_OVERLAP_MS,
+                    beatMs = 500.0,
+                    barMs = 2_000.0,
+                    fadeBars = 4,
+                    duckDb = -6f,
+                    heldDb = -12f,
+                )!!,
             technique = "talk-outro",
         )
 
@@ -587,12 +595,27 @@ class TwoPlayerTransitionEngineTest {
             assertEquals(1, s.host.started)
             assertEquals(0f, s.host.incomingVolumeAtStart)
             advance(1_000)
-            assertEquals(1f, s.spare.volume, 0.01f, "the incoming beat is in after half a second")
+            assertEquals(0.251f, s.spare.volume, 0.01f, "the incoming beat is in, at the held level")
             assertEquals(0.708f, s.outgoing.volume, 0.05f, "half way down the duck")
             advance(1_500)
             assertEquals(0.501f, s.outgoing.volume, 0.03f, "ducked by 6 dB")
             advance(2_000)
             assertEquals(0.501f, s.outgoing.volume, 0.03f, "held")
+        }
+
+    @Test
+    fun `a talking outro holds the incoming song flat and low until the final fade, then raises it`() =
+        runTest {
+            val s = setup(talkPlan())
+            advance(SWITCH_MS + 100)
+
+            advance(3_000)
+            assertEquals(0.251f, s.spare.volume, 0.01f, "held under the talk")
+            advance(4_000)
+            assertEquals(0.251f, s.spare.volume, 0.01f, "still held just before the fade")
+            advance(5_000)
+            assertTrue(s.spare.volume > 0.5f, "rising in the final fade")
+            assertTrue(s.outgoing.volume < 0.35f, "falling in the final fade")
         }
 
     @Test
@@ -640,6 +663,7 @@ class TwoPlayerTransitionEngineTest {
         runTest {
             val s = setup(talkPlan())
             advance(SWITCH_MS + 2_000)
+            assertTrue(s.spare.volume < 0.5f, "it was held low until the skip")
 
             s.engine.invalidate()
 
