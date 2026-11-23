@@ -77,17 +77,16 @@ object PlaybackModule {
     fun transitionConfig() = TransitionConfig()
 
     /**
-     * The transition techniques (ADR 0092): one `@IntoSet` line per technique, asked in priority order. The phase 6
-     * crossfade is the last one and always answers. A new technique is a new class and one line here.
-     */
-
-    /**
      * Which stored tempos a beat match trusts (ADR 0098, 0099). Change this one line to compare with
      * `StoredConfidenceReliability`, the slice 1 and 2 rule.
      */
     @Provides
     fun tempoReliability(): TempoReliability = CalibratedConfidenceReliability()
 
+    /**
+     * The transition techniques (ADR 0092): one `@IntoSet` line per technique, asked in priority order. The phase 6
+     * crossfade is the last one and always answers. A new technique is a new class and one line here.
+     */
     @Provides @IntoSet
     fun beatMatchTechnique(reliability: TempoReliability): TransitionTechnique = BeatMatchTechnique(reliability)
 
