@@ -23,3 +23,6 @@ profiles.db
 
 # Mac profile export, local only (phase 3 import)
 MusicPhoneProfiles.jsonl
+
+# Click-check audio made from the owner library (phase 7 calibration); local only
+calibration/clicks/
