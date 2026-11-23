@@ -44,7 +44,9 @@ def mean_between(curve, from_ms, to_ms):
 
 def measure(song):
     """The numbers of one song, or None when the detector would say 'missing'."""
-    fixed, curve, duration = song.get("fixed"), song.get("energy"), song.get("durationMs")
+    fixed, curve = song.get("fixed"), song.get("energy")
+    # The export writes duration_ms (ProfileExportCodec); durationMs is accepted too.
+    duration = song.get("duration_ms", song.get("durationMs"))
     if not fixed or len(fixed) < FIXED_SIZE or not curve or not isinstance(duration, (int, float)):
         return None
     secs = [fixed[i] for i in (MUSIC_START, INTRO_END, OUTRO_START, MUSIC_END)]
@@ -73,6 +75,15 @@ def measure(song):
         # Last third of the tail over its first third: near 1 is a flat tail (talk), near 0 a fade-out.
         "decay": (last / first) if first > 0 else float("inf"),
     }
+
+
+def why_not(song):
+    """Says which part of a song line stopped the verdict, without printing any of its numbers."""
+    fixed, curve = song.get("fixed"), song.get("energy")
+    duration = song.get("duration_ms", song.get("durationMs"))
+    return "keys %s; fixed has %s values (need %d); energy has %s values; duration %s" % (
+        sorted(song.keys()), len(fixed) if fixed else "no", FIXED_SIZE, len(curve) if curve else "no",
+        "present" if isinstance(duration, (int, float)) else "MISSING")
 
 
 def shape(m):
@@ -110,9 +121,10 @@ def show_match(path, needle):
             print("\n%s" % song.get("path"))
             if m is None:
                 print("  no verdict: the profile has no usable boundaries or energy curve")
+                print("  " + why_not(song))
                 continue
             print("  duration %s, outro start %s, music end %s, tail %.1f s" % (
-                mmss(song["durationMs"]), mmss(m["outro_start_ms"]), mmss(m["end_ms"]), m["tail_ms"] / 1000))
+                mmss(song.get("duration_ms", song.get("durationMs", 0))), mmss(m["outro_start_ms"]), mmss(m["end_ms"]), m["tail_ms"] / 1000))
             print("  body mean %.4f, tail mean %.4f, ratio %.3f (limit %.2f)" % (
                 m["body_mean"], m["tail_mean"], m["ratio"], TALK_ENERGY_RATIO))
             print("  VERDICT: %s   tail shape: %s (last third / first third = %.2f)" % (
@@ -137,6 +149,9 @@ def library(path, csv_path):
     total = len(rows)
     if not total:
         print("no song with a usable profile")
+        first = next(read_songs(path), None)
+        if first is not None:
+            print("first song line: " + why_not(first))
         return
     talk = [m for m in rows if m["talk"]]
     long_tail = [m for m in rows if m["tail_ms"] >= TALK_MIN_MS]
