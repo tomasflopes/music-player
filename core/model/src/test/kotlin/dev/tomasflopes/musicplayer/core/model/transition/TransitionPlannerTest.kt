@@ -71,7 +71,7 @@ class TransitionPlannerTest {
 
         assertEquals(120.0 / 121.0, plan.ratio, 1e-9)
         assertEquals((120.0 / 121.0).toFloat(), plan.incomingSpeed)
-        assertEquals(8, plan.easeBack.size)
+        assertEquals(4, plan.easeBack.size)
         assertEquals(1f, plan.easeBack.last().speed)
     }
 
@@ -91,7 +91,7 @@ class TransitionPlannerTest {
         val incomingBarMs = 60_000.0 / 123.6 * 4
         plan.easeBack.zipWithNext().forEach { (a, b) ->
             assertEquals(incomingBarMs, (b.atMs - a.atMs).toDouble(), 1.5)
-            assertTrue(b.speed - a.speed <= 0.005f + 1e-6f, "step ${b.speed - a.speed}")
+            assertTrue(b.speed - a.speed <= 0.01f + 1e-6f, "step ${b.speed - a.speed}")
             assertTrue(b.speed > a.speed)
         }
         assertTrue(plan.easeBack.first().speed > plan.incomingSpeed)

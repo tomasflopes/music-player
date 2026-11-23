@@ -18,8 +18,8 @@ data class TransitionConfig(
     val overlapBars: Int = 8,
     val minOverlapBars: Int = 4,
     val maxOverlapMs: Long = 20_000,
-    val easeBars: Int = 8,
-    val maxSpeedStep: Double = 0.005,
+    val easeBars: Int = 4,
+    val maxSpeedStep: Double = 0.01,
     /** True: the speed returns to 1.0 in one step at the next phrase start instead of in bar steps (ADR 0095). */
     val singleStepEaseBack: Boolean = false,
     val maxNudge: Double = 0.005,

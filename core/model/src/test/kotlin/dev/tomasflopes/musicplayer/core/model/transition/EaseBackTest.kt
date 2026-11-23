@@ -16,11 +16,11 @@ class EaseBackTest {
     }
 
     @Test
-    fun `a small stretch eases over eight bars, one step on each bar start`() {
+    fun `a small stretch eases over four bars, one step on each bar start`() {
         val steps = EaseBack.steps(config, 0.97, grid, 16_000.0)
 
-        assertEquals(8, steps.size)
-        assertEquals((0 until 8).map { 16_000L + it * 2_000L }, steps.map { it.atMs })
+        assertEquals(4, steps.size)
+        assertEquals((0 until 4).map { 16_000L + it * 2_000L }, steps.map { it.atMs })
         assertEquals(1f, steps.last().speed)
         assertTrue(steps.first().speed > 0.97f)
     }
@@ -41,8 +41,8 @@ class EaseBackTest {
     fun `a stretch of eight percent takes as many bars as its steps need`() {
         val steps = EaseBack.steps(config, 0.92, grid, 0.0)
 
-        assertEquals(16, steps.size)
-        assertEquals(30_000L, steps.last().atMs)
+        assertEquals(8, steps.size)
+        assertEquals(14_000L, steps.last().atMs)
     }
 
     @Test
