@@ -8,6 +8,9 @@ android {
     namespace = "dev.tomasflopes.musicplayer.playback"
     // Generated 90 and 92 BPM click tracks for the transition deviceCheck (scripts/gen-transition-mp3s.sh).
     sourceSets.getByName("androidTest").assets.srcDir(rootProject.file("testdata/transitions"))
+    // The BassControl contract (ADR 0102) is plain Kotlin shared by the JVM tests and the instrumented tests.
+    sourceSets.getByName("test").java.srcDir("src/contract/kotlin")
+    sourceSets.getByName("androidTest").java.srcDir("src/contract/kotlin")
 }
 
 dependencies {
