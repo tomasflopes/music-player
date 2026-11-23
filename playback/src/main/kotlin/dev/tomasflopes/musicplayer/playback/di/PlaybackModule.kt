@@ -78,7 +78,8 @@ object PlaybackModule {
 
     /** Builds the players with the bass filter (ADR 0101, 0102); the service and the engine share it. */
     @OptIn(UnstableApi::class)
-    @Provides @Singleton
+    @Provides
+    @Singleton
     fun bassPlayers(config: TransitionConfig) = BassPlayers(config)
 
     /** Every number of the beat-matched transitions (phase 7); none of them is a setting. */

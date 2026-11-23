@@ -49,8 +49,7 @@ class ShelfAudioProcessorTest {
     private fun tone16(
         hz: Double,
         frames: Int,
-    ): ShortArray =
-        ShortArray(frames * 2) { (16_384 * sin(2 * PI * hz * (it / 2) / rate)).toInt().toShort() }
+    ): ShortArray = ShortArray(frames * 2) { (16_384 * sin(2 * PI * hz * (it / 2) / rate)).toInt().toShort() }
 
     private fun peakDb16(bytes: ByteArray): Double {
         val shorts = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).asShortBuffer()
