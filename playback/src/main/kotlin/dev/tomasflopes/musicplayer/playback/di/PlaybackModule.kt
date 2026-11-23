@@ -1,6 +1,7 @@
 package dev.tomasflopes.musicplayer.playback.di
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import dagger.Module
 import dagger.Provides
