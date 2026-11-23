@@ -1,0 +1,9 @@
+# 0099: The calibrated gate is a stored tempo confidence of 0.15 on both songs
+
+Date: 2026-11-23 · Status: proposed · Extends 0098, 0065 · Owner decision 1 of the phase 7 calibration
+
+**Context.** ADR 0065 left the tempo confidence uncalibrated (median 0.12, max 0.60 on the 14,165 songs). The owner labelled 40 songs, 8 per confidence bucket, mostly hip-hop: tapped tempo (24 y, 14 half, 0 double, 2 n) and a click on the stored grid, 30 s before each song's outro, heard on the beats or not (33 of 40). The data is in `calibration/sample.csv`, the analysis in `scripts/tempo_calibration.py` (`fit`, output in `calibration/fit_report.txt`).
+
+**Decision.** A song is reliable when its stored tempo confidence is at least 0.15 (`calibratedMinConfidence`); both songs of a pair need it. Measured: 5,558 songs pass (53 today); 27 of the 29 sample songs that pass are on the beat (93 %, 91 % weighted to the library's bucket sizes, Wilson lower bound 78 %); 4.35 % of random pairs get a beat match (about 0 today), out of 27.4 % whose tempos are close enough at x1, x0.5 or x2. The owner chose 0.15 over 0.2 (3,624 songs, 97 % weighted, 1.84 % of pairs), accepting a weighted precision near the 90 % target for more matches. The two 3:2 tempo errors of the sample lie below 0.15. Signals tried and not chosen: score ratio, an octave-aware confidence, beat strength and their combinations; none beat the plain confidence at the same precision.
+
+**Consequences.** About 17 % of matches may still flam (1 - p squared at 91 %), and 40 songs cannot prove the target. Drift is not fixed by a gate: 81 % of stored tempos are whole numbers, so a 0.5 % error is about 1.2 s of drift at 250 s; phase lock ships off, and the phone checks (decision 2) decide whether to tighten the gate to 0.2 or to turn it on. No schema change, no new `profiler_version`.
