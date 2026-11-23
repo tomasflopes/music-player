@@ -7,6 +7,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.Song
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
@@ -14,6 +15,8 @@ import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
 import dev.tomasflopes.musicplayer.core.model.transition.BeatPhase
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
+import dev.tomasflopes.musicplayer.playback.bass.BassControlSource
+import dev.tomasflopes.musicplayer.playback.bass.BassPlayers
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeHost
 import dev.tomasflopes.musicplayer.playback.crossfade.PlannedTransition
 import dev.tomasflopes.musicplayer.playback.crossfade.TwoPlayerCrossfadeEngine
@@ -78,17 +81,22 @@ data class LabState(
  * audible. A drift test plays both songs aligned for [DRIFT_MS] without any overlap. Everything runs on the thread of
  * [scope], which must be the main thread.
  */
+@OptIn(UnstableApi::class)
 class TransitionLab(
     private val context: Context,
     private val scope: CoroutineScope,
     private val config: TransitionConfig = TransitionConfig(),
 ) {
+    private val bassPlayers = BassPlayers(config)
     private val mutableState = MutableStateFlow(LabState())
     val state: StateFlow<LabState> = mutableState.asStateFlow()
     private var session: Session? = null
 
     /** Phase lock (ADR 0096) for the next run, off by default as in the app; the lab's switch sets it. */
     var phaseLock: Boolean = config.phaseLockEnabled
+
+    /** The bass swap (slice 3) for the next run, on as in the app; the lab's switch turns it off for A/B listening. */
+    var bassSwap: Boolean = true
 
     fun startTransition(setup: LabSetup) = begin { Session(setup).also { it.startTransition() } }
 
@@ -120,10 +128,16 @@ class TransitionLab(
                 .setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                 .build()
-        private val first = ExoPlayer.Builder(context).build()
-        private val second = ExoPlayer.Builder(context).build()
+        private val first = bassPlayers.newPlayer(context)
+        private val second = bassPlayers.newPlayer(context)
         private val engine =
-            TwoPlayerCrossfadeEngine(scope, { second }, attributes, config.copy(phaseLockEnabled = phaseLock))
+            TwoPlayerCrossfadeEngine(
+                scope,
+                { second },
+                attributes,
+                config.copy(phaseLockEnabled = phaseLock),
+                if (bassSwap) bassPlayers else BassControlSource.None,
+            )
         private val afterMs = AFTER_MS + easeBackMs()
         private val host = LabHost(first, plannedTransition())
         private val startedAt = System.nanoTime()

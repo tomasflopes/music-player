@@ -8,7 +8,6 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -24,6 +23,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
+import dev.tomasflopes.musicplayer.playback.bass.BassPlayers
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngineFactory
 import dev.tomasflopes.musicplayer.playback.log.PendingPlayStore
 import dev.tomasflopes.musicplayer.playback.log.PlayEventRecorder
@@ -60,6 +60,8 @@ class PlaybackService : MediaSessionService() {
 
     @Inject lateinit var transitionPlanner: TransitionPlanner
 
+    @Inject lateinit var bassPlayers: BassPlayers
+
     @Inject lateinit var transitionProfiles: TransitionProfileSource
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -73,9 +75,8 @@ class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val player =
-            ExoPlayer
-                .Builder(this)
-                .setAudioAttributes(
+            bassPlayers.newPlayer(this) {
+                setAudioAttributes(
                     AudioAttributes
                         .Builder()
                         .setUsage(C.USAGE_MEDIA)
@@ -83,8 +84,8 @@ class PlaybackService : MediaSessionService() {
                         .build(),
                     true,
                 ).setHandleAudioBecomingNoisy(true)
-                .setWakeMode(C.WAKE_MODE_LOCAL)
-                .build()
+                    .setWakeMode(C.WAKE_MODE_LOCAL)
+            }
         val recorder = PlayEventRecorder(history, scope, PendingPlayStore(filesDir.resolve("pending-play")))
         val store = FileQueueStore(filesDir.resolve("queue").resolve("queue.bin"))
         // One write at a time, off the main thread; the queue itself is only read on the main thread (ADR 0036).

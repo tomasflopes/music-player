@@ -57,6 +57,8 @@ data class TransitionLabUiState(
     val canPlay: Boolean = false,
     /** The lab's phase lock switch (ADR 0096): off by default, applies to the next run. */
     val phaseLock: Boolean = false,
+    /** The lab's bass swap switch (slice 3, ADR 0100): on by default, applies to the next run. */
+    val bassSwap: Boolean = true,
 )
 
 /**
@@ -151,6 +153,11 @@ class TransitionLabViewModel
 
         fun onSpeedChange() = lab.changeSpeed()
 
+        fun onBassSwap(enabled: Boolean) {
+            lab.bassSwap = enabled
+            mutableState.value = mutableState.value.copy(bassSwap = enabled)
+        }
+
         fun onPhaseLock(enabled: Boolean) {
             lab.phaseLock = enabled
             mutableState.value = mutableState.value.copy(phaseLock = enabled)
@@ -206,6 +213,8 @@ class TransitionLabViewModel
                 "ease-back ${plan.easeBack.size} step(s), last at ${plan.easeBack.lastOrNull()?.atMs ?: "-"} ms",
                 "switch point ${plan.switchPointMs} ms of the outgoing song, lab starts ${config.labLeadMs} ms before",
                 "incoming starts at ${plan.incomingStartMs} ms, overlap ${plan.overlapMs} ms",
+                plan.bass?.let { "bass swap at ${it.swapStartMs} ms of the overlap over ${it.swapMs} ms, cut ${it.cutDb} dB" }
+                    ?: "no bass swap",
             )
 
         private fun profileLine(profile: TransitionProfile?) =

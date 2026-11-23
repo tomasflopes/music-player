@@ -5,8 +5,10 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
+import dev.tomasflopes.musicplayer.core.model.transition.BassCurve
 import dev.tomasflopes.musicplayer.core.model.transition.EqualPowerCurve
 import dev.tomasflopes.musicplayer.core.model.transition.EqualPowerTail
 import dev.tomasflopes.musicplayer.core.model.transition.GainCurve
@@ -14,6 +16,8 @@ import dev.tomasflopes.musicplayer.core.model.transition.PhaseLock
 import dev.tomasflopes.musicplayer.core.model.transition.SpeedStep
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
+import dev.tomasflopes.musicplayer.playback.bass.BassControlSource
+import dev.tomasflopes.musicplayer.playback.bass.BassPlayers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -50,6 +54,7 @@ class TwoPlayerCrossfadeEngine(
     private val secondary: () -> ExoPlayer,
     private val attributes: AudioAttributes,
     private val config: TransitionConfig = TransitionConfig(),
+    private val bass: BassControlSource = BassControlSource.None,
 ) : CrossfadeEngine {
     private class Fade(
         val retiring: ExoPlayer,
@@ -66,6 +71,8 @@ class TwoPlayerCrossfadeEngine(
         val easeBack: List<SpeedStep> = emptyList(),
         /** False once the speed was put back to 1.0 early (a pause): no ease-back follows the overlap. */
         var stretched: Boolean = false,
+        /** The bass swap of a beat match (slice 3); null once it was reset (a pause) or when the plan has none. */
+        var bassCurve: BassCurve? = null,
     )
 
     private var host: CrossfadeHost? = null
@@ -97,6 +104,7 @@ class TwoPlayerCrossfadeEngine(
             // The beats cannot stay matched at speed 1.0: the rest of the overlap is a plain equal-power fade.
             abandonMatch(running)
             running.stretched = false
+            resetBass(running)
         }
     }
 
@@ -212,6 +220,7 @@ class TwoPlayerCrossfadeEngine(
         lock = phaseLockFor(overlap),
         easeBack = overlap.easeBack,
         stretched = overlap.incomingSpeed != 1f,
+        bassCurve = overlap.bass,
     )
 
     /** Phase lock is a switch: off, an overlap runs at its planned speed from start to end (ADR 0096). */
@@ -235,6 +244,7 @@ class TwoPlayerCrossfadeEngine(
         cancelEase()
         fade = running
         incoming.volume = 0f
+        running.bassCurve?.let { applyBass(running, it, 0f) }
         if (running.stretched) incoming.playbackParameters = PlaybackParameters(running.speed)
         incoming.playWhenReady = true
         host.fadeStarted(incoming)
@@ -254,6 +264,7 @@ class TwoPlayerCrossfadeEngine(
             val progress = progressOf(running)
             running.incoming.volume = running.curve.incoming(progress)
             running.retiring.volume = running.curve.outgoing(progress)
+            running.bassCurve?.let { applyBass(running, it, progress) }
             val outgoingState = running.retiring.playbackState
             val outgoingOver = outgoingState == Player.STATE_ENDED || outgoingState == Player.STATE_IDLE
             if (progress >= 1f || outgoingOver) return
@@ -264,6 +275,23 @@ class TwoPlayerCrossfadeEngine(
             }
             delay(RAMP_TICK_MS)
         }
+    }
+
+    /** The shelf gains of both players at [progress]: the incoming starts cut, the swap is on the middle bar (ADR 0100). */
+    private fun applyBass(
+        running: Fade,
+        curve: BassCurve,
+        progress: Float,
+    ) {
+        bass.of(running.incoming).setGainDb(curve.incomingDb(progress))
+        bass.of(running.retiring).setGainDb(curve.outgoingDb(progress))
+    }
+
+    /** Both players of a running overlap go back to no processing, and the swap stops (ADR 0102). */
+    private fun resetBass(running: Fade) {
+        running.bassCurve = null
+        bass.of(running.incoming).bypass()
+        bass.of(running.retiring).bypass()
     }
 
     /** How much of the overlap has passed, read from the incoming position, which covers speed times the overlap. */
@@ -302,6 +330,7 @@ class TwoPlayerCrossfadeEngine(
      */
     private fun finish(running: Fade) {
         running.incoming.volume = 1f
+        bass.of(running.incoming).bypass()
         discard(running.retiring)
         spare = running.retiring
         fade = null
@@ -365,6 +394,7 @@ class TwoPlayerCrossfadeEngine(
         if (running.handedOver) {
             running.incoming.volume = 1f
             resetSpeed(running.incoming)
+            bass.of(running.incoming).bypass()
             discard(running.retiring)
             spare = running.retiring
         } else {
@@ -380,6 +410,8 @@ class TwoPlayerCrossfadeEngine(
     ) {
         player.volume = 0f
         player.playWhenReady = false
+        // The incoming song starts cut: set before the first buffer, and a flush snaps to it (ADR 0101).
+        plan.overlap?.bass?.let { bass.of(player).setGainDb(it.incomingDb(0f)) } ?: bass.of(player).bypass()
         if (startMs > 0) player.setMediaItem(plan.incoming, startMs) else player.setMediaItem(plan.incoming)
         player.prepare()
     }
@@ -392,6 +424,7 @@ class TwoPlayerCrossfadeEngine(
     /** Silent, stopped, empty, at full volume's opposite, ready for the next preload. */
     private fun discard(player: ExoPlayer) {
         resetSpeed(player)
+        bass.of(player).bypass()
         player.stop()
         player.clearMediaItems()
         player.volume = 0f
@@ -434,16 +467,24 @@ class TwoPlayerCrossfadeEngine(
         /** A fade shorter than this is not worth the two players; the join stays plain. */
         const val MIN_FADE_MS = 500L
 
-        /** The Hilt-bound factory; the second ExoPlayer is built the first time a fade needs it. */
-        val factory =
-            CrossfadeEngineFactory { context: Context, scope: CoroutineScope ->
-                val attributes =
-                    AudioAttributes
-                        .Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build()
-                TwoPlayerCrossfadeEngine(scope, { ExoPlayer.Builder(context).build() }, attributes)
-            }
+        /** The factory with no bass filter: phase 6 and slice 1 and 2 behaviour, and the second ExoPlayer is built when needed. */
+        val factory = engineFactory { ExoPlayer.Builder(it).build() }
+
+        /** The Hilt-bound factory with the bass filter: [players] builds the spare, and finds the control of each player. */
+        @OptIn(UnstableApi::class)
+        fun factory(players: BassPlayers): CrossfadeEngineFactory = engineFactory({ players.newPlayer(it) }, players)
+
+        private fun engineFactory(
+            build: (Context) -> ExoPlayer,
+            bass: BassControlSource = BassControlSource.None,
+        ) = CrossfadeEngineFactory { context: Context, scope: CoroutineScope ->
+            val attributes =
+                AudioAttributes
+                    .Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build()
+            TwoPlayerCrossfadeEngine(scope, { build(context) }, attributes, bass = bass)
+        }
     }
 }

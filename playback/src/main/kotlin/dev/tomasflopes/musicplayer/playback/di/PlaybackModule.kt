@@ -1,6 +1,7 @@
 package dev.tomasflopes.musicplayer.playback.di
 
 import android.content.Context
+import androidx.media3.common.util.UnstableApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,6 +28,7 @@ import dev.tomasflopes.musicplayer.playback.MediaControllerPlaybackController
 import dev.tomasflopes.musicplayer.playback.MediaItemMapper
 import dev.tomasflopes.musicplayer.playback.PlaybackConfig
 import dev.tomasflopes.musicplayer.playback.PlaybackController
+import dev.tomasflopes.musicplayer.playback.bass.BassPlayers
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngineFactory
 import dev.tomasflopes.musicplayer.playback.crossfade.TwoPlayerCrossfadeEngine
 import dev.tomasflopes.musicplayer.playback.queue.PlayQueue
@@ -69,8 +71,15 @@ object PlaybackModule {
      * The decision point for how songs are joined (ADR 0061): the two-player blend, or `SinglePlayerEngine.factory`
      * for the plain Media3 path. Change this one line to compare them.
      */
+    @OptIn(UnstableApi::class)
     @Provides
-    fun crossfadeEngineFactory(): CrossfadeEngineFactory = TwoPlayerCrossfadeEngine.factory
+    fun crossfadeEngineFactory(bassPlayers: BassPlayers): CrossfadeEngineFactory =
+        TwoPlayerCrossfadeEngine.factory(bassPlayers)
+
+    /** Builds the players with the bass filter (ADR 0101, 0102); the service and the engine share it. */
+    @OptIn(UnstableApi::class)
+    @Provides @Singleton
+    fun bassPlayers(config: TransitionConfig) = BassPlayers(config)
 
     /** Every number of the beat-matched transitions (phase 7); none of them is a setting. */
     @Provides @Singleton

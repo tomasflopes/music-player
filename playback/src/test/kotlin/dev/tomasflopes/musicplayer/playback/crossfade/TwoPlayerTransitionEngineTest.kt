@@ -5,11 +5,16 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeDecision
+import dev.tomasflopes.musicplayer.core.model.transition.BassCurve
 import dev.tomasflopes.musicplayer.core.model.transition.BeatGrid
 import dev.tomasflopes.musicplayer.core.model.transition.DjVolumeCurve
 import dev.tomasflopes.musicplayer.core.model.transition.SpeedStep
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
+import dev.tomasflopes.musicplayer.playback.bass.BassControl
+import dev.tomasflopes.musicplayer.playback.bass.BassControlSource
+import dev.tomasflopes.musicplayer.playback.bass.NoBassControl
+import dev.tomasflopes.musicplayer.playback.bass.isBypassed
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -74,11 +79,29 @@ class TwoPlayerTransitionEngineTest {
         }
     }
 
+    /** A bass control that remembers what it was told (slice 3, ADR 0102). */
+    private class RecordingBass : BassControl {
+        override var targetDb = 0f
+            private set
+        val sets = mutableListOf<Float>()
+
+        override fun setGainDb(db: Float) {
+            targetDb = db
+            sets += db
+        }
+
+        override fun bypass() {
+            targetDb = 0f
+        }
+    }
+
     private class Setup(
         val outgoing: VirtualPlayer,
         val spare: VirtualPlayer,
         val host: RecordingHost,
         val engine: TwoPlayerCrossfadeEngine,
+        val outgoingBass: RecordingBass,
+        val spareBass: RecordingBass,
     )
 
     private fun overlapPlan(
@@ -87,6 +110,7 @@ class TwoPlayerTransitionEngineTest {
         incomingStartMs: Long = INCOMING_START_MS,
         easeBack: List<SpeedStep> = emptyList(),
         grids: BeatGrid? = null,
+        bass: BassCurve? = null,
     ) = PlannedTransition(
         MediaItem.EMPTY,
         CrossfadeDecision.Fade(overlapMs),
@@ -103,6 +127,7 @@ class TwoPlayerTransitionEngineTest {
                 easeBack = easeBack,
                 outgoingGrid = grids,
                 incomingGrid = grids,
+                bass = bass,
             ),
         fallback = CrossfadeDecision.Fade(PHASE_SIX_MS),
     )
@@ -120,10 +145,20 @@ class TwoPlayerTransitionEngineTest {
             }
         val spare = VirtualPlayer(clock, DURATION_MS)
         val host = RecordingHost(outgoing.player, plan, clock)
-        val engine = TwoPlayerCrossfadeEngine(backgroundScope, { spare.player }, attributes, config)
+        val outgoingBass = RecordingBass()
+        val spareBass = RecordingBass()
+        val controls =
+            BassControlSource {
+                when {
+                    it === outgoing.player -> outgoingBass
+                    it === spare.player -> spareBass
+                    else -> NoBassControl
+                }
+            }
+        val engine = TwoPlayerCrossfadeEngine(backgroundScope, { spare.player }, attributes, config, controls)
         engine.attach(host)
         engine.invalidate()
-        return Setup(outgoing, spare, host, engine)
+        return Setup(outgoing, spare, host, engine, outgoingBass, spareBass)
     }
 
     private fun TestScope.advance(ms: Long) {
@@ -426,6 +461,108 @@ class TwoPlayerTransitionEngineTest {
             assertEquals(1, s.host.finished)
             assertEquals(1f, s.spare.volume)
             assertEquals(1f, s.spare.speed)
+        }
+
+    private val swap = BassCurve(overlapMs = OVERLAP_MS, swapStartMs = 4_000, swapMs = 1_000, cutDb = -24f)
+
+    @Test
+    fun `the spare is preloaded with the cut and the outgoing stays flat until the swap`() =
+        runTest {
+            val s = setup(overlapPlan(bass = swap))
+
+            advance(SWITCH_MS - 2_000)
+            assertEquals(-24f, s.spareBass.targetDb, "cut before the overlap starts")
+
+            advance(2_000 + 1_000)
+            assertEquals(-24f, s.spareBass.targetDb)
+            assertTrue(s.outgoingBass.isBypassed)
+        }
+
+    @Test
+    fun `the bass swaps on the middle bar over the swap length and the outgoing keeps the cut`() =
+        runTest {
+            val s = setup(overlapPlan(bass = swap))
+            advance(SWITCH_MS)
+
+            advance(4_500)
+            assertEquals(-12f, s.spareBass.targetDb, 3f)
+            assertEquals(-12f, s.outgoingBass.targetDb, 3f)
+
+            advance(1_500)
+            assertEquals(0f, s.spareBass.targetDb, 0.01f)
+            assertEquals(-24f, s.outgoingBass.targetDb, 0.01f)
+        }
+
+    @Test
+    fun `after the overlap both players are bypassed`() =
+        runTest {
+            val s = setup(overlapPlan(bass = swap))
+
+            advance(SWITCH_MS + OVERLAP_MS + 1_000)
+
+            assertEquals(1, s.host.finished)
+            assertTrue(s.spareBass.isBypassed)
+            assertTrue(s.outgoingBass.isBypassed)
+        }
+
+    @Test
+    fun `a pause in the swap bypasses both players and the swap does not come back`() =
+        runTest {
+            val s = setup(overlapPlan(bass = swap))
+            advance(SWITCH_MS + 100 + 4_500)
+
+            s.engine.onPlayingChanged(false)
+            advance(1_000)
+
+            assertTrue(s.spareBass.isBypassed)
+            assertTrue(s.outgoingBass.isBypassed)
+        }
+
+    @Test
+    fun `a skip in the middle of an overlap bypasses both players`() =
+        runTest {
+            val s = setup(overlapPlan(bass = swap))
+            advance(SWITCH_MS + 100 + 2_000)
+            assertEquals(-24f, s.spareBass.targetDb)
+
+            s.engine.invalidate()
+
+            assertTrue(s.spareBass.isBypassed)
+            assertTrue(s.outgoingBass.isBypassed)
+        }
+
+    @Test
+    fun `a kill in the middle of an overlap bypasses both players`() =
+        runTest {
+            val s = setup(overlapPlan(bass = swap))
+            advance(SWITCH_MS + 100 + 4_500)
+
+            s.engine.release()
+
+            assertTrue(s.spareBass.isBypassed)
+            assertTrue(s.outgoingBass.isBypassed)
+        }
+
+    @Test
+    fun `a plan without a bass curve never sets a gain`() =
+        runTest {
+            val s = setup(overlapPlan())
+
+            advance(SWITCH_MS + OVERLAP_MS + 1_000)
+
+            assertTrue(s.spareBass.sets.isEmpty())
+            assertTrue(s.outgoingBass.sets.isEmpty())
+        }
+
+    @Test
+    fun `the phase 6 fade never touches the bass`() =
+        runTest {
+            val s = setup(plan = PlannedTransition(MediaItem.EMPTY, CrossfadeDecision.Fade(PHASE_SIX_MS), DURATION_MS))
+
+            advance(DURATION_MS)
+
+            assertTrue(s.spareBass.sets.isEmpty())
+            assertTrue(s.outgoingBass.sets.isEmpty())
         }
 
     private fun assertNear(
