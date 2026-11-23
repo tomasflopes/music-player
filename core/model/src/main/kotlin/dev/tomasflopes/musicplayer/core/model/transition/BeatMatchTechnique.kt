@@ -100,6 +100,7 @@ class BeatMatchTechnique(
             easeBack = EaseBack.steps(config, ratio, incomingGrid, incomingStart + overlapMs * ratio),
             outgoingGrid = outgoingGrid,
             incomingGrid = incomingGrid,
+            bass = BassCurve.forOverlap(overlapMs.roundToLong(), outgoingGrid, config),
         )
     }
 
