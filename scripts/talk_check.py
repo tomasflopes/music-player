@@ -111,7 +111,20 @@ def read_songs(path):
                 yield row
 
 
-def show_match(path, needle):
+def show_end(song, seconds):
+    """The last [seconds] of the energy curve, one value per second, with the stored boundaries marked."""
+    fixed, curve = song.get("fixed") or [], song.get("energy") or []
+    if len(fixed) < FIXED_SIZE or not curve:
+        return
+    marks = {"intro end": fixed[INTRO_END], "outro start": fixed[OUTRO_START], "music end": fixed[MUSIC_END]}
+    print("  last %d s of the energy curve (second: RMS):" % seconds)
+    for i in range(max(0, len(curve) - seconds), len(curve)):
+        notes = [name for name, at in marks.items() if i <= at < i + 1]
+        print("    %s  %.4f  %s%s" % (mmss(i * 1000), curve[i], "#" * min(60, round(curve[i] * 120)),
+                                     "   <- " + ", ".join(notes) if notes else ""))
+
+
+def show_match(path, needle, last=0):
     wanted = fold(needle)
     found = 0
     for song in read_songs(path):
@@ -122,6 +135,8 @@ def show_match(path, needle):
             if m is None:
                 print("  no verdict: the profile has no usable boundaries or energy curve")
                 print("  " + why_not(song))
+                if last:
+                    show_end(song, last)
                 continue
             print("  duration %s, outro start %s, music end %s, tail %.1f s" % (
                 mmss(song.get("duration_ms", song.get("durationMs", 0))), mmss(m["outro_start_ms"]), mmss(m["end_ms"]), m["tail_ms"] / 1000))
@@ -130,6 +145,8 @@ def show_match(path, needle):
             print("  VERDICT: %s   tail shape: %s (last third / first third = %.2f)" % (
                 "TALK" if m["talk"] else "not talk", shape(m), m["decay"]))
             print("  tail energy per second: " + " ".join("%.3f" % v for v in m["tail_curve"]))
+            if last:
+                show_end(song, last)
     if not found:
         print("no song path contains %r" % needle)
 
@@ -211,10 +228,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("export", help="the profiles export (JSON Lines, ADR 0056)")
     parser.add_argument("--match", help="show the verdict of songs whose path contains this text")
+    parser.add_argument("--last", type=int, default=0, help="with --match: also print the last N seconds of the curve")
     parser.add_argument("--csv", help="library mode: write one row per song to this file")
     args = parser.parse_args()
     if args.match:
-        show_match(args.export, args.match)
+        show_match(args.export, args.match, args.last)
     else:
         library(args.export, args.csv)
 
