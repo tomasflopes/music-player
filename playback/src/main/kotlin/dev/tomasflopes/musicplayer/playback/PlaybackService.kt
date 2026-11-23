@@ -23,6 +23,7 @@ import dev.tomasflopes.musicplayer.core.model.ports.SettingsRepository
 import dev.tomasflopes.musicplayer.core.model.ports.SongReader
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionTally
 import dev.tomasflopes.musicplayer.playback.bass.BassPlayers
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngineFactory
 import dev.tomasflopes.musicplayer.playback.log.PendingPlayStore
@@ -59,6 +60,8 @@ class PlaybackService : MediaSessionService() {
     @Inject lateinit var crossfadeFactory: CrossfadeEngineFactory
 
     @Inject lateinit var transitionPlanner: TransitionPlanner
+
+    @Inject lateinit var transitionTally: TransitionTally
 
     @Inject lateinit var bassPlayers: BassPlayers
 
@@ -110,6 +113,7 @@ class PlaybackService : MediaSessionService() {
                 { session?.player = it },
                 transitionPlanner,
                 transitionProfiles,
+                transitionTally,
             )
         this.engine = engine
         scope.launch {

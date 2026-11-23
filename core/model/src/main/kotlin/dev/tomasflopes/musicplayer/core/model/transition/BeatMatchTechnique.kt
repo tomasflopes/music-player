@@ -24,28 +24,52 @@ class BeatMatchTechnique(
     override val name = "beat-match"
     override val priority = TransitionTechnique.BEAT_MATCH_PRIORITY
 
-    override fun plan(request: TransitionRequest): TransitionPlan? {
+    override fun plan(request: TransitionRequest): TransitionPlan? = (setup(request) as? Setup.Ready)?.search?.plan()
+
+    override fun whyNot(request: TransitionRequest): FallThrough? =
+        when (val setup = setup(request)) {
+            is Setup.Blocked -> setup.reason
+            is Setup.Ready -> if (setup.search.plan() == null) setup.search.whyNot() else null
+        }
+
+    private sealed interface Setup {
+        class Blocked(
+            val reason: FallThrough,
+        ) : Setup
+
+        class Ready(
+            val search: Search,
+        ) : Setup
+    }
+
+    /** The gates in the order they run: profiles, tempo confidence, tempo match; then the search for room. */
+    private fun setup(request: TransitionRequest): Setup {
         val config = request.config
-        val outgoing = request.outgoing?.takeIf { it.isUsable && reliability.isReliable(it, config) }
-        val incoming = request.incoming?.takeIf { it.isUsable && reliability.isReliable(it, config) }
+        val outgoing = request.outgoing?.takeIf { it.isUsable }
+        val incoming = request.incoming?.takeIf { it.isUsable }
         val match =
             if (outgoing == null || incoming == null) {
                 null
             } else {
                 TempoMatcher.best(outgoing.tempoBpm, incoming.tempoBpm, config.maxStretch)
             }
-        return if (outgoing == null || incoming == null || match == null) {
-            null
-        } else {
-            Search(
-                outgoingGrid = BeatGrid.of(outgoing, config),
-                incomingGrid = BeatGrid.of(incoming, config, match.multiplier),
-                outgoing = outgoing,
-                incoming = incoming,
-                outgoingDurationMs = request.transition.outgoing.durationMs,
-                ratio = match.ratio,
-                config = config,
-            ).plan()
+        return when {
+            outgoing == null || incoming == null -> Setup.Blocked(FallThrough.NO_PROFILE)
+            !reliability.isReliable(outgoing, config) || !reliability.isReliable(incoming, config) ->
+                Setup.Blocked(FallThrough.CONFIDENCE)
+            match == null -> Setup.Blocked(FallThrough.TEMPO)
+            else ->
+                Setup.Ready(
+                    Search(
+                        outgoingGrid = BeatGrid.of(outgoing, config),
+                        incomingGrid = BeatGrid.of(incoming, config, match.multiplier),
+                        outgoing = outgoing,
+                        incoming = incoming,
+                        outgoingDurationMs = request.transition.outgoing.durationMs,
+                        ratio = match.ratio,
+                        config = config,
+                    ),
+                )
         }
     }
 
@@ -63,6 +87,9 @@ class BeatMatchTechnique(
 
         /** The longest overlap that fits first; the strict search (inside the tail) comes before the relaxed one. */
         fun plan(): TransitionPlan? = search(strict = true) ?: search(strict = false)
+
+        /** No overlap length fits the incoming intro (or the cap): the intro. Otherwise no switch point: the tail. */
+        fun whyNot(): FallThrough = if (overlapsLongestFirst().none()) FallThrough.INTRO else FallThrough.TAIL
 
         private fun search(strict: Boolean): TransitionPlan? =
             overlapsLongestFirst().firstNotNullOfOrNull { overlap ->
@@ -89,19 +116,29 @@ class BeatMatchTechnique(
         private fun build(
             switchPointMs: Double,
             overlapMs: Double,
-        ) = TransitionPlan.Overlap(
-            technique = NAME,
-            switchPointMs = switchPointMs.roundToLong(),
-            incomingStartMs = incomingStart.roundToLong(),
-            overlapMs = overlapMs.roundToLong(),
-            curve = DjVolumeCurve,
-            ratio = ratio,
-            incomingSpeed = ratio.toFloat(),
-            easeBack = EaseBack.steps(config, ratio, incomingGrid, incomingStart + overlapMs * ratio),
-            outgoingGrid = outgoingGrid,
-            incomingGrid = incomingGrid,
-            bass = BassCurve.forOverlap(overlapMs.roundToLong(), outgoingGrid, config),
-        )
+        ): TransitionPlan {
+            val bass = BassCurve.forOverlap(overlapMs.roundToLong(), outgoingGrid, config)
+            return TransitionPlan.Overlap(
+                technique = NAME,
+                switchPointMs = switchPointMs.roundToLong(),
+                incomingStartMs = incomingStart.roundToLong(),
+                overlapMs = overlapMs.roundToLong(),
+                curve =
+                    if (config.bassSwapDipDb <
+                        0f
+                    ) {
+                        SwapDipCurve(DjVolumeCurve, bass, config.bassSwapDipDb)
+                    } else {
+                        DjVolumeCurve
+                    },
+                ratio = ratio,
+                incomingSpeed = ratio.toFloat(),
+                easeBack = EaseBack.steps(config, ratio, incomingGrid, incomingStart + overlapMs * ratio),
+                outgoingGrid = outgoingGrid,
+                incomingGrid = incomingGrid,
+                bass = bass,
+            )
+        }
     }
 
     private companion object {

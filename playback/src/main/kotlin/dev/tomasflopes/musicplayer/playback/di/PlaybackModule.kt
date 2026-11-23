@@ -17,6 +17,7 @@ import dev.tomasflopes.musicplayer.core.model.transition.TalkOutroTechnique
 import dev.tomasflopes.musicplayer.core.model.transition.TempoReliability
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionTally
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionTechnique
 import dev.tomasflopes.musicplayer.core.taste.config.SmartShuffleConfig
 import dev.tomasflopes.musicplayer.core.taste.score.ScoreBoard
@@ -108,11 +109,16 @@ object PlaybackModule {
     @Provides @IntoSet
     fun crossfadeTechnique(): TransitionTechnique = CrossfadeTechnique()
 
+    /** The debug count of the techniques picked in this process (ADR 0112); the lab shows it. */
+    @Provides @Singleton
+    fun transitionTally() = TransitionTally()
+
     @Provides
     fun transitionPlanner(
         techniques: Set<@JvmSuppressWildcards TransitionTechnique>,
         config: TransitionConfig,
-    ) = TransitionPlanner(techniques, config)
+        tally: TransitionTally,
+    ) = TransitionPlanner(techniques, config, tally)
 
     @Provides @Singleton
     fun controller(

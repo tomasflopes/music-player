@@ -147,6 +147,7 @@ object TransitionTechniqueContract {
             TechniqueCheck("an overlap stays inside both songs") { overlapFits(factory()) },
             TechniqueCheck("the volume curves are bounded, exact at the ends and monotone") { curves(factory()) },
             TechniqueCheck("the ease-back ends at speed 1 in small steps") { easeBack(factory()) },
+            TechniqueCheck("whyNot never throws and is silent when the technique applies") { explains(factory()) },
         )
 
     private fun identity(technique: TransitionTechnique) {
@@ -200,6 +201,19 @@ object TransitionTechniqueContract {
                 previousOut = out
                 previousIn = inc
             }
+        }
+    }
+
+    private fun explains(technique: TransitionTechnique) {
+        for (a in awkward) {
+            for (b in awkward) {
+                val request = transitionRequest(outgoing = a, incoming = b)
+                val reason = technique.whyNot(request)
+                check(reason == null || technique.plan(request) == null) { "$reason although a plan exists" }
+            }
+        }
+        for (request in sampleRequests()) {
+            check(technique.plan(request) == null || technique.whyNot(request) == null) { "reason for a made plan" }
         }
     }
 

@@ -22,6 +22,7 @@ import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfile
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionTally
 import dev.tomasflopes.musicplayer.playback.PlaybackController
 import dev.tomasflopes.musicplayer.playback.lab.LabSetup
 import dev.tomasflopes.musicplayer.playback.lab.LabState
@@ -59,6 +60,10 @@ data class TransitionLabUiState(
     val phaseLock: Boolean = false,
     /** The lab's bass swap switch (slice 3, ADR 0100): on by default, applies to the next run. */
     val bassSwap: Boolean = true,
+    /** The numbers the sliders hold (ADR 0113): the plan and the next run use them, the app's defaults stay. */
+    val levers: TransitionConfig = TransitionConfig(),
+    /** The shuffle tally (ADR 0112) as lines: which technique was picked and why pairs fell through. */
+    val tallyLines: List<String> = emptyList(),
 )
 
 /**
@@ -81,8 +86,9 @@ class TransitionLabViewModel
         private val planner: TransitionPlanner,
         private val config: TransitionConfig,
         private val reliability: TempoReliability,
+        private val tally: TransitionTally,
     ) : ViewModel() {
-        private val mutableState = MutableStateFlow(TransitionLabUiState())
+        private val mutableState = MutableStateFlow(TransitionLabUiState(levers = config, tallyLines = tallyLines()))
         val state: StateFlow<TransitionLabUiState> = mutableState.asStateFlow()
         private val lab = TransitionLab(context, viewModelScope, config)
 
@@ -151,7 +157,32 @@ class TransitionLabViewModel
             setup?.let(lab::startDrift)
         }
 
+        fun onBassAb() {
+            setup?.let(lab::startBassAb)
+        }
+
         fun onSpeedChange() = lab.changeSpeed()
+
+        /** A slider moved (ADR 0113): the next plan and run use [change] of the numbers, so the pair is planned again. */
+        fun onLever(change: (TransitionConfig) -> TransitionConfig) {
+            val levers = change(mutableState.value.levers)
+            lab.config = levers
+            mutableState.value = mutableState.value.copy(levers = levers)
+            val current = mutableState.value
+            replan(current.outgoing, current.incoming)
+        }
+
+        /** Every slider back to the app's numbers. */
+        fun onLeversReset() = onLever { config }
+
+        fun onTallyRefresh() {
+            mutableState.value = mutableState.value.copy(tallyLines = tallyLines())
+        }
+
+        fun onTallyReset() {
+            tally.reset()
+            onTallyRefresh()
+        }
 
         fun onBassSwap(enabled: Boolean) {
             lab.bassSwap = enabled
@@ -179,14 +210,29 @@ class TransitionLabViewModel
                 val settings = CrossfadeSettings(enabled = true, style = TransitionStyle.DJ_MIX)
                 val transition =
                     Transition(outgoing, incoming, TransitionCause.END_OF_SONG, shuffled = true, repeatOne = false)
-                val plan = planner.plan(settings, transition, outProfile, inProfile)
+                val levers = mutableState.value.levers
+                val plan = planner.withConfig(levers).plan(settings, transition, outProfile, inProfile)
                 if (plan is TransitionPlan.Overlap && outProfile != null && inProfile != null) {
-                    val outGrid = plan.outgoingGrid ?: BeatGrid.of(outProfile, config)
-                    val inGrid = plan.incomingGrid ?: BeatGrid.of(inProfile, config)
+                    val outGrid = plan.outgoingGrid ?: BeatGrid.of(outProfile, levers)
+                    val inGrid = plan.incomingGrid ?: BeatGrid.of(inProfile, levers)
                     setup = LabSetup(outgoing, incoming, plan, outGrid, inGrid)
                 }
                 mutableState.value =
-                    mutableState.value.copy(planLines = describe(plan, outProfile, inProfile), canPlay = setup != null)
+                    mutableState.value.copy(
+                        planLines = describe(plan, outProfile, inProfile, levers),
+                        canPlay = setup != null,
+                    )
+            }
+        }
+
+        private fun tallyLines(): List<String> {
+            val snapshot = tally.snapshot()
+            val picks = snapshot.techniques.entries.joinToString { "${it.key} ${it.value}" }
+            val reasons = snapshot.fallThroughs.entries.joinToString { "${it.key.name.lowercase()} ${it.value}" }
+            return when {
+                snapshot.total == 0 -> listOf("no DJ mix transition planned yet in this process")
+                snapshot.crossfades == 0 -> listOf("planned ${snapshot.total}: $picks")
+                else -> listOf("planned ${snapshot.total}: $picks", "crossfade because: $reasons")
             }
         }
 
@@ -194,28 +240,34 @@ class TransitionLabViewModel
             plan: TransitionPlan,
             outgoing: TransitionProfile?,
             incoming: TransitionProfile?,
+            levers: TransitionConfig,
         ): List<String> =
             listOf("outgoing  ${profileLine(outgoing)}", "incoming  ${profileLine(incoming)}") +
                 when (plan) {
-                    is TransitionPlan.Overlap -> overlapLines(plan)
-                    is TransitionPlan.Fade -> listOf("plan: ${plan.technique} (${why(outgoing, incoming)})")
+                    is TransitionPlan.Overlap -> overlapLines(plan, levers)
+                    is TransitionPlan.Fade -> listOf("plan: ${plan.technique} (${why(outgoing, incoming, levers)})")
                     TransitionPlan.HardCut -> listOf("plan: hard cut")
                 }
 
-        private fun overlapLines(plan: TransitionPlan.Overlap) =
-            listOf(
-                "plan: ${plan.technique}",
-                "ratio ${fmt(
-                    plan.ratio,
-                    4,
-                )} (${fmt(abs(plan.ratio - 1) * PERCENT, 2)} %), speed ${plan.incomingSpeed}, " +
-                    "grid ${plan.incomingGrid?.let { fmt(it.tempoBpm, 1) } ?: "-"} BPM",
-                "ease-back ${plan.easeBack.size} step(s), last at ${plan.easeBack.lastOrNull()?.atMs ?: "-"} ms",
-                "switch point ${plan.switchPointMs} ms of the outgoing song, lab starts ${config.labLeadMs} ms before",
-                "incoming starts at ${plan.incomingStartMs} ms, overlap ${plan.overlapMs} ms",
-                plan.bass?.let { "bass swap at ${it.swapStartMs} ms over ${it.swapMs} ms, cut ${it.cutDb} dB" }
-                    ?: "no bass swap",
-            )
+        private fun overlapLines(
+            plan: TransitionPlan.Overlap,
+            levers: TransitionConfig,
+        ) = listOf(
+            "plan: ${plan.technique}",
+            "ratio ${fmt(
+                plan.ratio,
+                4,
+            )} (${fmt(abs(plan.ratio - 1) * PERCENT, 2)} %), speed ${plan.incomingSpeed}, " +
+                "grid ${plan.incomingGrid?.let { fmt(it.tempoBpm, 1) } ?: "-"} BPM",
+            "ease-back ${plan.easeBack.size} step(s), last at ${plan.easeBack.lastOrNull()?.atMs ?: "-"} ms",
+            "switch point ${plan.switchPointMs} ms of the outgoing song, lab starts ${config.labLeadMs} ms before",
+            "incoming starts at ${plan.incomingStartMs} ms, overlap ${plan.overlapMs} ms",
+            plan.bass?.let {
+                "bass swap at ${it.swapStartMs} ms over ${it.swapMs} ms, cut ${it.cutDb} dB at " +
+                    "${levers.bassCutHz} Hz, outgoing from ${it.swapStartMs - it.outgoingLeadMs} ms, " +
+                    "volume dip ${levers.bassSwapDipDb} dB"
+            } ?: "no bass swap",
+        )
 
         private fun profileLine(profile: TransitionProfile?) =
             if (profile == null) {
@@ -229,14 +281,15 @@ class TransitionLabViewModel
         private fun why(
             outgoing: TransitionProfile?,
             incoming: TransitionProfile?,
+            levers: TransitionConfig,
         ): String =
             when {
                 outgoing == null || incoming == null -> "a profile is missing"
-                !reliability.isReliable(outgoing, config) || !reliability.isReliable(incoming, config) ->
+                !reliability.isReliable(outgoing, levers) || !reliability.isReliable(incoming, levers) ->
                     "tempo confidence is low"
-                TempoMatcher.best(outgoing.tempoBpm, incoming.tempoBpm, config.maxStretch) == null ->
-                    "tempos more than ${fmt(config.maxStretch * PERCENT, 0)} % apart, even at half or double"
-                else -> "the songs are too short for four bars"
+                TempoMatcher.best(outgoing.tempoBpm, incoming.tempoBpm, levers.maxStretch) == null ->
+                    "tempos more than ${fmt(levers.maxStretch * PERCENT, 0)} % apart, even at half or double"
+                else -> "no overlap of ${levers.minOverlapBars} to ${levers.overlapBars} bars fits"
             }
 
         private fun fmt(

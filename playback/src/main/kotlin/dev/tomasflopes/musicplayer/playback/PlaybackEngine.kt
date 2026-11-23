@@ -20,6 +20,7 @@ import dev.tomasflopes.musicplayer.core.model.queue.RefillSeed
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlan
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionPlanner
 import dev.tomasflopes.musicplayer.core.model.transition.TransitionProfileSource
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionTally
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeEngine
 import dev.tomasflopes.musicplayer.playback.crossfade.CrossfadeHost
 import dev.tomasflopes.musicplayer.playback.crossfade.PlannedTransition
@@ -67,6 +68,8 @@ internal class PlaybackEngine(
     /** Chooses the technique per transition (ADR 0092); with no technique registered it is exactly phase 6. */
     private val planner: TransitionPlanner = TransitionPlanner(emptyList()),
     private val profiles: TransitionProfileSource = TransitionProfileSource { null },
+    /** Counts the hard cuts of the DJ style for the debug tally (ADR 0112); the planner counts the rest. */
+    private val tally: TransitionTally? = null,
 ) : CrossfadeHost {
     private var player: ExoPlayer = initialPlayer
     private val cache = HashMap<SongId, Song>()
@@ -180,6 +183,7 @@ internal class PlaybackEngine(
         val settings = crossfadeSettings()
         val phaseSix = CrossfadePolicy.decide(settings, transition)
         if (settings.style != TransitionStyle.DJ_MIX || phaseSix !is CrossfadeDecision.Fade) {
+            if (settings.style == TransitionStyle.DJ_MIX) tally?.record(TransitionPlan.HardCut.technique)
             return PlannedTransition(item, phaseSix, transition.outgoing.durationMs)
         }
         val outgoingProfile = profiles.profile(transition.outgoing.id.value)

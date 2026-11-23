@@ -18,9 +18,16 @@ import org.junit.jupiter.api.Test
  */
 class TransitionPlannerTest {
     private val dj = CrossfadeSettings(enabled = true, durationMs = 4_000, style = TransitionStyle.DJ_MIX)
-    private val planner = TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique()))
+
+    /** The numbers of slices 1 to 4 (8 bars, no volume move on the swap); the shipped defaults are tested apart. */
+    private val slice4 = TransitionConfig(overlapBars = 8, bassSwapDipDb = 0f)
+    private val planner = TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique()), slice4)
     private val storedRulePlanner =
-        TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique(StoredConfidenceReliability())))
+        TransitionPlanner(
+            listOf(CrossfadeTechnique(), BeatMatchTechnique(StoredConfidenceReliability())),
+            slice4,
+        )
+    private val shipped = TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique()))
 
     private fun transition(
         outgoing: Song = transitionSong(1),
@@ -358,7 +365,7 @@ class TransitionPlannerTest {
     private val talkPlanner =
         TransitionPlanner(
             listOf(CrossfadeTechnique(), BeatMatchTechnique(), TalkOutroTechnique()),
-            TransitionConfig(talkEnabled = true),
+            slice4.copy(talkEnabled = true),
         )
 
     private fun describe(plan: TransitionPlan): String =

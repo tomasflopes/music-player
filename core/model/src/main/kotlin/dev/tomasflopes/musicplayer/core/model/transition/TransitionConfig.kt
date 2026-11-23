@@ -15,7 +15,7 @@ data class TransitionConfig(
     val maxStretch: Double = 0.08,
     val beatsPerBar: Int = 4,
     val beatsPerPhrase: Int = 16,
-    val overlapBars: Int = 8,
+    val overlapBars: Int = DEFAULT_OVERLAP_BARS,
     val minOverlapBars: Int = 3,
     val maxOverlapMs: Long = 20_000,
     val easeBars: Int = 4,
@@ -30,9 +30,15 @@ data class TransitionConfig(
     val phaseLockAbandonBars: Int = 2,
     /** How often phase lock reads the error and may nudge the speed. */
     val phaseLockTickMs: Long = 250,
-    val bassCutHz: Int = 150,
+    /** The corner of the bass shelf; phone speakers play little below 150 Hz, so the cut sits higher (ADR 0109). */
+    val bassCutHz: Int = DEFAULT_BASS_CUT_HZ,
     val bassCutDb: Float = DEFAULT_BASS_CUT_DB,
-    val bassSwapBeats: Int = 2,
+    /** Beats the bass swap takes, on the outgoing grid (ADR 0109); fewer is a crisper swap. */
+    val bassSwapBeats: Int = DEFAULT_BASS_SWAP_BEATS,
+    /** Beats before the incoming bass opens that the outgoing bass starts to go; 0 swaps together (ADR 0110). */
+    val bassOutgoingLeadBeats: Int = DEFAULT_BASS_LEAD_BEATS,
+    /** Extra level the outgoing song loses, in dB (0 or less), over the stretch its bass is cut (ADR 0110). */
+    val bassSwapDipDb: Float = DEFAULT_BASS_DIP_DB,
     /** On for the owner's listening test. The rule over-flags on the real library (ADR 0106). */
     val talkEnabled: Boolean = true,
     val talkMinMs: Long = 8_000,
@@ -53,7 +59,12 @@ data class TransitionConfig(
     val preloadLeadMs: Long = 8_000,
 ) {
     private companion object {
-        const val DEFAULT_BASS_CUT_DB = -24f
+        const val DEFAULT_OVERLAP_BARS = 6
+        const val DEFAULT_BASS_CUT_HZ = 300
+        const val DEFAULT_BASS_CUT_DB = -30f
+        const val DEFAULT_BASS_SWAP_BEATS = 1
+        const val DEFAULT_BASS_LEAD_BEATS = 1
+        const val DEFAULT_BASS_DIP_DB = -4f
         const val DEFAULT_TALK_DUCK_DB = -6f
         const val DEFAULT_TALK_HELD_DB = -12f
         const val DEFAULT_TALK_MAX_MATCH_DB = 6f

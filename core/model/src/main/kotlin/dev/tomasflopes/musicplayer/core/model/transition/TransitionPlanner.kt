@@ -17,10 +17,15 @@ import dev.tomasflopes.musicplayer.core.model.crossfade.TransitionStyle
  * than a crossfade.
  */
 class TransitionPlanner(
-    techniques: Collection<TransitionTechnique>,
+    private val techniques: Collection<TransitionTechnique>,
     private val config: TransitionConfig = TransitionConfig(),
+    /** The debug counter of the picks (ADR 0112); null counts nothing, as in tests and in the lab. */
+    private val tally: TransitionTally? = null,
 ) {
     private val ordered = techniques.sortedWith(compareBy<TransitionTechnique>({ it.priority }, { it.name }))
+
+    /** The same techniques with other numbers and no tally: the lab plans with its sliders this way (ADR 0113). */
+    fun withConfig(config: TransitionConfig) = TransitionPlanner(techniques, config)
 
     fun plan(
         settings: CrossfadeSettings,
@@ -33,10 +38,17 @@ class TransitionPlanner(
             return TransitionPlan.of(decision)
         }
         val request = TransitionRequest(transition, settings, decision, outgoing, incoming, config)
-        return ordered.firstNotNullOfOrNull { technique ->
-            technique.plan(request)?.takeIf { usable(it, transition) }
-        } ?: TransitionPlan.of(decision)
+        val chosen =
+            ordered.firstNotNullOfOrNull { technique ->
+                technique.plan(request)?.takeIf { usable(it, transition) }
+            } ?: TransitionPlan.of(decision)
+        tally?.record(chosen.technique, if (chosen is TransitionPlan.Overlap) null else whyNot(request))
+        return chosen
     }
+
+    /** The first reason a technique gives for not applying, in priority order; null when none gives one. */
+    private fun whyNot(request: TransitionRequest): FallThrough? =
+        ordered.firstNotNullOfOrNull { technique -> technique.whyNot(request) }
 
     /** A plan with a number out of range, or that does not fit the two songs, is not used. */
     private fun usable(

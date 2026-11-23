@@ -67,6 +67,8 @@ data class LabSummary(
 }
 
 data class LabState(
+    /** Which run this is when the lab plays an A/B pair (ADR 0113), else empty. */
+    val run: String = "",
     val reading: LabReading = LabReading(),
     val summary: LabSummary = LabSummary(),
     /** Every change of the incoming speed, with the time since the lab started, oldest first. */
@@ -86,9 +88,9 @@ data class LabState(
 class TransitionLab(
     private val context: Context,
     private val scope: CoroutineScope,
-    private val config: TransitionConfig = TransitionConfig(),
+    /** The numbers of the next run; the lab's sliders replace it (ADR 0113). Runs already playing keep their own. */
+    var config: TransitionConfig = TransitionConfig(),
 ) {
-    private val bassPlayers = BassPlayers(config)
     private val mutableState = MutableStateFlow(LabState())
     val state: StateFlow<LabState> = mutableState.asStateFlow()
     private var session: Session? = null
@@ -99,9 +101,40 @@ class TransitionLab(
     /** The bass swap (slice 3) for the next run, on as in the app; the lab's switch turns it off for A/B listening. */
     var bassSwap: Boolean = true
 
-    fun startTransition(setup: LabSetup) = begin { Session(setup).also { it.startTransition() } }
+    private var abQueue: ArrayDeque<Boolean> = ArrayDeque()
+    private var abSetup: LabSetup? = null
 
-    fun startDrift(setup: LabSetup) = begin { Session(setup).also { it.startDrift() } }
+    fun startTransition(setup: LabSetup) {
+        abQueue.clear()
+        begin("") { Session(setup, bassSwap).also { it.startTransition() } }
+    }
+
+    fun startDrift(setup: LabSetup) {
+        abQueue.clear()
+        begin("") { Session(setup, bassSwap).also { it.startDrift() } }
+    }
+
+    /**
+     * The bass swap A/B (ADR 0113): the same pair twice with the same numbers, first with the swap off (A), then,
+     * when that run is over, with it on (B). The Bass swap switch does not matter here.
+     */
+    fun startBassAb(setup: LabSetup) {
+        abSetup = setup
+        abQueue = ArrayDeque(listOf(false, true))
+        nextAb()
+    }
+
+    private fun nextAb() {
+        val setup = abSetup
+        val swap = abQueue.removeFirstOrNull()
+        if (setup == null || swap == null) {
+            stop()
+            mutableState.update { it.copy(message = "A/B done") }
+        } else {
+            val label = if (swap) "B: bass swap on" else "A: bass swap off"
+            begin(label) { Session(setup, swap).also { it.startTransition() } }
+        }
+    }
 
     /** 1.0, then 1.04 for [SPEED_TEST_MS], then 1.0 again, on the player that is playing the incoming song. */
     fun changeSpeed() {
@@ -109,20 +142,35 @@ class TransitionLab(
     }
 
     fun stop() {
-        session?.release()
-        session = null
-        mutableState.update { it.copy(reading = LabReading(), message = "Stopped") }
+        abQueue.clear()
+        release()
+        mutableState.update { it.copy(run = "", reading = LabReading(), message = "Stopped") }
     }
 
-    private fun begin(create: () -> Session) {
-        stop()
-        mutableState.value = LabState(message = "Starting")
+    private fun release() {
+        session?.release()
+        session = null
+    }
+
+    private fun begin(
+        run: String,
+        create: () -> Session,
+    ) {
+        release()
+        mutableState.value = LabState(run = run, message = "Starting")
         session = create()
     }
 
+    /** A run is over: the next of an A/B pair, or the end. */
+    private fun runOver() = if (abQueue.isEmpty()) stop() else nextAb()
+
     private inner class Session(
         private val setup: LabSetup,
+        swap: Boolean,
     ) {
+        /** The numbers of this run, as the sliders had them when it began. */
+        private val config = this@TransitionLab.config
+        private val bassPlayers = BassPlayers(config)
         private val attributes =
             AudioAttributes
                 .Builder()
@@ -137,7 +185,7 @@ class TransitionLab(
                 { second },
                 attributes,
                 config.copy(phaseLockEnabled = phaseLock),
-                if (bassSwap) bassPlayers else BassControlSource.None,
+                if (swap) bassPlayers else BassControlSource.None,
             )
         private val afterMs = AFTER_MS + easeBackMs()
         private val host = LabHost(first, plannedTransition())
@@ -216,7 +264,7 @@ class TransitionLab(
                 val over = host.finished && host.sinceFinishedMs() >= afterMs
                 publish(reading())
                 if (over) {
-                    stop()
+                    runOver()
                     return
                 }
             }

@@ -1,0 +1,9 @@
+# 0110: The outgoing bass leaves a beat before the incoming one arrives and the outgoing song dips on the swap
+
+Date: 2026-11-23 · Status: proposed (accepted only after a phone listen) · Extends 0100, 0092
+
+**Context.** Two levers of phase 7b cannot be reached with the numbers of ADR 0100: that the outgoing bass goes earlier than the incoming bass opens (today both move together, so the low end never changes hands audibly), and that the swap bar carries a volume move (today the outgoing song stays at full level until the half of the overlap, where a 3 to 6 bar overlap has not even reached its swap bar). A level that falls with the bass reads as a hand-over on a speaker that plays little bass.
+
+**Decision.** `TransitionConfig.bassOutgoingLeadBeats` (1; 0 is the old behaviour): the outgoing shelf starts to go this many beats before the swap and ends with it; `BassCurve.outgoingLeadMs` (never before the overlap start; the incoming schedule is unchanged). `TransitionConfig.bassSwapDipDb` (-4; 0 or more switches it off): `SwapDipCurve` multiplies the outgoing volume of `DjVolumeCurve` by a gain that falls linear in dB over the same stretch as the outgoing bass cut and then stays; the incoming volume is untouched, and with no dip the plan carries `DjVolumeCurve` itself. The curve starts at 1, ends at 0, stays in 0..1 and never rises, so the engine, its contract check and the equal-power tail of ADR 0096 are unchanged. Both only apply to the beat match. No engine, schema or profile change.
+
+**Consequences.** A short gap of bass (one beat at most with the default) between the two songs is possible and may sound like a drop instead of a swap; the lab slider goes to 4 beats to find the edge. The dip makes the outgoing song 4 dB quieter for the rest of its fall. Tests: `BassLeversTest` (lead, clamp, linear in dB, dip bounded and monotone, no step above 0.002 per millisecond, off equals `DjVolumeCurve`) and the technique contract.

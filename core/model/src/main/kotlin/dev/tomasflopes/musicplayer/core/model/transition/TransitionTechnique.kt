@@ -31,6 +31,12 @@ interface TransitionTechnique {
     /** A plan, or null when this technique does not apply to the pair. Pure: no player, no clock. */
     fun plan(request: TransitionRequest): TransitionPlan?
 
+    /**
+     * Why [plan] is null for this pair, for the debug tally (ADR 0112); null when the technique has nothing to say or
+     * when it applies. Pure and never throws, like [plan].
+     */
+    fun whyNot(request: TransitionRequest): FallThrough? = null
+
     companion object {
         const val TALKING_OUTRO_PRIORITY = 10
         const val BEAT_MATCH_PRIORITY = 20

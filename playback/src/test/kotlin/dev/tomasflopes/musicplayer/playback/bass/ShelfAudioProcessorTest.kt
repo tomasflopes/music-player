@@ -19,12 +19,15 @@ import kotlin.random.Random
 
 /** The Media3 processor around the bass shelf (ADR 0101, 0102): bypass is byte for byte, the cut is in numbers. */
 class ShelfAudioProcessorTest {
+    /** The numbers of slice 3 (ADR 0100); the filter is tested at them, whatever the defaults are. */
+    private val slice3 = TransitionConfig(bassCutHz = 150, bassCutDb = -24f)
+
     private val rate = 44_100
 
     private fun processor(
         encoding: Int = C.ENCODING_PCM_16BIT,
         channels: Int = 2,
-    ) = ShelfAudioProcessor(TransitionConfig()).also {
+    ) = ShelfAudioProcessor(slice3).also {
         it.configure(AudioFormat(rate, channels, encoding))
         it.flush(AudioProcessor.StreamMetadata.DEFAULT)
     }
@@ -95,7 +98,7 @@ class ShelfAudioProcessorTest {
 
     @Test
     fun `a gain set before the first configure is kept`() {
-        val processor = ShelfAudioProcessor(TransitionConfig())
+        val processor = ShelfAudioProcessor(slice3)
         processor.setGainDb(-24f)
 
         processor.configure(AudioFormat(rate, 2, C.ENCODING_PCM_16BIT))
@@ -133,7 +136,7 @@ class ShelfAudioProcessorTest {
 
     @Test
     fun `an unsupported format makes the processor inactive instead of failing`() {
-        val processor = ShelfAudioProcessor(TransitionConfig())
+        val processor = ShelfAudioProcessor(slice3)
 
         val format = processor.configure(AudioFormat(rate, 2, C.ENCODING_PCM_8BIT))
 

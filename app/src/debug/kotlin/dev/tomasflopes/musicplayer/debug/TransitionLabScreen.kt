@@ -14,6 +14,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.tomasflopes.musicplayer.core.model.Song
+import dev.tomasflopes.musicplayer.core.model.transition.TransitionConfig
 import dev.tomasflopes.musicplayer.playback.lab.LabReading
 import dev.tomasflopes.musicplayer.playback.lab.LabSummary
 import java.util.Locale
@@ -69,11 +71,21 @@ fun TransitionLabScreen(viewModel: TransitionLabViewModel) {
         items(state.planLines) { line -> Mono(line) }
         item { Controls(viewModel, state.canPlay) }
         item { Toggles(state.phaseLock, viewModel::onPhaseLock, state.bassSwap, viewModel::onBassSwap) }
+        item { Levers(state.levers, viewModel::onLever, viewModel::onLeversReset) }
+        if (lab.run.isNotEmpty()) item { Text("Run: ${lab.run}", style = MaterialTheme.typography.titleSmall) }
         item { Reading(lab.reading) }
         item { Summary(lab.summary) }
         if (lab.message.isNotEmpty()) item { Text(lab.message) }
         item { Text("Speed changes", style = MaterialTheme.typography.titleSmall) }
         items(lab.speedLog) { Mono(it) }
+        item { Text("Techniques picked in shuffle (this process)", style = MaterialTheme.typography.titleSmall) }
+        items(state.tallyLines) { Mono(it) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = viewModel::onTallyRefresh) { Text("Refresh") }
+                OutlinedButton(onClick = viewModel::onTallyReset) { Text("Reset count") }
+            }
+        }
     }
 }
 
@@ -101,6 +113,7 @@ private fun Controls(
             OutlinedButton(onClick = viewModel::onStop) { Text("Stop") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = viewModel::onBassAb, enabled = canPlay) { Text("A/B bass swap") }
             OutlinedButton(onClick = viewModel::onDriftTest, enabled = canPlay) { Text("Drift test 30 s") }
             OutlinedButton(onClick = viewModel::onSpeedChange) { Text("Speed 1.0, 1.04, 1.0") }
         }
@@ -155,3 +168,63 @@ private fun Mono(text: String) =
     Text(text, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
 
 private fun number(value: Double) = if (value.isNaN()) "-" else String.format(Locale.ROOT, "%.1f", value)
+
+/**
+ * The cheap levers of phase 7b (ADR 0113), one slider each. They change the numbers of the lab's next plan and run
+ * only; the app's own numbers stay as `TransitionConfig` has them.
+ */
+@Composable
+private fun Levers(
+    levers: TransitionConfig,
+    onChange: ((TransitionConfig) -> TransitionConfig) -> Unit,
+    onReset: () -> Unit,
+) {
+    Column {
+        Text("Levers (lab only)", style = MaterialTheme.typography.titleSmall)
+        Lever("overlap bars", levers.overlapBars.toFloat(), 3f..16f, 1f) { v ->
+            onChange { it.copy(overlapBars = v.toInt(), minOverlapBars = minOf(it.minOverlapBars, v.toInt())) }
+        }
+        Lever("min overlap bars", levers.minOverlapBars.toFloat(), 2f..8f, 1f) { v ->
+            onChange { it.copy(minOverlapBars = v.toInt(), overlapBars = maxOf(it.overlapBars, v.toInt())) }
+        }
+        Lever("bass cut dB", levers.bassCutDb, -48f..-6f, 3f) { v -> onChange { it.copy(bassCutDb = v) } }
+        Lever("bass cut Hz", levers.bassCutHz.toFloat(), 80f..600f, 20f) { v ->
+            onChange { it.copy(bassCutHz = v.toInt()) }
+        }
+        Lever("bass swap beats", levers.bassSwapBeats.toFloat(), 1f..8f, 1f) { v ->
+            onChange { it.copy(bassSwapBeats = v.toInt()) }
+        }
+        Lever("outgoing bass cut starts earlier, beats", levers.bassOutgoingLeadBeats.toFloat(), 0f..4f, 1f) { v ->
+            onChange { it.copy(bassOutgoingLeadBeats = v.toInt()) }
+        }
+        Lever("volume dip on the swap dB", levers.bassSwapDipDb, -12f..0f, 1f) { v ->
+            onChange { it.copy(bassSwapDipDb = v) }
+        }
+        OutlinedButton(onClick = onReset) { Text("Levers back to the app's numbers") }
+    }
+}
+
+@Composable
+private fun Lever(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    step: Float,
+    onChange: (Float) -> Unit,
+) {
+    Column {
+        Text("$label: ${number(value.toDouble())}", style = MaterialTheme.typography.bodySmall)
+        Slider(
+            value = value.coerceIn(range.start, range.endInclusive),
+            onValueChange = { onChange(snap(it, range.start, step)) },
+            valueRange = range,
+            steps = ((range.endInclusive - range.start) / step).toInt() - 1,
+        )
+    }
+}
+
+private fun snap(
+    value: Float,
+    start: Float,
+    step: Float,
+) = start + Math.round((value - start) / step) * step

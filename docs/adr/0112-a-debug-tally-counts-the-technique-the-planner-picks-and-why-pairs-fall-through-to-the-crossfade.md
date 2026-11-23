@@ -1,0 +1,9 @@
+# 0112: A debug tally counts the technique the planner picks and why pairs fall through to the crossfade
+
+Date: 2026-11-23 · Status: proposed · Extends 0092
+
+**Context.** Phase 7b, hypothesis 1: many shuffle pairs may fall to the plain crossfade, so the owner rarely hears the DJ technique. Nothing counted the picks, and the lab shows the plan of one pair only.
+
+**Decision.** `TransitionTally` in `:core:model`: counts per technique name (`talk-outro`, `beat-match`, `crossfade`, `hard-cut`) and, for the pairs that ended in `crossfade`, a `FallThrough` reason: `NO_PROFILE`, `CONFIDENCE`, `TEMPO`, `INTRO`, `TAIL`, `OTHER` (a plan the planner refused). The reason comes from a new `TransitionTechnique.whyNot(request)` (default null); `BeatMatchTechnique` answers with the first gate that stopped it, in the order it runs them, and its `plan` is rebuilt on the same gates, so the two cannot disagree (the contract checks that a made plan has no reason). `TransitionPlanner` records every DJ-style plan when it was built with a tally; `PlaybackEngine` records the phase 6 hard cuts of the DJ style, which never reach the planner. A process-wide `@Singleton` is provided in `PlaybackModule` and shown in the Transition lab (refresh and reset buttons, so no polling). Nothing is stored or logged: no schema change, no listening-log change, and a restart of the process starts from zero.
+
+**Consequences.** A pair planned twice (a queue change before the overlap) counts twice, and manual transitions of the DJ style are counted too, so the owner should read shares over a stretch of plain shuffle. The tally costs one synchronised map update per planned transition. The lab plans through `withConfig`, which carries no tally, so lab runs never pollute the counts. Tests: `TransitionTallyTest` and the contract.

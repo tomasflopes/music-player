@@ -10,7 +10,16 @@ import org.junit.jupiter.api.Test
  * lasts 16 s, its middle bar starts at 8 s and the swap of 2 beats takes 1 s (progress 0.5 to 0.5625).
  */
 class BassCurveTest {
-    private val config = TransitionConfig()
+    /** The numbers of slice 3 (ADR 0100); the phase 7b defaults are in `BassLeversTest`. */
+    private val config =
+        TransitionConfig(
+            overlapBars = 8,
+            bassCutHz = 150,
+            bassCutDb = -24f,
+            bassSwapBeats = 2,
+            bassOutgoingLeadBeats = 0,
+            bassSwapDipDb = 0f,
+        )
     private val grid120 = BeatGrid(firstBeatMs = 500.0, tempoBpm = 120.0, beatsPerBar = 4, beatsPerPhrase = 16)
     private val curve = BassCurve.forOverlap(overlapMs = 16_000, outgoingGrid = grid120, config = config)
 
@@ -73,7 +82,7 @@ class BassCurveTest {
 
     @Test
     fun `the beat match plan carries the curve for its own overlap and grid`() {
-        val planner = TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique()))
+        val planner = TransitionPlanner(listOf(CrossfadeTechnique(), BeatMatchTechnique()), config)
         val settings =
             dev.tomasflopes.musicplayer.core.model.crossfade.CrossfadeSettings(
                 enabled = true,
