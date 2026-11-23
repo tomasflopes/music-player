@@ -16,7 +16,7 @@ data class TransitionConfig(
     val beatsPerBar: Int = 4,
     val beatsPerPhrase: Int = 16,
     val overlapBars: Int = 8,
-    val minOverlapBars: Int = 4,
+    val minOverlapBars: Int = 3,
     val maxOverlapMs: Long = 20_000,
     val easeBars: Int = 4,
     val maxSpeedStep: Double = 0.01,

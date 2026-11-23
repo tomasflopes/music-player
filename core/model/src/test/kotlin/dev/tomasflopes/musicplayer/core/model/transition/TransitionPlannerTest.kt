@@ -216,12 +216,41 @@ class TransitionPlannerTest {
     }
 
     @Test
-    fun `an intro shorter than four bars is a plain crossfade`() {
+    fun `an intro that holds three bars but not four still beat matches, as Mo Boy into 1993 does`() {
+        val moBoy =
+            transitionProfile(
+                tempo = 90.0,
+                firstBeatMs = 730.0,
+                confidence = 0.42f,
+                musicStartMs = 100,
+                introEndMs = 57_500,
+                outroStartMs = 269_900,
+                musicEndMs = 277_000,
+            )
+        val matue1993 =
+            transitionProfile(
+                tempo = 92.0,
+                firstBeatMs = 690.0,
+                confidence = 0.52f,
+                musicStartMs = 0,
+                introEndMs = 10_400,
+                outroStartMs = 116_600,
+                musicEndMs = 125_200,
+            )
+
+        val plan = overlap(planFor(outgoing = moBoy, incoming = matue1993))
+
+        assertEquals("beat-match", plan.technique)
+        assertEquals(8_000L, plan.overlapMs, "three bars of 2.667 s; four would need 10.4 s of a 9.7 s intro")
+    }
+
+    @Test
+    fun `an intro shorter than three bars is a plain crossfade`() {
         assertEquals(TransitionPlan.Fade(4_000), planFor(incoming = transitionProfile(introEndMs = 4_000)))
     }
 
     @Test
-    fun `a song too short for four bars is a plain crossfade`() {
+    fun `a song too short for three bars is a plain crossfade`() {
         val short = transitionProfile(introEndMs = 2_000, outroStartMs = 3_000, musicEndMs = 5_000)
 
         val result =
