@@ -15,8 +15,10 @@ class BassCurve(
     val swapMs: Long,
     val cutDb: Float,
 ) {
-    // The `+ 0f` turns a negative zero (cut times 0) into 0f, so the flat end compares equal to 0f.
-    /** The incoming player's shelf gain: [cutDb] before the swap, 0 after it. */
+    /**
+     * The incoming player's shelf gain: [cutDb] before the swap, 0 after it. The `+ 0f` turns a negative zero (cut
+     * times 0) into 0f, so the flat end compares equal to 0f.
+     */
     fun incomingDb(progress: Float): Float = cutDb * (1f - swapFraction(progress)) + 0f
 
     /** The outgoing player's shelf gain: 0 before the swap, [cutDb] after it. */
